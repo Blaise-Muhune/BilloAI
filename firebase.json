@@ -1,0 +1,25 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "BilloAI",
+        "supportEmail": "muyumba@andrews.edu",
+        "authorizedRedirectUris": [
+          "http://localhost",
+          "https://www.billoai.com",
+          "https://billio-ai.web.app",
+          "https://billio-ai.firebaseapp.com",
+          "https://billio-ai.vercel.app"
+        ]
+      }
+    }
+  }
+}

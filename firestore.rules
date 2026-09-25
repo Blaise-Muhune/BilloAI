@@ -1,0 +1,70 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(data) {
+      return signedIn() && request.auth.uid == data.ownerId;
+    }
+
+    function billingFieldsUnchanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(['name', 'email', 'consentAt', 'onboardedAt']);
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.plan == 'free'
+        && request.resource.data.subscriptionStatus == 'none'
+        && request.resource.data.stripeCustomerId == '';
+      allow update: if signedIn() && request.auth.uid == uid && billingFieldsUnchanged();
+    }
+
+    match /publicProfiles/{uid} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /events/{id} {
+      allow read, update, delete: if owns(resource.data);
+      allow create: if owns(request.resource.data);
+    }
+
+    match /contacts/{id} {
+      allow read, update, delete: if owns(resource.data);
+      allow create: if owns(request.resource.data);
+    }
+
+    match /tasks/{id} {
+      allow read, update, delete: if owns(resource.data);
+      allow create: if owns(request.resource.data);
+    }
+
+    match /organizedEvents/{id} {
+      allow read: if signedIn() && resource.data.organizerId == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.organizerId == request.auth.uid
+        && request.resource.data.seatLimit == 0
+        && request.resource.data.seatsUsed == 0;
+      allow update: if signedIn()
+        && resource.data.organizerId == request.auth.uid
+        && request.resource.data.organizerId == resource.data.organizerId
+        && request.resource.data.seatLimit == resource.data.seatLimit
+        && request.resource.data.joinCode == resource.data.joinCode
+        && request.resource.data.seatsUsed == resource.data.seatsUsed;
+      allow delete: if signedIn() && resource.data.organizerId == request.auth.uid;
+    }
+
+    match /eventMemberships/{id} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /rateLimits/{uid} {
+      allow read, write: if false;
+    }
+  }
+}
