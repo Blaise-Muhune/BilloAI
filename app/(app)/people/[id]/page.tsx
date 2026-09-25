@@ -61,6 +61,7 @@ export default function PersonPage() {
         event,
         contact,
         rawNote: contact.rawNote,
+        allowPublicLookup: true,
       });
       await updateContact(user.uid, contact.id, {
         structuredNote: result.structuredNote,
@@ -131,6 +132,7 @@ export default function PersonPage() {
         <PriorityBadge level={contact.relevance?.level ?? null} />
         <h1 className="serif mt-2 text-4xl">{contact.name || "Unnamed contact"}</h1>
         <p className="text-muted">{[contact.title, contact.company].filter(Boolean).join(", ")}</p>
+        {contact.otherContact ? <p className="text-sm text-muted">Also: {contact.otherContact}</p> : null}
         {contact.relevance?.opportunityType ? <p className="mt-2">{contact.relevance.opportunityType}</p> : null}
         </div>
       </div>
@@ -173,18 +175,38 @@ export default function PersonPage() {
       ) : null}
 
       {enrichment && !enrichment.unavailable ? (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Public context</h2>
+        <section className="surface space-y-2 p-4">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Who they are, in public</h2>
+          {enrichment.roleSummary ? <p className="font-semibold">{enrichment.roleSummary}</p> : null}
           <p>{enrichment.companyDescription}</p>
           <p className="text-sm text-muted">
-            {[enrichment.industry, enrichment.companySize, enrichment.roleSummary].filter(Boolean).join(" · ")}
+            {[enrichment.industry, enrichment.companySize].filter(Boolean).join(" · ")}
           </p>
+          {[
+            ["They sell", enrichment.products],
+            ["They care about", enrichment.priorities],
+            ["Public interests", enrichment.interests],
+          ]
+            .filter(([, value]) => value)
+            .map(([label, value]) => (
+              <p key={label}>
+                <span className="text-muted">{label}. </span>
+                {value}
+              </p>
+            ))}
+          {enrichment.news.map((item) => (
+            <a key={item.url} href={item.url} className="block text-sm text-accent" target="_blank" rel="noreferrer">
+              {item.title}
+            </a>
+          ))}
           {enrichment.sources.map((source) => (
             <a key={source} href={source} className="block text-sm text-accent" target="_blank" rel="noreferrer">
               {source}
             </a>
           ))}
         </section>
+      ) : enrichment?.unavailable ? (
+        <p className="text-sm text-muted">No public professional page turned up for these details. The score used the card and your note only.</p>
       ) : null}
 
       <section className="surface space-y-3 p-4">

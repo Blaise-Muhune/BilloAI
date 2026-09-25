@@ -1,7 +1,7 @@
 "use client";
 
 import { sendEmailVerification } from "firebase/auth";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { Button, Field, Steps } from "@/components/ui";
@@ -14,6 +14,8 @@ const steps = ["Welcome", "Your card", "First event", "Capture", "Email"] as con
 export default function OnboardingPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const params = useSearchParams();
+  const [host, setHost] = useState(params.get("for") === "organizer");
   const [step, setStep] = useState(0);
   const [profile, setProfile] = useState<PublicProfile>({
     name: "",
@@ -36,11 +38,15 @@ export default function OnboardingPage() {
   const [eventPart, setEventPart] = useState(0);
 
   useEffect(() => {
+    if (sessionStorage.getItem("billo-intent") === "organizer") setHost(true);
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
     void (async () => {
       const [account, card] = await Promise.all([getUser(user.uid), getPublicProfile(user.uid)]);
       if (account?.onboardedAt) {
-        router.replace("/home");
+        router.replace(host || sessionStorage.getItem("billo-intent") === "organizer" ? "/billing?plan=organizer" : "/home");
         return;
       }
       setProfile({
@@ -61,7 +67,7 @@ export default function OnboardingPage() {
     setError("");
     try {
       await markOnboarded(user.uid);
-      router.replace(nextHref);
+      router.replace(host ? "/billing?plan=organizer" : nextHref);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not finish setup.");
       setPending(false);
@@ -106,6 +112,11 @@ export default function OnboardingPage() {
         targetCompaniesOrRoles: "",
       });
       setEventId(id);
+      if (host) {
+        if (user.emailVerified) await finish("/billing?plan=organizer");
+        else setStep(4);
+        return;
+      }
       setStep(3);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create the event.");
@@ -130,24 +141,36 @@ export default function OnboardingPage() {
 
       {step === 0 ? (
         <section className="space-y-4">
-          <h1 className="serif text-4xl leading-tight">Set up BilloAI before the room gets loud.</h1>
-          <p className="text-muted">Four short steps. After this you can capture people and see who to follow up with.</p>
+          <h1 className="serif text-4xl leading-tight">
+            {host ? "Set up the event you are hosting." : "Set up BilloAI before the room gets loud."}
+          </h1>
+          <p className="text-muted">
+            {host
+              ? "Name the event, then buy seats. You will get a join code. You will not see who attendees meet."
+              : "Four short steps. After this you can capture people and see who to follow up with."}
+          </p>
           <ol className="space-y-3">
             <li className="rounded-3xl bg-foreground p-4 text-card">
               <span className="serif text-2xl text-[#9ddec8]">1</span>
-              <span className="mt-1 block font-semibold">Your card</span>
-              <span className="mt-1 block text-sm text-white/75">Name, company, and title. This is the only thing another user can scan.</span>
+              <span className="mt-1 block font-semibold">{host ? "Who you are" : "Your card"}</span>
+              <span className="mt-1 block text-sm text-white/75">
+                {host ? "Your name on the account. Attendees never see your private notes." : "Name, company, and title. This is the only thing another user can scan."}
+              </span>
             </li>
             <li className="rounded-3xl border border-dashed border-line p-4">
               <span className="serif text-2xl text-accent">2</span>
-              <span className="mt-1 block font-semibold">The event and the goal</span>
-              <span className="mt-1 block text-sm text-muted">Priority only works when BilloAI knows why you showed up.</span>
+              <span className="mt-1 block font-semibold">{host ? "The event you are running" : "The event and the goal"}</span>
+              <span className="mt-1 block text-sm text-muted">
+                {host ? "Seats attach to this event. Then you pay once and share the code." : "Priority only works when BilloAI knows why you showed up."}
+              </span>
             </li>
+            {host ? null : (
             <li className="rounded-3xl border border-dashed border-line p-4">
               <span className="serif text-2xl text-accent">3</span>
               <span className="mt-1 block font-semibold">How a capture works</span>
               <span className="mt-1 block text-sm text-muted">Scan a card, add what you talked about, then copy the follow-up yourself.</span>
             </li>
+            )}
           </ol>
           <Button type="button" className="w-full" onClick={() => setStep(1)}>
             Start
@@ -202,8 +225,8 @@ export default function OnboardingPage() {
           <Steps labels={["The event", "The goal"]} index={eventPart} />
           {eventPart === 0 ? (
             <>
-              <h1 className="serif text-4xl">Your next event</h1>
-              <p className="text-muted">Skip this if you are not heading to one yet.</p>
+              <h1 className="serif text-4xl">{host ? "The event you are hosting" : "Your next event"}</h1>
+              <p className="text-muted">{host ? "Seats will attach to this event. You cannot skip this step." : "Skip this if you are not heading to one yet."}</p>
               <Field label="Event name" value={eventName} onChange={(event) => setEventName(event.target.value)} />
               <Field label="Where" value={location} onChange={(event) => setLocation(event.target.value)} />
               <Field label="Date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
@@ -246,9 +269,11 @@ export default function OnboardingPage() {
               </div>
             </>
           )}
+          {host ? null : (
           <button type="button" className="w-full text-sm font-semibold text-muted" onClick={() => setStep(3)}>
             Skip for now
           </button>
+          )}
         </section>
       ) : null}
 
@@ -258,7 +283,7 @@ export default function OnboardingPage() {
           <p className="text-muted">One main action. The rest can wait until you need it.</p>
           <div className="rounded-3xl bg-foreground p-5 text-card">
             <p className="font-semibold">Scan a business card</p>
-            <p className="mt-1 text-sm text-white/75">The photo is read for the name and email, then discarded. You check the fields before saving.</p>
+            <p className="mt-1 text-sm text-white/75">The photo is read, then discarded. We look up who they are in public so the score matches why you went.</p>
           </div>
           <div className="rounded-3xl border border-dashed border-line p-4">
             <p className="font-semibold">Add what you talked about</p>
@@ -286,7 +311,9 @@ export default function OnboardingPage() {
         <section className="space-y-4">
           <h1 className="serif text-4xl">Verify your email</h1>
           <p className="text-muted">
-            Card reading, scoring, and drafts stay locked until {user?.email || "your email"} is verified. You can still create events and type contacts.
+            {host
+              ? `Verify ${user?.email || "your email"} so you can pay for seats.`
+              : `Your first event can use card reading now. Verify ${user?.email || "your email"} before you pay or use AI on later events.`}
           </p>
           <Button
             type="button"
@@ -299,8 +326,8 @@ export default function OnboardingPage() {
           >
             {sent ? "Verification email sent" : "Send verification email"}
           </Button>
-          <Button type="button" className="w-full" disabled={pending} onClick={() => void finish(eventId ? `/events/${eventId}` : "/home")}>
-            {pending ? "Finishing…" : "Enter BilloAI"}
+          <Button type="button" className="w-full" disabled={pending} onClick={() => void finish(host ? "/billing?plan=organizer" : eventId ? `/capture?event=${eventId}` : "/capture")}>
+            {pending ? "Finishing…" : host ? "Go pay for seats" : "Capture someone"}
           </Button>
         </section>
       ) : null}

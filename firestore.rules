@@ -11,7 +11,14 @@ service cloud.firestore {
 
     function billingFieldsUnchanged() {
       return request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['name', 'email', 'consentAt', 'onboardedAt']);
+        .hasOnly(['name', 'email', 'consentAt', 'onboardedAt', 'includedEventId'])
+        && includedEventLocked();
+    }
+
+    function includedEventLocked() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['includedEventId'])
+        || !resource.data.keys().hasAll(['includedEventId'])
+        || resource.data.includedEventId == '';
     }
 
     match /users/{uid} {

@@ -23,6 +23,7 @@ const contactSchema = z.object({
   website: z.string(),
   linkedin: z.string(),
   location: z.string(),
+  otherContact: z.string(),
 });
 
 const noteSchema = z.object({
@@ -93,14 +94,14 @@ export async function extractCard(image: string): Promise<ContactFields> {
         content: [
           {
             type: "text",
-            text: "Extract professional contact fields from this business card or profile image. Use an empty string when a field is not visible. Do not invent emails, phones, or titles.",
+            text: "Extract professional contact fields from this one person's card or profile image. Put WhatsApp, WeChat, or any other handle in otherContact. Use an empty string when a field is not visible. Do not invent emails, phones, or titles.",
           },
           { type: "image", image },
         ],
       },
     ],
   });
-  return result.output;
+  return { ...result.output, otherContact: result.output.otherContact ?? "" };
 }
 
 export async function transcribeNote(audio: Uint8Array, mediaType: string) {
@@ -124,19 +125,39 @@ async function structureNote(rawNote: string): Promise<StructuredNote> {
   return result.output;
 }
 
+function withFields(contact: ContactFields): ContactFields {
+  return {
+    name: contact.name ?? "",
+    company: contact.company ?? "",
+    title: contact.title ?? "",
+    email: contact.email ?? "",
+    phone: contact.phone ?? "",
+    website: contact.website ?? "",
+    linkedin: contact.linkedin ?? "",
+    location: contact.location ?? "",
+    otherContact: contact.otherContact ?? "",
+  };
+}
+
 async function enrich(contact: ContactFields): Promise<Enrichment> {
-  if (!contact.company && !contact.linkedin && !contact.name) return emptyEnrichment();
+  const person = withFields(contact);
+  if (!person.company && !person.linkedin && !person.name && !person.website && !person.email) return emptyEnrichment();
   try {
     const search = await generateText({
       model: openai.responses("gpt-4.1"),
       tools: { web_search: openai.tools.webSearch({}) },
       stopWhen: stepCountIs(4),
       prompt: `Find publicly available professional information only. Do not look for private, family, health, or home details.
-Person: ${contact.name}
-Title: ${contact.title}
-Company: ${contact.company}
-LinkedIn: ${contact.linkedin}
-Website: ${contact.website}
+Use every clue here to identify the same person and their current role. Prefer official company, LinkedIn, and conference pages.
+Person: ${person.name}
+Title: ${person.title}
+Company: ${person.company}
+Email: ${person.email}
+Phone: ${person.phone}
+LinkedIn: ${person.linkedin}
+Website: ${person.website}
+Location: ${person.location}
+Other: ${person.otherContact}
 Summarize company description, industry, size, role, products, public business priorities, public professional interests, and recent company news. Include source URLs. If you cannot find a fact, say it was not found.`,
     });
     const structured = await generateText({
@@ -159,9 +180,10 @@ export async function understand(input: {
   rawNote: string;
   allowPublicLookup?: boolean;
 }): Promise<UnderstandResult> {
+  const contact = withFields(input.contact);
   const [structuredNote, enrichment] = await Promise.all([
     structureNote(input.rawNote),
-    input.allowPublicLookup ? enrich(input.contact) : Promise.resolve(emptyEnrichment()),
+    input.allowPublicLookup === false ? Promise.resolve(emptyEnrichment()) : enrich(contact),
   ]);
 
   const scored = await generateText({
@@ -170,17 +192,20 @@ export async function understand(input: {
       schema: z.object({ relevance: relevanceSchema, draft: draftSchema }),
     }),
     prompt: `You help a person decide who deserves follow-up time after a networking event.
-Compare the contact with the user's goal. High means a direct fit and a reason to act within a day. Medium means useful but not the decision maker or not an immediate fit. Low means little overlap with the goal.
-Reasons must be specific. Suggested action should say what to do, including when.
+Compare the contact AND their public professional context with the user's goal. The score exists so the user can see who matches what they need.
+High means a direct fit (they buy, fund, partner, hire, or introduce toward that goal) and a reason to act within a day. Medium means useful but not the decision maker or not an immediate fit. Low means little overlap with the goal.
+opportunityType should name the match in plain words, such as "Buyer for plant automation" or "Not a fit — recruiter, not an operator".
+Reasons must cite the goal plus a conversation fact or a public fact. Do not invent private facts.
+Suggested action should say what to do, including when.
 Draft a follow-up the user will review. Never claim it was already sent. Use the conversation, the goal, and only public facts that were found. If enrichment was unavailable, do not invent company facts.
-If the note contains a date, set dueDate to YYYY-MM-DD. Otherwise use ${input.contact.name ? todayISO() : todayISO()} for high priority and ${addDays(todayISO(), 7)} for low priority.
+If the note contains a date, set dueDate to YYYY-MM-DD. Otherwise use ${todayISO()} for high priority and ${addDays(todayISO(), 7)} for low priority.
 Primary channel should be email when an email exists, intro when the person is not the decision maker, otherwise linkedin.
 
 User goal:
 ${goalText(input.event)}
 
 Contact:
-${JSON.stringify(input.contact)}
+${JSON.stringify(contact)}
 
 Conversation:
 ${input.rawNote}

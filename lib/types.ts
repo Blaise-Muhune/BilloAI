@@ -55,6 +55,7 @@ export interface UserDoc {
   stripeCustomerId: string;
   consentAt: string;
   onboardedAt?: string;
+  includedEventId?: string;
 }
 
 export interface PublicProfile {
@@ -142,6 +143,7 @@ export interface ContactFields {
   website: string;
   linkedin: string;
   location: string;
+  otherContact: string;
 }
 
 export interface ContactDoc extends ContactFields {

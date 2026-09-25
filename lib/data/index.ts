@@ -46,6 +46,7 @@ export async function ensureUser(uid: string, name: string, email: string) {
     subscriptionStatus: "none",
     stripeCustomerId: "",
     consentAt: "",
+    includedEventId: "",
   };
   const profile: PublicProfile = {
     name,
@@ -112,13 +113,21 @@ export async function createEvent(uid: string, input: EventInput) {
     createdAt: new Date().toISOString(),
   };
   const created = await addDoc(collection(firebaseDb(), "events"), payload);
+  const account = await getUser(uid);
+  if (!account?.includedEventId) {
+    await setDoc(doc(firebaseDb(), "users", uid), { includedEventId: created.id }, { merge: true });
+  }
   return created.id;
+}
+
+function asContact(id: string, data: ContactDoc): ContactRecord {
+  return mapDoc(id, { ...data, otherContact: data.otherContact ?? "" });
 }
 
 export async function listContacts(uid: string) {
   const snap = await getDocs(query(collection(firebaseDb(), "contacts"), where("ownerId", "==", uid)));
   return snap.docs
-    .map((item) => mapDoc(item.id, item.data() as ContactDoc))
+    .map((item) => asContact(item.id, item.data() as ContactDoc))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
@@ -130,7 +139,7 @@ export async function listContactsForEvent(uid: string, eventId: string) {
 export async function getContact(uid: string, id: string) {
   const snap = await getDoc(doc(firebaseDb(), "contacts", id));
   if (!snap.exists()) return null;
-  return requireOwner(mapDoc(snap.id, snap.data() as ContactDoc), uid);
+  return requireOwner(asContact(snap.id, snap.data() as ContactDoc), uid);
 }
 
 export async function createContact(uid: string, input: Omit<ContactDoc, "ownerId" | "createdAt" | "updatedAt">) {

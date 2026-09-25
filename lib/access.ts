@@ -2,7 +2,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import type { AccountPlan } from "@/lib/types";
 
 const WINDOW_MS = 60_000;
-const LIMIT = 20;
+const LIMIT = 60;
 
 export class AccessError extends Error {
   status: number;
@@ -13,14 +13,12 @@ export class AccessError extends Error {
 }
 
 export async function assertAiAccess(uid: string, emailVerified: boolean, eventId?: string) {
-  if (!emailVerified) {
-    throw new AccessError("Verify your email before using AI features.", 403);
-  }
   const user = await adminDb().collection("users").doc(uid).get();
-  const plan = user.data()?.plan as AccountPlan | undefined;
-  const status = user.data()?.subscriptionStatus as string | undefined;
-  const paid = status === "active" && (plan === "individual" || plan === "organizer");
-  if (plan === "individual" && paid) return;
+  const data = user.data();
+  const plan = data?.plan as AccountPlan | undefined;
+  const status = data?.subscriptionStatus as string | undefined;
+  const included = Boolean(eventId && (await includedOnEvent(uid, eventId, String(data?.includedEventId ?? ""))));
+  let member = false;
   if (eventId) {
     const membership = await adminDb()
       .collection("eventMemberships")
@@ -28,9 +26,24 @@ export async function assertAiAccess(uid: string, emailVerified: boolean, eventI
       .where("eventId", "==", eventId)
       .limit(1)
       .get();
-    if (!membership.empty) return;
+    member = !membership.empty;
   }
-  throw new AccessError("This feature is on the Individual plan, or included when you join a paid event.", 402);
+  if (included || member) return;
+  if (!emailVerified) {
+    throw new AccessError("Verify your email before using AI on more events.", 403);
+  }
+  if (plan === "individual" && status === "active") return;
+  throw new AccessError("Your first event includes this. After that it is on the Individual plan, or a paid seat.", 402);
+}
+
+async function includedOnEvent(uid: string, eventId: string, stored: string) {
+  if (stored && stored === eventId) return true;
+  if (stored) return false;
+  const events = await adminDb().collection("events").where("ownerId", "==", uid).get();
+  const oldest = events.docs
+    .map((item) => ({ id: item.id, createdAt: String(item.data().createdAt ?? "") }))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
+  return oldest?.id === eventId;
 }
 
 export async function assertRateLimit(uid: string) {

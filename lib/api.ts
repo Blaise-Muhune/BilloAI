@@ -9,6 +9,15 @@ async function authHeaders(json = true) {
   return headers;
 }
 
+export async function getJson<T>(path: string): Promise<T> {
+  const response = await fetch(path, { headers: await authHeaders(false) });
+  const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
+  if (!response.ok) {
+    throw new Error(payload.error || "Request failed.");
+  }
+  return payload;
+}
+
 export async function postJson<T>(path: string, body: unknown): Promise<T> {
   const response = await fetch(path, {
     method: "POST",

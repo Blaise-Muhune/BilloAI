@@ -12,11 +12,12 @@ export async function POST(request: Request) {
   const session = await sessionFromRequest(request);
   if (!session) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   if (!session.email_verified) {
-    return NextResponse.json({ error: "Verify your email before subscribing." }, { status: 403 });
+    return NextResponse.json({ error: "Verify your email before paying." }, { status: 403 });
   }
 
   const body = (await request.json()) as {
     plan?: "individual" | "organizer";
+    interval?: "month" | "year";
     eventId?: string;
     seats?: number;
   };
@@ -62,23 +63,37 @@ export async function POST(request: Request) {
       }
     }
 
-    const price = body.plan === "individual" ? process.env.STRIPE_PRICE_INDIVIDUAL : process.env.STRIPE_PRICE_ORGANIZER;
+    const price =
+      body.plan === "individual"
+        ? body.interval === "year"
+          ? process.env.STRIPE_PRICE_INDIVIDUAL_YEARLY
+          : process.env.STRIPE_PRICE_INDIVIDUAL
+        : process.env.STRIPE_PRICE_ORGANIZER;
     if (!price) return NextResponse.json({ error: "Stripe prices are not configured yet." }, { status: 500 });
 
     const origin = appOrigin(request);
+    const quantity = body.plan === "organizer" ? Number(body.seats) : 1;
     const checkout = await stripe.checkout.sessions.create({
-      mode: "subscription",
+      mode: body.plan === "organizer" ? "payment" : "subscription",
       client_reference_id: session.uid,
       customer: customerId || undefined,
       customer_email: customerId ? undefined : session.email,
       customer_update: customerId ? { address: "auto" } : undefined,
       billing_address_collection: customerId ? "required" : undefined,
       automatic_tax: { enabled: true },
-      line_items: [{ price, quantity: body.plan === "organizer" ? Number(body.seats) : 1 }],
+      line_items: [{ price, quantity }],
       success_url: `${origin}/billing?status=success`,
       cancel_url: `${origin}/billing?status=cancel`,
-      metadata: { uid: session.uid, plan: body.plan, organizedEventId },
-      subscription_data: { metadata: { uid: session.uid, plan: body.plan, organizedEventId } },
+      metadata: {
+        uid: session.uid,
+        plan: body.plan,
+        organizedEventId,
+        seats: String(quantity),
+      },
+      subscription_data:
+        body.plan === "individual"
+          ? { metadata: { uid: session.uid, plan: body.plan } }
+          : undefined,
       integration_identifier: integrationId("billoai_checkout"),
     });
 

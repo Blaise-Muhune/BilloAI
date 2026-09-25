@@ -14,12 +14,13 @@ import {
   type User,
 } from "firebase/auth";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { AuthProvider, useAuth } from "@/components/auth-provider";
 import { SupportLink } from "@/components/support";
 import { Button, Field, SetupNotice, Steps } from "@/components/ui";
 import { ensureUser, getUser, saveConsent } from "@/lib/data";
+import { INDIVIDUAL_MONTHLY_USD, usd } from "@/lib/pricing";
 import { firebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 
 function messageFor(error: unknown) {
@@ -40,7 +41,10 @@ function messageFor(error: unknown) {
 
 function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
+  const params = useSearchParams();
   const { user, ready } = useAuth();
+  const host = params.get("for") === "organizer";
+  const handingOff = useRef(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -52,8 +56,18 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const configured = isFirebaseConfigured();
 
   useEffect(() => {
-    if (ready && user) router.replace("/home");
-  }, [ready, user, router]);
+    if (host) sessionStorage.setItem("billo-intent", "organizer");
+  }, [host]);
+
+  useEffect(() => {
+    if (!ready || !user || handingOff.current) return;
+    const intent = sessionStorage.getItem("billo-intent") === "organizer";
+    if (intent) {
+      router.replace(mode === "signup" ? "/onboarding?for=organizer" : "/billing?plan=organizer");
+      return;
+    }
+    router.replace("/home");
+  }, [ready, user, router, mode]);
 
   useEffect(() => {
     if (!configured) return;
@@ -68,6 +82,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }, [configured]);
 
   async function finishAccount(account: User, fromGoogle: boolean, accepted = consent) {
+    handingOff.current = true;
     const displayName = account.displayName || name || "You";
     const accountEmail = account.email || email;
     await ensureUser(account.uid, displayName, accountEmail);
@@ -82,7 +97,8 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
       await saveConsent(account.uid);
     }
     if (!fromGoogle) await sendEmailVerification(account);
-    router.replace("/onboarding");
+    const intent = host || sessionStorage.getItem("billo-intent") === "organizer";
+    router.replace(intent ? "/onboarding?for=organizer" : "/onboarding");
   }
 
   async function onSubmit(event: React.FormEvent) {
@@ -167,9 +183,11 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
       </h1>
       <p className="mt-3 text-muted">
         {mode === "login"
-          ? "Free accounts can create events and enter contacts. Card reading, scoring, and follow-up drafts are on a paid plan."
+          ? `Your first event includes card reading and drafts. After that those tools are ${usd(INDIVIDUAL_MONTHLY_USD)} a month.`
           : signupStep === 0
-            ? "Then you will set up your card and your first event."
+            ? host
+              ? "Next you will name the event, then buy seats. You will not see attendee contacts."
+              : "Then you will set up your card and your first event."
             : "Use at least 8 characters. We will email a verification link."}
       </p>
       <div className="mt-8 space-y-4">
@@ -260,11 +278,11 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
       </p>
       <p className="mt-3 text-sm text-muted">
         {mode === "signup" ? (
-          <Link href="/login" className="font-semibold text-accent">
+          <Link href={host ? "/login?for=organizer" : "/login"} className="font-semibold text-accent">
             Already have an account
           </Link>
         ) : (
-          <Link href="/signup" className="font-semibold text-accent">
+          <Link href={host ? "/signup?for=organizer" : "/signup"} className="font-semibold text-accent">
             Create an account
           </Link>
         )}
@@ -276,7 +294,9 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
 export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
   return (
     <AuthProvider>
-      <AuthForm mode={mode} />
+      <Suspense fallback={<p className="px-5 py-10 text-muted">Loading…</p>}>
+        <AuthForm mode={mode} />
+      </Suspense>
     </AuthProvider>
   );
 }

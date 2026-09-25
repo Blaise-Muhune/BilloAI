@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       event: body.event,
       contact: body.contact,
       rawNote: body.rawNote ?? "",
-      allowPublicLookup: body.allowPublicLookup === true,
+      allowPublicLookup: body.allowPublicLookup !== false,
     });
     return NextResponse.json(result);
   } catch (error) {

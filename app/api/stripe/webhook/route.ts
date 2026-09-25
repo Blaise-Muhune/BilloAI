@@ -20,14 +20,6 @@ async function applySubscription(subscription: Stripe.Subscription) {
     { plan: status === "canceled" ? "free" : plan, subscriptionStatus: status, stripeCustomerId: customer },
     { merge: true },
   );
-  const organizedEventId = subscription.metadata.organizedEventId;
-  if (plan === "organizer" && organizedEventId) {
-    const quantity = subscription.items.data[0]?.quantity ?? 0;
-    await adminDb()
-      .collection("organizedEvents")
-      .doc(organizedEventId)
-      .set({ seatLimit: status === "active" ? quantity : 0 }, { merge: true });
-  }
 }
 
 export async function POST(request: Request) {
@@ -46,6 +38,22 @@ export async function POST(request: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
+    if (session.mode === "payment" && session.metadata?.plan === "organizer" && session.metadata.organizedEventId) {
+      const customer = typeof session.customer === "string" ? session.customer : session.customer?.id;
+      const seats = Number(session.metadata.seats || 0);
+      if (customer && session.metadata.uid) {
+        await adminDb()
+          .collection("users")
+          .doc(session.metadata.uid)
+          .set({ stripeCustomerId: customer }, { merge: true });
+      }
+      if (seats > 0) {
+        await adminDb()
+          .collection("organizedEvents")
+          .doc(session.metadata.organizedEventId)
+          .set({ seatLimit: seats }, { merge: true });
+      }
+    }
     if (session.subscription) {
       const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription.id;
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);

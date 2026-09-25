@@ -44,8 +44,10 @@ export default function HomePage() {
           BilloAI helps you remember who you met, understand who matters, and know exactly who to follow up with.
         </p>
         {user && !user.emailVerified ? (
-          <p className="mt-3 text-sm text-high">Verify your email before card reading, scoring, or drafts.</p>
-        ) : null}
+          <p className="mt-3 text-sm text-muted">Your first event can use card reading now. Verify email before you pay or use AI on later events.</p>
+        ) : (
+          <p className="mt-3 text-sm text-muted">Your first event includes card reading and drafts. After that, those tools are on a paid plan.</p>
+        )}
         {error ? (
           <p className="mt-3 text-sm text-high">
             {error}{" "}

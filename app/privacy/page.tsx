@@ -12,8 +12,9 @@ export default function PrivacyPage() {
       </p>
       <p>
         Card photos, voice notes, and typed notes are sent to our AI provider to extract fields, transcribe speech,
-        structure the conversation, and draft a follow-up. Public lookup, when you turn it on, is limited to company
-        and professional role information. It is not used to collect private, family, health, or home details.
+        structure the conversation, and draft a follow-up. After a capture we look up public professional context
+        unless you turn that off. That lookup is limited to company and role information. It is not used to collect
+        private, family, health, or home details.
       </p>
       <p>
         Follow-up drafts stay in your account until you copy them. BilloAI does not email, text, or message anyone for
