@@ -24,6 +24,18 @@ Do these when the trigger is true. Do not do them early to polish.
 - [ ] **Watch organizer seats**  
   When: the first chamber pays. If they stall at “create an event, then pay,” shorten that path. Send them `/for-organizers` only.
 
+- [ ] **Sell Team only after a company asks**  
+  When: a company wants to pay for sales, BD, or other employees (not a chamber paying for attendees). Until then, invoice yearly Individual seats.  
+  Why: Organizer is one night and the host must never see contacts. Team is year-round seats for their own people. Do not reuse organizer seats.
+
+- [ ] **Add a Team plan**  
+  When: that company is ready to pay. Price about $15/seat/month or $150/seat/year, minimum 5 seats. Admin assigns emails; each person keeps their own captures. Admin sees seat count and open high-priority follow-ups, not names, notes, or drafts.  
+  Why: cheaper than N Individual plans, one bill, seats they can move when someone leaves.
+
+- [ ] **Shared company book / CRM**  
+  When: a paying Team admin asks to own the leads, and the reps know it. Not with the first Team checkout.  
+  Why: a mixer contact is often personal. Company-owned names are a later add-on.
+
 ## After V1 is in use
 
 Do this only after people actually capture contacts at a live event.
@@ -35,4 +47,4 @@ Do this only after people actually capture contacts at a live event.
 - [ ] LinkedIn-style drafts they still send themselves
 - [ ] “Who in my network fits this new goal”
 
-Teams, attendee matching, and CRM connections wait until a host asks and is paying.
+Attendee matching waits until a host asks and is paying. Team seats and a shared book are under Pricing and hosts.
