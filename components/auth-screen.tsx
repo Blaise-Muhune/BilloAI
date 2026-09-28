@@ -42,6 +42,7 @@ function messageFor(error: unknown) {
     return "That email already uses a different sign-in method.";
   }
   if (code === "auth/unauthorized-domain") return "This site is not allowed to use Google sign-in yet.";
+  if (code === "permission-denied") return "Could not open your account. Try again.";
   return error instanceof Error ? error.message : "Could not sign in.";
 }
 
@@ -70,6 +71,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const group = isGroupIntent(forParam);
   const copy = groupCopy(groupKindFromIntent(forParam || readStoredIntent()));
   const handingOff = useRef(false);
+  const signingIn = useRef(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -84,16 +86,22 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }, [forParam, params]);
 
   useEffect(() => {
-    if (!ready || !user || handingOff.current) return;
+    if (!ready || !user || handingOff.current || signingIn.current) return;
     handingOff.current = true;
     void (async () => {
-      await ensureUser(user.uid, user.displayName || "You", user.email || "");
-      const existing = await getUser(user.uid);
-      const intent = readStoredIntent();
-      if (isGroupIntent(intent)) {
-        await saveWorkspace(user.uid, "group", existing?.groupKind || groupKindFromIntent(intent) || undefined);
+      try {
+        await user.getIdToken();
+        await ensureUser(user.uid, user.displayName || "You", user.email || "");
+        const existing = await getUser(user.uid);
+        const intent = readStoredIntent();
+        if (isGroupIntent(intent)) {
+          await saveWorkspace(user.uid, "group", existing?.groupKind || groupKindFromIntent(intent) || undefined);
+        }
+        router.replace(pathAfterAuth({ onboarded: Boolean(existing?.onboardedAt) }));
+      } catch (err) {
+        handingOff.current = false;
+        setError(messageFor(err));
       }
-      router.replace(pathAfterAuth({ onboarded: Boolean(existing?.onboardedAt) }));
     })();
   }, [ready, user, router]);
 
@@ -111,6 +119,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
     handingOff.current = true;
     const displayName = account.displayName || name || "You";
     const accountEmail = account.email || email;
+    await account.getIdToken();
     await ensureUser(account.uid, displayName, accountEmail);
     const existing = await getUser(account.uid);
     if (!existing?.consentAt) await saveConsent(account.uid);
@@ -127,6 +136,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
     setError("");
     setNotice("");
     setPending(true);
+    signingIn.current = true;
     try {
       const auth = firebaseAuth();
       if (mode === "signup") {
@@ -136,9 +146,12 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
         setNotice("Check your email to verify the account before using AI features.");
       } else {
         const credential = await signInWithEmailAndPassword(auth, email, password);
+        await credential.user.getIdToken();
         await ensureUser(credential.user.uid, credential.user.displayName || "You", credential.user.email || email);
       }
     } catch (err) {
+      handingOff.current = false;
+      signingIn.current = false;
       setError(messageFor(err));
     } finally {
       setPending(false);
@@ -148,11 +161,13 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
   async function google() {
     setError("");
     setPending(true);
+    signingIn.current = true;
     const auth = firebaseAuth();
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
     try {
       const result = await signInWithPopup(auth, provider);
+      await result.user.getIdToken();
       await finishAccount(result.user, true);
     } catch (err) {
       const code = errorCode(err);
@@ -160,6 +175,8 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
         await signInWithRedirect(auth, provider);
         return;
       }
+      handingOff.current = false;
+      signingIn.current = false;
       setError(messageFor(err));
       setPending(false);
     }

@@ -6,6 +6,7 @@ import {
   getDoc,
   getDocs,
   query,
+  runTransaction,
   setDoc,
   updateDoc,
   where,
@@ -37,31 +38,37 @@ function requireOwner<T extends { ownerId: string }>(record: T, uid: string) {
 
 export async function ensureUser(uid: string, name: string, email: string) {
   const db = firebaseDb();
-  const existing = await getDoc(doc(db, "users", uid));
-  if (existing.exists()) return;
-  const createdAt = new Date().toISOString();
-  const user: UserDoc = {
-    name,
-    email,
-    createdAt,
-    plan: "free",
-    subscriptionStatus: "none",
-    stripeCustomerId: "",
-    consentAt: "",
-    includedEventId: "",
-    workspace: "network",
-    groupKind: "",
-  };
-  const profile: PublicProfile = {
-    name,
-    company: "",
-    title: "",
-    email,
-    linkedin: "",
-    website: "",
-  };
-  await setDoc(doc(db, "users", uid), user);
-  await setDoc(doc(db, "publicProfiles", uid), profile);
+  const userRef = doc(db, "users", uid);
+  const profileRef = doc(db, "publicProfiles", uid);
+  await runTransaction(db, async (tx) => {
+    const existing = await tx.get(userRef);
+    const profile = await tx.get(profileRef);
+    if (!existing.exists()) {
+      const createdAt = new Date().toISOString();
+      tx.set(userRef, {
+        name,
+        email,
+        createdAt,
+        plan: "free",
+        subscriptionStatus: "none",
+        stripeCustomerId: "",
+        consentAt: "",
+        includedEventId: "",
+        workspace: "network",
+        groupKind: "",
+      } satisfies UserDoc);
+    }
+    if (!profile.exists()) {
+      tx.set(profileRef, {
+        name,
+        company: "",
+        title: "",
+        email,
+        linkedin: "",
+        website: "",
+      } satisfies PublicProfile);
+    }
+  });
 }
 
 export async function getPublicProfile(uid: string) {
