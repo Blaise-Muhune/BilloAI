@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
-import { Empty } from "@/components/ui";
+import { Empty, PageHeader, PageWrap } from "@/components/ui";
 import { dueBucket, type DueBucket } from "@/lib/dates";
 import { listTasks, updateTask } from "@/lib/data";
 import type { TaskRecord } from "@/lib/types";
@@ -41,8 +41,8 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="serif text-4xl">Tasks</h1>
+    <PageWrap>
+      <PageHeader kicker="Tasks" title="Stay in touch" body="Open conversations with people who fit why you went. You send the message." />
       {error ? (
         <p className="text-sm text-high">
           {error}{" "}
@@ -52,31 +52,33 @@ export default function TasksPage() {
         </p>
       ) : null}
       {open.length === 0 ? (
-        <Empty title="Your queue is clear" body="After you capture someone, the follow-up lands here." href="/capture" action="Capture someone" />
+        <Empty title="No open conversations" body="When someone is worth staying connected to, the next step lands here." href="/capture" action="Add someone you met" />
       ) : (
         groups.map((group) => {
           const items = open.filter((task) => dueBucket(task.dueDate) === group.id);
           if (!items.length) return null;
           return (
             <section key={group.id} className="space-y-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">{group.label}</h2>
-              {items.map((task) => (
-                <article key={task.id} className="surface p-4">
-                  <Link href={`/people/${task.contactId}`} className="block">
-                    <p className="font-semibold">{task.title}</p>
-                    <p className="text-sm text-muted">
-                      {task.contactName} · {task.channel}
-                    </p>
-                  </Link>
-                  <button type="button" onClick={() => void markDone(task)} className="mt-3 text-sm font-semibold text-accent">
-                    Mark done
-                  </button>
-                </article>
-              ))}
+              <h2 className="kicker">{group.label}</h2>
+              <div className="surface list-stack">
+                {items.map((task) => (
+                  <article key={task.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <Link href={`/people/${task.contactId}`} className="block min-w-0">
+                      <p className="font-semibold">{task.title}</p>
+                      <p className="text-sm text-muted">
+                        {task.contactName} · {task.channel}
+                      </p>
+                    </Link>
+                    <button type="button" onClick={() => void markDone(task)} className="self-start text-sm font-semibold text-accent sm:self-center">
+                      Mark done
+                    </button>
+                  </article>
+                ))}
+              </div>
             </section>
           );
         })
       )}
-    </div>
+    </PageWrap>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, Area, Steps } from "@/components/ui";
+import { Button, Field, Area, PageWrap, SelectField, Steps } from "@/components/ui";
 import { GOAL_LABELS, NETWORKING_GOALS, type EventInput, type NetworkingGoal } from "@/lib/types";
 
 const empty: EventInput = {
@@ -69,76 +69,83 @@ export function EventForm({ onSave }: { onSave: (input: EventInput) => Promise<v
   }
 
   return (
-    <form onSubmit={onSubmit} className="mx-auto max-w-xl space-y-4">
-      <Steps labels={labels} index={step} />
-      {step === 0 ? (
-        <>
-          <h1 className="serif text-4xl">What is the event?</h1>
-          <Field label="Event name" value={input.name} onChange={(event) => set("name", event.target.value)} required />
-          <Field label="Event type" value={input.type} onChange={(event) => set("type", event.target.value)} placeholder="Conference, chamber, meetup" required />
-        </>
-      ) : null}
-      {step === 1 ? (
-        <>
-          <h1 className="serif text-4xl">When and where?</h1>
-          <Field label="Location" value={input.location} onChange={(event) => set("location", event.target.value)} required />
-          <Field label="Date" type="date" value={input.date} onChange={(event) => set("date", event.target.value)} required />
-        </>
-      ) : null}
-      {step === 2 ? (
-        <>
-          <h1 className="serif text-4xl">What does success look like?</h1>
-          <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-muted">Goal</span>
-            <select
-              value={input.goal}
-              onChange={(event) => set("goal", event.target.value as NetworkingGoal)}
-              className="w-full rounded-2xl border border-line bg-white px-3 py-3"
-            >
-              {NETWORKING_GOALS.map((goal) => (
-                <option key={goal} value={goal}>
-                  {GOAL_LABELS[goal]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Area
-            label="In your own words"
-            value={input.goalDetail}
-            onChange={(event) => set("goalDetail", event.target.value)}
-            placeholder="Find companies that could use my AI automation services"
-            required
-          />
-        </>
-      ) : null}
-      {step === 3 ? (
-        <>
-          <h1 className="serif text-4xl">Who do you want to meet?</h1>
-          <Area
-            label="People"
-            value={input.targetPeople}
-            onChange={(event) => set("targetPeople", event.target.value)}
-            placeholder="Owners, operations managers, sales leaders"
-            required
-          />
-          <Area
-            label="Companies or roles, if you already know"
-            value={input.targetCompaniesOrRoles}
-            onChange={(event) => set("targetCompaniesOrRoles", event.target.value)}
-          />
-        </>
-      ) : null}
-      {error ? <p className="text-sm text-high">{error}</p> : null}
-      <div className="flex gap-3">
-        {step > 0 ? (
-          <Button type="button" tone="ghost" onClick={() => setStep((current) => current - 1)}>
-            Back
-          </Button>
-        ) : null}
-        <Button type="submit" disabled={pending} className="flex-1">
-          {step < 3 ? "Continue" : pending ? "Saving…" : "Create event"}
-        </Button>
+    <PageWrap>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <form onSubmit={onSubmit} className="surface space-y-5 p-6 lg:p-8">
+          <Steps labels={labels} index={step} />
+          {step === 0 ? (
+            <>
+              <h1 className="serif text-4xl">What is the event?</h1>
+              <div className="form-grid">
+                <Field label="Event name" value={input.name} onChange={(event) => set("name", event.target.value)} required />
+                <Field label="Event type" value={input.type} onChange={(event) => set("type", event.target.value)} placeholder="Conference, chamber, meetup" required />
+              </div>
+            </>
+          ) : null}
+          {step === 1 ? (
+            <>
+              <h1 className="serif text-4xl">When and where?</h1>
+              <div className="form-grid">
+                <Field label="Location" value={input.location} onChange={(event) => set("location", event.target.value)} required />
+                <Field label="Date" type="date" value={input.date} onChange={(event) => set("date", event.target.value)} required />
+              </div>
+            </>
+          ) : null}
+          {step === 2 ? (
+            <>
+              <h1 className="serif text-4xl">What does success look like?</h1>
+              <SelectField label="Goal" value={input.goal} onChange={(event) => set("goal", event.target.value as NetworkingGoal)}>
+                {NETWORKING_GOALS.map((goal) => (
+                  <option key={goal} value={goal}>
+                    {GOAL_LABELS[goal]}
+                  </option>
+                ))}
+              </SelectField>
+              <Area
+                label="In your own words"
+                value={input.goalDetail}
+                onChange={(event) => set("goalDetail", event.target.value)}
+                placeholder="Find companies that could use my AI automation services"
+                required
+              />
+            </>
+          ) : null}
+          {step === 3 ? (
+            <>
+              <h1 className="serif text-4xl">Who do you want to meet?</h1>
+              <Area
+                label="People"
+                value={input.targetPeople}
+                onChange={(event) => set("targetPeople", event.target.value)}
+                placeholder="Owners, operations managers, sales leaders"
+                required
+              />
+              <Area
+                label="Companies or roles, if you already know"
+                value={input.targetCompaniesOrRoles}
+                onChange={(event) => set("targetCompaniesOrRoles", event.target.value)}
+              />
+            </>
+          ) : null}
+          {error ? <p className="text-sm text-high">{error}</p> : null}
+          <div className="flex gap-3">
+            {step > 0 ? (
+              <Button type="button" tone="ghost" onClick={() => setStep((current) => current - 1)}>
+                Back
+              </Button>
+            ) : null}
+            <Button type="submit" disabled={pending} className="min-w-40">
+              {step < 3 ? "Continue" : pending ? "Saving…" : "Create event"}
+            </Button>
+          </div>
+        </form>
+        <aside className="hidden rounded-[1.6rem] bg-foreground p-6 text-card lg:block">
+          <p className="kicker text-[#9ddec8]">Live preview</p>
+          <p className="serif mt-4 text-3xl leading-tight">{input.name || "Your next event"}</p>
+          <p className="mt-3 text-white/70">{[input.location, input.date].filter(Boolean).join(" · ") || "Place and date"}</p>
+          <p className="mt-6 text-sm leading-relaxed text-white/65">{input.goalDetail || GOAL_LABELS[input.goal]}</p>
+        </aside>
       </div>
-    </form>
+    </PageWrap>
   );
 }

@@ -45,7 +45,7 @@ export async function POST(request: Request) {
         await adminDb()
           .collection("users")
           .doc(session.metadata.uid)
-          .set({ stripeCustomerId: customer }, { merge: true });
+          .set({ stripeCustomerId: customer, workspace: "group" }, { merge: true });
       }
       if (seats > 0) {
         await adminDb()

@@ -21,7 +21,7 @@ export default function PrivacyPage() {
         you.
       </p>
       <p>
-        If you join an organizer event, the organizer can see how many seats are used. They cannot read your contacts,
+        If you join a group a company or host paid for, they can see how many seats are used. They cannot read your contacts,
         notes, or drafts. Your QR card shows only the name, company, title, email, LinkedIn, and website you put on it.
       </p>
       <p>You can export or delete your account from the account page.</p>

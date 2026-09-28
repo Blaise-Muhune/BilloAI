@@ -1,21 +1,35 @@
 "use client";
 
-import { sendEmailVerification } from "firebase/auth";
+import { sendEmailVerification, signOut } from "firebase/auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
-import { Button, Field, Steps } from "@/components/ui";
-import { createEvent, getPublicProfile, getUser, markOnboarded, savePublicProfile } from "@/lib/data";
+import { Button, Field, LiveCard, SelectField, Steps } from "@/components/ui";
+import { postJson } from "@/lib/api";
+import { createEvent, getPublicProfile, getUser, markOnboarded, savePublicProfile, saveWorkspace } from "@/lib/data";
 import { todayISO } from "@/lib/dates";
-import { GOAL_LABELS, NETWORKING_GOALS, type NetworkingGoal, type PublicProfile } from "@/lib/types";
+import { firebaseAuth } from "@/lib/firebase/client";
+import { GOAL_LABELS, NETWORKING_GOALS, type GroupKind, type NetworkingGoal, type PublicProfile } from "@/lib/types";
+import {
+  clearJoinCode,
+  groupCopy,
+  groupKindFromIntent,
+  isGroupIntent,
+  persistAuthContext,
+  readJoinCode,
+  readJoinFrom,
+  readStoredIntent,
+} from "@/lib/workspace";
 
-const steps = ["Welcome", "Your card", "First event", "Capture", "Email"] as const;
+const steps = ["Welcome", "Your card", "First event", "Stay connected", "Email"] as const;
 
 export default function OnboardingPage() {
   const { user } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
-  const [host, setHost] = useState(params.get("for") === "organizer");
+  const [group, setGroup] = useState(isGroupIntent(params.get("for")));
+  const [kind, setKind] = useState<GroupKind | "">(groupKindFromIntent(params.get("for")));
+  const [invited, setInvited] = useState(params.get("join") === "1" || Boolean(params.get("code")));
   const [step, setStep] = useState(0);
   const [profile, setProfile] = useState<PublicProfile>({
     name: "",
@@ -38,15 +52,21 @@ export default function OnboardingPage() {
   const [eventPart, setEventPart] = useState(0);
 
   useEffect(() => {
-    if (sessionStorage.getItem("billo-intent") === "organizer") setHost(true);
-  }, []);
+    persistAuthContext({ for: params.get("for"), code: params.get("code"), from: params.get("from") });
+    if (isGroupIntent(readStoredIntent())) {
+      setGroup(true);
+      setKind(groupKindFromIntent(readStoredIntent()) || readJoinFrom());
+    }
+    if (readJoinCode() || params.get("join") === "1") setInvited(true);
+    if (readJoinFrom()) setKind(readJoinFrom());
+  }, [params]);
 
   useEffect(() => {
     if (!user) return;
     void (async () => {
       const [account, card] = await Promise.all([getUser(user.uid), getPublicProfile(user.uid)]);
       if (account?.onboardedAt) {
-        router.replace(host || sessionStorage.getItem("billo-intent") === "organizer" ? "/billing?plan=organizer" : "/home");
+        router.replace(group || isGroupIntent(readStoredIntent()) ? "/group" : invited || readJoinCode() ? `/join?code=${readJoinCode()}` : "/home");
         return;
       }
       setProfile({
@@ -59,15 +79,30 @@ export default function OnboardingPage() {
       });
       if (user.emailVerified) setStep((current) => (current === 4 ? 3 : current));
     })();
-  }, [user, router]);
+  }, [user, router, group, invited]);
 
   async function finish(nextHref: string) {
     if (!user) return;
     setPending(true);
     setError("");
     try {
+      if (group && !invited) await saveWorkspace(user.uid, "group", kind || undefined);
+      const code = readJoinCode() || params.get("code")?.trim().toLowerCase() || "";
+      if (code) {
+        try {
+          const result = await postJson<{ eventId: string }>("/api/join", { code });
+          clearJoinCode();
+          await markOnboarded(user.uid);
+          router.replace(`/capture?event=${result.eventId}`);
+          return;
+        } catch {
+          await markOnboarded(user.uid);
+          router.replace(`/join?code=${encodeURIComponent(code)}`);
+          return;
+        }
+      }
       await markOnboarded(user.uid);
-      router.replace(host ? "/billing?plan=organizer" : nextHref);
+      router.replace(group ? "/billing?plan=organizer" : nextHref);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not finish setup.");
       setPending(false);
@@ -84,6 +119,11 @@ export default function OnboardingPage() {
     setError("");
     try {
       await savePublicProfile(user.uid, profile);
+      if (invited) {
+        if (user.emailVerified) await finish("/home");
+        else setStep(4);
+        return;
+      }
       setStep(2);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save your card.");
@@ -112,7 +152,7 @@ export default function OnboardingPage() {
         targetCompaniesOrRoles: "",
       });
       setEventId(id);
-      if (host) {
+      if (group) {
         if (user.emailVerified) await finish("/billing?plan=organizer");
         else setStep(4);
         return;
@@ -126,211 +166,296 @@ export default function OnboardingPage() {
   }
 
   const last = user?.emailVerified ? 3 : 4;
+  const copy = groupCopy(kind);
+  const welcomeItems = invited
+    ? [
+        { n: "1", title: "Your card", body: "Name, company, and title. This is the only thing another user can scan." },
+        { n: "2", title: "Join what they paid for", body: copy.joinBody },
+      ]
+    : group
+      ? [
+          { n: "1", title: "Who you are", body: "Your name on the account. People you pay for never see your private notes." },
+          { n: "2", title: "The event or week", body: "Seats attach to this. Then you pay once and share the join link." },
+        ]
+      : [
+          { n: "1", title: "Your card", body: "Name, company, and title. This is the only thing another user can scan." },
+          { n: "2", title: "The event and the goal", body: "Priority only works when BilloAI knows why you showed up." },
+          { n: "3", title: "Stay connected", body: "We’ll show who fits why you went, and a note you can send yourself." },
+        ];
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
-      <div className="flex gap-2" aria-label="Setup progress">
-        {steps.slice(0, last + 1).map((label, index) => (
-          <span key={label} className={`h-1.5 flex-1 rounded-full ${index <= step ? "bg-accent" : "bg-line"}`} />
-        ))}
-      </div>
-      <p className="kicker">
-        Step {step + 1} of {last + 1}
-      </p>
-      {error ? <p className="text-sm text-high">{error}</p> : null}
+    <div className="min-h-full lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(24rem,32rem)]">
+      <div className="flex min-h-full flex-col px-5 py-8 sm:px-10 lg:px-14 lg:py-12">
+        <div className="flex items-center justify-between gap-4">
+          <p className="serif text-2xl">BilloAI</p>
+          <div className="flex items-center gap-4">
+            <p className="kicker">
+              Step {step + 1} of {last + 1}
+            </p>
+            <button
+              type="button"
+              className="text-sm font-semibold text-muted hover:text-foreground"
+              onClick={async () => {
+                await signOut(firebaseAuth());
+                router.replace("/login");
+              }}
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+        <div className="mt-6 flex gap-2" aria-label="Setup progress">
+          {steps.slice(0, last + 1).map((label, index) => (
+            <span key={label} className={`h-1.5 flex-1 rounded-full ${index <= step ? "bg-accent" : "bg-line"}`} />
+          ))}
+        </div>
+        {error ? <p className="mt-4 text-sm text-high">{error}</p> : null}
 
-      {step === 0 ? (
-        <section className="space-y-4">
-          <h1 className="serif text-4xl leading-tight">
-            {host ? "Set up the event you are hosting." : "Set up BilloAI before the room gets loud."}
-          </h1>
-          <p className="text-muted">
-            {host
-              ? "Name the event, then buy seats. You will get a join code. You will not see who attendees meet."
-              : "Four short steps. After this you can capture people and see who to follow up with."}
-          </p>
-          <ol className="space-y-3">
-            <li className="rounded-3xl bg-foreground p-4 text-card">
-              <span className="serif text-2xl text-[#9ddec8]">1</span>
-              <span className="mt-1 block font-semibold">{host ? "Who you are" : "Your card"}</span>
-              <span className="mt-1 block text-sm text-white/75">
-                {host ? "Your name on the account. Attendees never see your private notes." : "Name, company, and title. This is the only thing another user can scan."}
-              </span>
-            </li>
-            <li className="rounded-3xl border border-dashed border-line p-4">
-              <span className="serif text-2xl text-accent">2</span>
-              <span className="mt-1 block font-semibold">{host ? "The event you are running" : "The event and the goal"}</span>
-              <span className="mt-1 block text-sm text-muted">
-                {host ? "Seats attach to this event. Then you pay once and share the code." : "Priority only works when BilloAI knows why you showed up."}
-              </span>
-            </li>
-            {host ? null : (
-            <li className="rounded-3xl border border-dashed border-line p-4">
-              <span className="serif text-2xl text-accent">3</span>
-              <span className="mt-1 block font-semibold">How a capture works</span>
-              <span className="mt-1 block text-sm text-muted">Scan a card, add what you talked about, then copy the follow-up yourself.</span>
-            </li>
-            )}
-          </ol>
-          <Button type="button" className="w-full" onClick={() => setStep(1)}>
-            Start
-          </Button>
-        </section>
-      ) : null}
+        <div className="mt-8 flex flex-1 flex-col">
+          {step === 0 ? (
+            <section className="flex flex-1 flex-col">
+              <h1 className="serif max-w-3xl text-4xl leading-[1.08] sm:text-5xl xl:text-[3.35rem]">
+                {invited ? copy.joinTitle : group ? "Set up the group you are paying for." : "Set up BilloAI before the room gets loud."}
+              </h1>
+              <p className="mt-4 max-w-2xl text-lg text-muted">
+                {invited
+                  ? copy.joinBody
+                  : group
+                    ? "Name the event or week, then buy seats. You get a join link. You will not see who they meet."
+                    : "Four short steps. After this you’ll know who from the night is worth staying connected to."}
+              </p>
+              <ol className={`mt-10 grid gap-4 ${group || invited ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
+                {welcomeItems.map((item, index) => (
+                  <li
+                    key={item.n}
+                    className={`rounded-[1.6rem] p-5 ${
+                      index === 0 ? "bg-foreground text-card" : "border border-line bg-card"
+                    }`}
+                  >
+                    <span className={`serif text-3xl ${index === 0 ? "text-[#9ddec8]" : "text-accent"}`}>{item.n}</span>
+                    <span className="mt-3 block text-lg font-semibold">{item.title}</span>
+                    <span className={`mt-2 block text-sm leading-relaxed ${index === 0 ? "text-white/70" : "text-muted"}`}>
+                      {item.body}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <div className="mt-10">
+                <Button type="button" className="w-full sm:w-auto sm:min-w-48" onClick={() => setStep(1)}>
+                  Start setup
+                </Button>
+              </div>
+            </section>
+          ) : null}
 
-      {step === 1 ? (
-        <section className="space-y-4">
-          <Steps labels={["Who you are", "Email"]} index={cardPart} />
-          {cardPart === 0 ? (
-            <>
-              <h1 className="serif text-4xl">Your card</h1>
+          {step === 1 ? (
+            <section className="max-w-3xl space-y-5">
+              <div className="lg:hidden">
+                <Steps labels={["Who you are", "Email"]} index={cardPart} />
+              </div>
+              <h1 className="serif text-4xl xl:text-5xl">{cardPart === 0 ? "Your card" : "Your email on the card"}</h1>
               <p className="text-muted">People who scan your BilloAI QR see only these fields. Notes stay private.</p>
-              <Field label="Name" value={profile.name} onChange={(event) => setProfile({ ...profile, name: event.target.value })} required />
-              <Field label="Company" value={profile.company} onChange={(event) => setProfile({ ...profile, company: event.target.value })} />
-              <Field label="Title" value={profile.title} onChange={(event) => setProfile({ ...profile, title: event.target.value })} />
-              <Button
-                type="button"
-                className="w-full"
-                onClick={() => {
-                  if (!profile.name.trim()) {
-                    setError("Add the name people should see on your card.");
-                    return;
-                  }
-                  setError("");
-                  setCardPart(1);
-                }}
-              >
-                Continue
-              </Button>
-            </>
-          ) : (
-            <>
-              <h1 className="serif text-4xl">Your email on the card</h1>
-              <Field label="Email" type="email" value={profile.email} onChange={(event) => setProfile({ ...profile, email: event.target.value })} />
-              <div className="flex gap-3">
-                <Button type="button" tone="ghost" onClick={() => setCardPart(0)}>
-                  Back
-                </Button>
-                <Button type="button" className="flex-1" disabled={pending} onClick={() => void saveCard()}>
-                  {pending ? "Saving…" : "Save card"}
-                </Button>
+              <div className="form-grid">
+                {cardPart === 0 ? (
+                  <>
+                    <Field label="Name" value={profile.name} onChange={(event) => setProfile({ ...profile, name: event.target.value })} required />
+                    <Field label="Company" value={profile.company} onChange={(event) => setProfile({ ...profile, company: event.target.value })} />
+                    <Field label="Title" value={profile.title} onChange={(event) => setProfile({ ...profile, title: event.target.value })} className="lg:col-span-2" />
+                  </>
+                ) : (
+                  <Field label="Email" type="email" value={profile.email} onChange={(event) => setProfile({ ...profile, email: event.target.value })} className="lg:col-span-2" />
+                )}
               </div>
-            </>
-          )}
-        </section>
-      ) : null}
+              <div className="flex flex-wrap gap-3">
+                {cardPart === 1 ? (
+                  <Button type="button" tone="ghost" onClick={() => setCardPart(0)}>
+                    Back
+                  </Button>
+                ) : null}
+                {cardPart === 0 ? (
+                  <Button
+                    type="button"
+                    className="min-w-40"
+                    onClick={() => {
+                      if (!profile.name.trim()) {
+                        setError("Add the name people should see on your card.");
+                        return;
+                      }
+                      setError("");
+                      setCardPart(1);
+                    }}
+                  >
+                    Continue
+                  </Button>
+                ) : (
+                  <Button type="button" className="min-w-40" disabled={pending} onClick={() => void saveCard()}>
+                    {pending ? "Saving…" : "Save card"}
+                  </Button>
+                )}
+              </div>
+            </section>
+          ) : null}
 
-      {step === 2 ? (
-        <section className="space-y-4">
-          <Steps labels={["The event", "The goal"]} index={eventPart} />
-          {eventPart === 0 ? (
-            <>
-              <h1 className="serif text-4xl">{host ? "The event you are hosting" : "Your next event"}</h1>
-              <p className="text-muted">{host ? "Seats will attach to this event. You cannot skip this step." : "Skip this if you are not heading to one yet."}</p>
-              <Field label="Event name" value={eventName} onChange={(event) => setEventName(event.target.value)} />
-              <Field label="Where" value={location} onChange={(event) => setLocation(event.target.value)} />
-              <Field label="Date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+          {step === 2 ? (
+            <section className="max-w-3xl space-y-5">
+              <div className="lg:hidden">
+                <Steps labels={["The event", "The goal"]} index={eventPart} />
+              </div>
+              <h1 className="serif text-4xl xl:text-5xl">
+                {eventPart === 0 ? (group ? "The event or week seats attach to" : "Your next event") : "What does success look like?"}
+              </h1>
+              <p className="text-muted">
+                {eventPart === 0
+                  ? group
+                    ? "Seats attach to this. You cannot skip this step."
+                    : "Skip this if you are not heading to one yet."
+                  : "This sentence is how we know who is worth staying connected to."}
+              </p>
+              {eventPart === 0 ? (
+                <div className="form-grid">
+                  <Field label="Event name" value={eventName} onChange={(event) => setEventName(event.target.value)} />
+                  <Field label="Where" value={location} onChange={(event) => setLocation(event.target.value)} />
+                  <Field label="Date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <SelectField value={goal} onChange={(event) => setGoal(event.target.value as NetworkingGoal)} label="Goal">
+                    {NETWORKING_GOALS.map((item) => (
+                      <option key={item} value={item}>
+                        {GOAL_LABELS[item]}
+                      </option>
+                    ))}
+                  </SelectField>
+                  <Field
+                    label="In your own words"
+                    value={goalDetail}
+                    onChange={(event) => setGoalDetail(event.target.value)}
+                    placeholder="Find operators who need automation"
+                  />
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-3">
+                {eventPart === 1 ? (
+                  <Button type="button" tone="ghost" onClick={() => setEventPart(0)}>
+                    Back
+                  </Button>
+                ) : null}
+                {eventPart === 0 ? (
+                  <Button
+                    type="button"
+                    className="min-w-40"
+                    onClick={() => {
+                      setError("");
+                      setEventPart(1);
+                    }}
+                  >
+                    Continue
+                  </Button>
+                ) : (
+                  <Button type="button" className="min-w-40" disabled={pending} onClick={() => void saveEvent()}>
+                    {pending ? "Saving…" : "Create event"}
+                  </Button>
+                )}
+                {group ? null : (
+                  <button type="button" className="text-sm font-semibold text-muted" onClick={() => setStep(3)}>
+                    Skip for now
+                  </button>
+                )}
+              </div>
+            </section>
+          ) : null}
+
+          {step === 3 ? (
+            <section className="max-w-4xl space-y-6">
+              <h1 className="serif text-4xl xl:text-5xl">Keep the people you meet</h1>
+              <p className="max-w-2xl text-muted">Save them, say what you talked about, and see who is worth staying connected to.</p>
+              <div className="grid gap-4 lg:grid-cols-3">
+                <div className="rounded-[1.6rem] bg-foreground p-6 text-card">
+                  <p className="font-semibold">Save who you met</p>
+                  <p className="mt-2 text-sm leading-relaxed text-white/70">
+                    A card photo is read, then discarded. We look them up in public so the match uses more than a name.
+                  </p>
+                </div>
+                <div className="rounded-[1.6rem] border border-line bg-card p-6">
+                  <p className="font-semibold">Say what you talked about</p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">Type it or speak it. That conversation is how we know if they fit why you went.</p>
+                </div>
+                <div className="rounded-[1.6rem] border border-line bg-card p-6">
+                  <p className="font-semibold">Stay connected if they fit</p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">You’ll get a note you can send. Nothing goes out on its own.</p>
+                </div>
+              </div>
               <Button
                 type="button"
-                className="w-full"
+                className="min-w-52"
+                disabled={pending}
                 onClick={() => {
-                  setError("");
-                  setEventPart(1);
+                  if (user?.emailVerified) void finish(eventId ? `/capture?event=${eventId}` : "/home");
+                  else setStep(4);
                 }}
               >
-                Continue
+                {user?.emailVerified ? "Add someone you met" : "Continue"}
               </Button>
-            </>
-          ) : (
-            <>
-              <h1 className="serif text-4xl">What does success look like?</h1>
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-muted">Goal</span>
-                <select
-                  value={goal}
-                  onChange={(event) => setGoal(event.target.value as NetworkingGoal)}
-                  className="w-full rounded-2xl border border-line bg-white px-3 py-3"
+            </section>
+          ) : null}
+
+          {step === 4 ? (
+            <section className="max-w-xl space-y-5">
+              <h1 className="serif text-4xl xl:text-5xl">Verify your email</h1>
+              <p className="text-muted">
+                {group
+                  ? `Verify ${user?.email || "your email"} so you can pay for seats.`
+                  : invited
+                    ? `Verify ${user?.email || "your email"}, then you will join what they set up for you.`
+                    : `Your first event can match people you meet now. Verify ${user?.email || "your email"} before you pay or use that on later events.`}
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  type="button"
+                  tone="ghost"
+                  onClick={() => {
+                    if (!user) return;
+                    void sendEmailVerification(user).then(() => setSent(true));
+                  }}
                 >
-                  {NETWORKING_GOALS.map((item) => (
-                    <option key={item} value={item}>
-                      {GOAL_LABELS[item]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <Field label="In your own words" value={goalDetail} onChange={(event) => setGoalDetail(event.target.value)} placeholder="Find operators who need automation" />
-              <div className="flex gap-3">
-                <Button type="button" tone="ghost" onClick={() => setEventPart(0)}>
-                  Back
+                  {sent ? "Verification email sent" : "Send verification email"}
                 </Button>
-                <Button type="button" className="flex-1" disabled={pending} onClick={() => void saveEvent()}>
-                  {pending ? "Saving…" : "Create event"}
+                <Button type="button" disabled={pending} onClick={() => void finish(group ? "/billing?plan=organizer" : eventId ? `/capture?event=${eventId}` : "/capture")}>
+                  {pending ? "Finishing…" : group ? "Go pay for seats" : invited ? "Join" : "Add someone you met"}
                 </Button>
               </div>
-            </>
-          )}
-          {host ? null : (
-          <button type="button" className="w-full text-sm font-semibold text-muted" onClick={() => setStep(3)}>
-            Skip for now
-          </button>
-          )}
-        </section>
-      ) : null}
-
-      {step === 3 ? (
-        <section className="space-y-4">
-          <h1 className="serif text-4xl">At the event</h1>
-          <p className="text-muted">One main action. The rest can wait until you need it.</p>
-          <div className="rounded-3xl bg-foreground p-5 text-card">
-            <p className="font-semibold">Scan a business card</p>
-            <p className="mt-1 text-sm text-white/75">The photo is read, then discarded. We look up who they are in public so the score matches why you went.</p>
+            </section>
+          ) : null}
+        </div>
+      </div>
+      <aside className="preview-pane hidden min-h-full flex-col justify-between px-10 py-12 text-card lg:flex">
+        <div>
+          <p className="kicker text-[#9ddec8]">{step < 2 ? "What others can scan" : "Why this event exists"}</p>
+          <div className="mt-8">
+            {step < 2 ? (
+              <LiveCard
+                name={profile.name || "Your name"}
+                line={[profile.title, profile.company].filter(Boolean).join(" · ") || "Title and company"}
+                footer={profile.email || user?.email || "Email on the card"}
+              />
+            ) : (
+              <LiveCard
+                kicker="Tonight"
+                name={eventName || "Your next event"}
+                line={`${location || "Place"}${date ? ` · ${date}` : ""}`}
+                footer={goalDetail || GOAL_LABELS[goal]}
+              />
+            )}
           </div>
-          <div className="rounded-3xl border border-dashed border-line p-4">
-            <p className="font-semibold">Add what you talked about</p>
-            <p className="mt-1 text-sm text-muted">Type it or speak it. That note is what the priority is based on.</p>
-          </div>
-          <div className="rounded-3xl border border-dashed border-line p-4">
-            <p className="font-semibold">Copy the follow-up</p>
-            <p className="mt-1 text-sm text-muted">BilloAI drafts it. You send it. Nothing goes out on its own.</p>
-          </div>
-          <Button
-            type="button"
-            className="w-full"
-            disabled={pending}
-            onClick={() => {
-              if (user?.emailVerified) void finish(eventId ? `/capture?event=${eventId}` : "/home");
-              else setStep(4);
-            }}
-          >
-            {user?.emailVerified ? "Go capture someone" : "Continue"}
-          </Button>
-        </section>
-      ) : null}
-
-      {step === 4 ? (
-        <section className="space-y-4">
-          <h1 className="serif text-4xl">Verify your email</h1>
-          <p className="text-muted">
-            {host
-              ? `Verify ${user?.email || "your email"} so you can pay for seats.`
-              : `Your first event can use card reading now. Verify ${user?.email || "your email"} before you pay or use AI on later events.`}
-          </p>
-          <Button
-            type="button"
-            tone="ghost"
-            className="w-full"
-            onClick={() => {
-              if (!user) return;
-              void sendEmailVerification(user).then(() => setSent(true));
-            }}
-          >
-            {sent ? "Verification email sent" : "Send verification email"}
-          </Button>
-          <Button type="button" className="w-full" disabled={pending} onClick={() => void finish(host ? "/billing?plan=organizer" : eventId ? `/capture?event=${eventId}` : "/capture")}>
-            {pending ? "Finishing…" : host ? "Go pay for seats" : "Capture someone"}
-          </Button>
-        </section>
-      ) : null}
+        </div>
+        <p className="max-w-sm text-sm leading-relaxed text-white/55">
+          {group
+            ? "You will see counts. You will not see their contacts, notes, or drafts."
+            : invited
+              ? copy.neverSee
+              : "Notes stay private. The card is the only thing another BilloAI user can scan."}
+        </p>
+      </aside>
     </div>
   );
 }

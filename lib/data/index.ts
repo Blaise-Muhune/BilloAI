@@ -22,6 +22,8 @@ import type {
   TaskDoc,
   TaskRecord,
   UserDoc,
+  Workspace,
+  GroupKind,
 } from "@/lib/types";
 
 function mapDoc<T>(id: string, data: T) {
@@ -47,6 +49,8 @@ export async function ensureUser(uid: string, name: string, email: string) {
     stripeCustomerId: "",
     consentAt: "",
     includedEventId: "",
+    workspace: "network",
+    groupKind: "",
   };
   const profile: PublicProfile = {
     name,
@@ -78,6 +82,12 @@ export async function saveConsent(uid: string) {
 
 export async function markOnboarded(uid: string) {
   await setDoc(doc(firebaseDb(), "users", uid), { onboardedAt: new Date().toISOString() }, { merge: true });
+}
+
+export async function saveWorkspace(uid: string, workspace: Workspace, groupKind?: GroupKind | "") {
+  const patch: { workspace: Workspace; groupKind?: GroupKind | "" } = { workspace };
+  if (groupKind !== undefined) patch.groupKind = groupKind;
+  await setDoc(doc(firebaseDb(), "users", uid), patch, { merge: true });
 }
 
 export async function savePublicProfile(uid: string, profile: PublicProfile) {

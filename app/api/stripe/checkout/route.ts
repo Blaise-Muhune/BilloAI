@@ -56,6 +56,7 @@ export async function POST(request: Request) {
           seatsUsed: 0,
           joinCode: joinCode(),
           createdAt: new Date().toISOString(),
+          groupKind: user.data()?.groupKind === "company" || user.data()?.groupKind === "event" ? user.data()?.groupKind : "",
         });
         organizedEventId = created.id;
       } else {
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
       billing_address_collection: customerId ? "required" : undefined,
       automatic_tax: { enabled: true },
       line_items: [{ price, quantity }],
-      success_url: `${origin}/billing?status=success`,
+      success_url: body.plan === "organizer" ? `${origin}/group?status=success` : `${origin}/billing?status=success`,
       cancel_url: `${origin}/billing?status=cancel`,
       metadata: {
         uid: session.uid,

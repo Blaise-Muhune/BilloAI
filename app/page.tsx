@@ -1,25 +1,35 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Avatar, PriorityBadge } from "@/components/ui";
 import { SupportLink } from "@/components/support";
 import { INDIVIDUAL_MONTHLY_USD, INDIVIDUAL_YEARLY_USD, ORGANIZER_SEAT_USD, usd } from "@/lib/pricing";
 
 export const metadata: Metadata = {
-  title: "Know who to follow up with",
-  description: "Set the goal for your event. BilloAI shows who matches it and drafts the follow-up. You send it.",
+  title: "Know who from the room is worth staying connected to",
+  description: "After you network, BilloAI shows who matched why you went, and a note so you can keep the conversation going. You send it.",
 };
 
-const steps = [
+const people = [
+  { name: "Maya Chen", detail: "Ops director, Northline", level: "high" as const },
+  { name: "Priya Shah", detail: "Plant manager, Ford supplier", level: "medium" as const },
+  { name: "Jon Park", detail: "Recruiter, Apex Talent", level: "low" as const },
+];
+
+const chapters = [
   {
-    title: "Say why you are going",
-    body: "Customers, partners, a job, or something else. That goal is how a contact gets marked high, medium, or low.",
+    n: "01",
+    title: "Name the night, and why you went",
+    body: "Customers, partners, a hire, a check. That sentence is how a stranger becomes worth staying connected to — not a guess on the way home.",
   },
   {
-    title: "Keep the person while you remember them",
-    body: "Scan a card or type a name, then add what you talked about. We look them up in public and score them against your goal. The photo is not stored.",
+    n: "02",
+    title: "Keep the people you met",
+    body: "Save a card, a name, or a LinkedIn, plus one line about the conversation. The photo is read and discarded.",
   },
   {
-    title: "Leave with the one follow-up that matters",
-    body: "You get a draft for the people who fit the goal. You copy it and send it yourself.",
+    n: "03",
+    title: "See who is worth staying connected to",
+    body: "We look them up in public, match them to your goal, and write a note you can send. Nothing goes out on its own.",
   },
 ];
 
@@ -28,109 +38,195 @@ const plans = [
     name: "Free",
     price: usd(0),
     unit: "to start",
-    body: "Create events and type contacts. Card reading and drafts on your first event.",
+    body: "Events and typed contacts. Matching who you met to your goal on your first event.",
     href: "/signup",
     action: "Start free",
+    featured: false,
   },
   {
     name: "Individual",
     price: usd(INDIVIDUAL_MONTHLY_USD),
     unit: "per month",
-    body: `After the first event, keep those tools on every event. ${usd(INDIVIDUAL_YEARLY_USD)} if you pay the year.`,
+    body: `Keep seeing who is worth staying connected to on every event after the first. ${usd(INDIVIDUAL_YEARLY_USD)} if you pay the year.`,
     href: "/signup",
     action: "Get Individual",
+    featured: true,
   },
   {
-    name: "Organizer",
+    name: "Group",
     price: usd(ORGANIZER_SEAT_USD),
-    unit: "per seat, once, for that event",
-    body: "Attendees get the paid tools for that event. You never see their contacts.",
-    href: "/signup",
-    action: "Get Organizer",
+    unit: "per seat, once",
+    body: "Pay for a company, a sales team, or a room. They keep who they met. You see counts.",
+    href: "/signup?for=group",
+    action: "Set up a group",
+    featured: false,
   },
 ];
 
 export default function LandingPage() {
   return (
-    <div className="mx-auto min-h-full max-w-5xl px-5">
-      <header className="flex items-center justify-between py-5">
-        <p className="serif text-2xl">BilloAI</p>
-        <nav className="flex items-center gap-4 text-sm font-semibold">
-          <Link href="/for-organizers" className="text-muted">
-            For organizers
+    <div className="landing-shell min-h-full">
+      <header className="sticky top-0 z-30 border-b border-line/80 bg-background/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4">
+          <Link href="/" className="flex items-center gap-2.5">
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-semibold text-accent-ink" aria-hidden>
+              B
+            </span>
+            <span className="serif text-2xl leading-none">BilloAI</span>
           </Link>
-          <Link href="#pricing" className="text-muted">
-            Pricing
-          </Link>
-          <Link href="/login" className="text-muted">
-            Sign in
-          </Link>
-          <Link href="/signup" className="rounded-full bg-accent px-4 py-2 text-accent-ink">
-            Start free
-          </Link>
-        </nav>
+          <nav className="flex items-center gap-2 text-sm font-semibold sm:gap-5">
+            <Link href="/for-organizers" className="hidden text-muted hover:text-foreground sm:inline">
+              For groups
+            </Link>
+            <Link href="#pricing" className="hidden text-muted hover:text-foreground sm:inline">
+              Pricing
+            </Link>
+            <Link href="/login" className="text-muted hover:text-foreground">
+              Sign in
+            </Link>
+            <Link href="/signup" className="rounded-full bg-accent px-4 py-2 text-accent-ink shadow-[0_8px_20px_rgb(11_107_79/0.22)]">
+              Start free
+            </Link>
+          </nav>
+        </div>
       </header>
 
-      <main className="pb-20">
-        <section className="grid items-center gap-10 py-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(16rem,0.9fr)]">
+      <main>
+        <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-8 pt-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)] lg:gap-16 lg:pt-20">
           <div>
             <p className="kicker text-accent">After the handshake</p>
-            <h1 className="serif mt-3 max-w-xl text-5xl leading-[1.05]">Know who to follow up with before the night is over.</h1>
-            <p className="mt-4 max-w-xl text-lg text-muted">
-              You tell BilloAI why you came. It keeps who you met, marks who fits that goal, and writes the note. You send it.
+            <h1 className="serif mt-4 max-w-[16ch] text-[2.7rem] leading-[1.05] tracking-tight sm:text-6xl">
+              Leave knowing who from the room is worth staying connected to.
+            </h1>
+            <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted">
+              You say why you came. BilloAI keeps who you met, marks who fits that, and gives you a note to continue the conversation. You send it.
             </p>
-            <div className="mt-8">
+            <div className="mt-9 flex flex-wrap items-center gap-3">
               <Link
                 href="/signup"
-                className="inline-block rounded-full bg-accent px-6 py-3.5 text-base font-semibold text-accent-ink shadow-[0_8px_20px_rgb(11_107_79/0.25)]"
+                className="inline-flex rounded-full bg-accent px-7 py-3.5 text-base font-semibold text-accent-ink shadow-[0_10px_28px_rgb(11_107_79/0.28)]"
               >
                 Set up your next event
               </Link>
-              <p className="mt-3 max-w-sm text-sm text-muted">
-                Your first event includes card reading and drafts. After that, {usd(INDIVIDUAL_MONTHLY_USD)} a month. You send every message yourself.
-              </p>
+              <Link href="#how" className="inline-flex rounded-full border border-line bg-card px-6 py-3.5 text-base font-semibold">
+                See how it works
+              </Link>
             </div>
+            <ul className="mt-8 flex max-w-lg flex-col gap-2 text-sm text-muted sm:flex-row sm:flex-wrap sm:gap-x-6">
+              <li>First event includes AI</li>
+              <li>You send every message</li>
+              <li>Card photos are not stored</li>
+            </ul>
           </div>
 
-          <aside className="surface p-5" aria-label="Example follow-up">
-            <p className="kicker">Example draft</p>
-            <div className="mt-4 flex items-start justify-between gap-3">
-              <span>
-                <span className="block font-semibold">Maya Chen</span>
-                <span className="text-sm text-muted">Operations director, Northline</span>
-              </span>
-              <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-high">High</span>
+          <div className="relative mx-auto w-full max-w-md lg:mx-0 lg:max-w-none">
+            <div className="absolute -left-5 top-8 hidden w-44 -rotate-6 rounded-2xl border border-line bg-card p-3.5 text-xs shadow-[0_16px_40px_rgb(40_28_12/0.12)] lg:block">
+              <p className="text-[0.65rem] font-bold tracking-[0.14em] text-muted">NORTHLINE</p>
+              <p className="mt-2 font-semibold">Maya Chen</p>
+              <p className="text-muted">Operations director</p>
+              <p className="mt-2 text-muted">maya@northline.co</p>
             </div>
-            <p className="mt-4 rounded-2xl bg-[#f7f3ea] px-3 py-3 text-sm leading-relaxed">
-              Maya — good to meet you at the expo. You mentioned the night shift still logs downtime on paper. I can send the one-page version of how we automate that. Want it this week?
-            </p>
-            <p className="mt-3 text-sm text-muted">You copy this and send it. BilloAI does not send it for you.</p>
-          </aside>
+            <aside className="landing-frame relative overflow-hidden rounded-[1.6rem] border border-line bg-card" aria-label="Example of a scored night">
+              <div className="bg-foreground px-5 py-4 text-card">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9ddec8]">Tonight</p>
+                <p className="serif mt-1 text-2xl">Chamber mixer</p>
+                <p className="mt-1 text-sm text-white/70">Find operators who need automation</p>
+              </div>
+              <div className="space-y-1 p-3">
+                {people.map((person) => (
+                  <div
+                    key={person.name}
+                    className={`flex items-center gap-3 rounded-2xl px-3 py-3 ${person.level === "high" ? "bg-[#f7f3ea]" : ""}`}
+                  >
+                    <Avatar name={person.name} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold">{person.name}</span>
+                      <span className="block truncate text-sm text-muted">{person.detail}</span>
+                    </span>
+                    <PriorityBadge level={person.level} />
+                  </div>
+                ))}
+              </div>
+              <div className="border-t border-line px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Draft · not sent</p>
+                <p className="mt-2 text-sm leading-relaxed">
+                  Maya — good to meet you at the expo. You mentioned the night shift still logs downtime on paper. I can send the one-page version of how we automate that. Want it this week?
+                </p>
+              </div>
+            </aside>
+          </div>
         </section>
 
-        <section className="mt-8 grid gap-4 md:grid-cols-3">
-          {steps.map((step, index) => (
-            <article key={step.title} className="surface p-5">
-              <p className="serif text-3xl text-accent">{index + 1}</p>
-              <h2 className="mt-3 font-semibold">{step.title}</h2>
-              <p className="mt-2 text-sm text-muted">{step.body}</p>
-            </article>
-          ))}
+        <section className="mx-auto max-w-6xl px-5 py-8 lg:py-16">
+          <div className="overflow-hidden rounded-[2rem] bg-foreground px-6 py-12 text-card sm:px-10 lg:px-14 lg:py-16">
+            <p className="kicker text-[#9ddec8]">The morning after</p>
+            <h2 className="serif mt-3 max-w-2xl text-4xl leading-[1.1] sm:text-5xl">Forty names. No idea who mattered.</h2>
+            <div className="mt-10 grid gap-8 lg:grid-cols-2 lg:gap-16">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.12em] text-white/45">What people leave with</p>
+                <ul className="mt-4 space-y-3 text-lg text-white/75">
+                  <li>A stack of cards in a jacket</li>
+                  <li>First names in Notes</li>
+                  <li>A LinkedIn request you never finish</li>
+                </ul>
+              </div>
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[#9ddec8]">What you leave with</p>
+                <ul className="mt-4 space-y-3 text-lg">
+                  <li>Who matched the reason you went</li>
+                  <li>Enough context to pick the conversation back up</li>
+                  <li>A note you send when you sit down</li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </section>
 
-        <section id="pricing" className="mt-16 scroll-mt-8">
-          <h2 className="serif text-4xl leading-tight">What it costs</h2>
-          <p className="mt-3 max-w-xl text-muted">
-            Same prices here and at checkout. Your first event is included. Individual bills monthly or yearly. Organizer is once per event.
+        <section id="how" className="mx-auto max-w-6xl scroll-mt-24 px-5 py-8 lg:py-10">
+          <p className="kicker text-accent">The loop</p>
+          <h2 className="serif mt-3 max-w-xl text-4xl leading-tight sm:text-5xl">Meet people. Keep the ones who fit.</h2>
+          <ol className="mt-10">
+            {chapters.map((chapter) => (
+              <li key={chapter.n} className="grid gap-3 border-t border-line py-8 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-10 sm:py-10">
+                <p className="serif text-5xl leading-none text-accent/35">{chapter.n}</p>
+                <div className="max-w-2xl">
+                  <h3 className="serif text-2xl sm:text-3xl">{chapter.title}</h3>
+                  <p className="mt-3 text-muted leading-relaxed">{chapter.body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section id="pricing" className="mx-auto max-w-6xl scroll-mt-24 px-5 py-8 lg:pb-6">
+          <p className="kicker text-accent">Pricing</p>
+          <h2 className="serif mt-3 text-4xl leading-tight sm:text-5xl">Same prices here and at checkout.</h2>
+          <p className="mt-4 max-w-xl text-muted">
+            Your first event is included. Individual is for every event after that. Group seats are once, for the people you pay for.
           </p>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
+          <div className="mt-10 grid items-stretch gap-4 lg:grid-cols-3">
             {plans.map((plan) => (
-              <article key={plan.name} className="surface flex flex-col p-5">
-                <h3 className="font-semibold">{plan.name}</h3>
-                <p className="serif mt-3 text-4xl leading-none">{plan.price}</p>
-                <p className="mt-1 text-sm text-muted">{plan.unit}</p>
-                <p className="mt-4 flex-1 text-sm text-muted">{plan.body}</p>
-                <Link href={plan.href} className="mt-5 inline-block text-sm font-semibold text-accent">
+              <article
+                key={plan.name}
+                className={
+                  plan.featured
+                    ? "flex flex-col rounded-[1.6rem] bg-foreground p-6 text-card shadow-[0_24px_50px_rgb(40_28_12/0.18)] lg:-translate-y-2 lg:p-7"
+                    : "surface flex flex-col p-6"
+                }
+              >
+                {plan.featured ? <p className="kicker text-[#9ddec8]">Most people</p> : null}
+                <h3 className={`font-semibold ${plan.featured ? "mt-2" : ""}`}>{plan.name}</h3>
+                <p className="serif mt-4 text-5xl leading-none">{plan.price}</p>
+                <p className={`mt-2 text-sm ${plan.featured ? "text-white/65" : "text-muted"}`}>{plan.unit}</p>
+                <p className={`mt-5 flex-1 text-sm leading-relaxed ${plan.featured ? "text-white/80" : "text-muted"}`}>{plan.body}</p>
+                <Link
+                  href={plan.href}
+                  className={
+                    plan.featured
+                      ? "mt-8 inline-flex justify-center rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-ink"
+                      : "mt-8 inline-flex justify-center rounded-full border border-line px-5 py-3 text-sm font-semibold"
+                  }
+                >
                   {plan.action}
                 </Link>
               </article>
@@ -138,30 +234,45 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="mt-16 max-w-xl">
-          <h2 className="serif text-4xl leading-tight">The names fade. The follow-up should not.</h2>
-          <p className="mt-3 text-muted">
-            Most people leave an event with a stack of cards and no order. BilloAI is the order: who matched your goal, and what to say next.
-          </p>
-          <Link
-            href="/signup"
-            className="mt-6 inline-block rounded-full bg-accent px-6 py-3.5 text-base font-semibold text-accent-ink shadow-[0_8px_20px_rgb(11_107_79/0.25)]"
-          >
-            Set up your next event
-          </Link>
+        <section className="mx-auto max-w-6xl px-5 py-16 lg:py-24">
+          <div className="flex max-w-2xl flex-col items-start">
+            <h2 className="serif text-4xl leading-[1.1] sm:text-5xl">The names fade. The right connections should not.</h2>
+            <p className="mt-5 text-lg leading-relaxed text-muted">
+              Most people leave with a stack of cards and no order. BilloAI is the order: who matched why you went, and how to stay in touch.
+            </p>
+            <Link
+              href="/signup"
+              className="mt-8 inline-flex rounded-full bg-accent px-7 py-3.5 text-base font-semibold text-accent-ink shadow-[0_10px_28px_rgb(11_107_79/0.28)]"
+            >
+              Set up your next event
+            </Link>
+          </div>
         </section>
 
-        <footer className="mt-16 border-t border-line pt-6 text-sm">
-          <p className="text-muted">
-            First event included. Individual is {usd(INDIVIDUAL_MONTHLY_USD)} a month. Organizer is {usd(ORGANIZER_SEAT_USD)} a seat for that event.
-          </p>
-          <p className="mt-3">
-            <Link href="/privacy" className="font-semibold text-accent">Privacy</Link>
-            {" · "}
-            <Link href="/terms" className="font-semibold text-accent">Terms</Link>
-            {" · "}
-            <SupportLink />
-          </p>
+        <footer className="border-t border-line">
+          <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-10 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="serif text-2xl">BilloAI</p>
+              <p className="mt-2 max-w-sm text-sm text-muted">
+                First event included. Individual is {usd(INDIVIDUAL_MONTHLY_USD)} a month. Group seats are {usd(ORGANIZER_SEAT_USD)} each.
+              </p>
+            </div>
+            <p className="text-sm">
+              <Link href="/for-organizers" className="font-semibold text-accent">
+                For groups
+              </Link>
+              {" · "}
+              <Link href="/privacy" className="font-semibold text-accent">
+                Privacy
+              </Link>
+              {" · "}
+              <Link href="/terms" className="font-semibold text-accent">
+                Terms
+              </Link>
+              {" · "}
+              <SupportLink />
+            </p>
+          </div>
         </footer>
       </main>
     </div>

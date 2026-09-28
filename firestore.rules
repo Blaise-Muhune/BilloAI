@@ -11,7 +11,7 @@ service cloud.firestore {
 
     function billingFieldsUnchanged() {
       return request.resource.data.diff(resource.data).affectedKeys()
-        .hasOnly(['name', 'email', 'consentAt', 'onboardedAt', 'includedEventId'])
+        .hasOnly(['name', 'email', 'consentAt', 'onboardedAt', 'includedEventId', 'workspace', 'groupKind'])
         && includedEventLocked();
     }
 

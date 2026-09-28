@@ -4,6 +4,23 @@ import type { EventDoc, EventInput } from "@/lib/types";
 
 export const runtime = "nodejs";
 
+export async function GET(request: Request) {
+  const code = new URL(request.url).searchParams.get("code")?.trim().toLowerCase();
+  if (!code) return NextResponse.json({ error: "Enter a join code." }, { status: 400 });
+  const found = await adminDb().collection("organizedEvents").where("joinCode", "==", code).limit(1).get();
+  if (found.empty) return NextResponse.json({ error: "That invite was not found." }, { status: 404 });
+  const data = found.docs[0]!.data();
+  const open = Number(data.seatsUsed) < Number(data.seatLimit);
+  const session = await sessionFromRequest(request);
+  const kind = data.groupKind === "company" || data.groupKind === "event" ? data.groupKind : "";
+  return NextResponse.json({
+    name: String(data.name || "A group"),
+    open,
+    kind,
+    own: session?.uid === data.organizerId,
+  });
+}
+
 export async function POST(request: Request) {
   const session = await sessionFromRequest(request);
   if (!session) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
@@ -15,6 +32,9 @@ export async function POST(request: Request) {
   if (found.empty) return NextResponse.json({ error: "That event code was not found." }, { status: 404 });
   const organized = found.docs[0]!;
   const data = organized.data();
+  if (data.organizerId === session.uid) {
+    return NextResponse.json({ error: "This is your group. Send the link to the people you are paying for." }, { status: 400 });
+  }
   if (Number(data.seatsUsed) >= Number(data.seatLimit)) {
     return NextResponse.json({ error: "This event has no open seats." }, { status: 403 });
   }

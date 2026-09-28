@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
-import { Empty } from "@/components/ui";
+import { Empty, PageHeader, PageWrap } from "@/components/ui";
 import { formatDay } from "@/lib/dates";
 import { listEvents } from "@/lib/data";
 import { GOAL_LABELS, type EventRecord } from "@/lib/types";
@@ -26,13 +26,17 @@ export default function EventsPage() {
   }, [user]);
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-end justify-between">
-        <h1 className="serif text-4xl">Events</h1>
-        <Link href="/events/new" className="text-sm font-semibold text-accent">
-          New
-        </Link>
-      </div>
+    <PageWrap>
+      <PageHeader
+        kicker="Events"
+        title="Nights you showed up for"
+        body="Each event has a goal. That’s how we know who from the room is worth staying connected to."
+        action={
+          <Link href="/events/new" className="inline-flex rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink">
+            New event
+          </Link>
+        }
+      />
       {error ? (
         <p className="text-sm text-high">
           {error}{" "}
@@ -42,18 +46,19 @@ export default function EventsPage() {
         </p>
       ) : null}
       {events.length === 0 ? (
-        <Empty title="Create your first event" body="Your goal is how BilloAI decides who is worth a follow-up." href="/events/new" action="Create an event" />
+        <Empty title="Name the next room" body="Say why you’re going. That’s how we pick who to stay connected to." href="/events/new" action="Create an event" />
       ) : (
-        events.map((event) => (
-          <Link key={event.id} href={`/events/${event.id}`} className="surface block p-4 transition hover:-translate-y-0.5">
-            <p className="font-semibold">{event.name}</p>
-            <p className="text-sm text-muted">
-              {formatDay(event.date)} · {event.location}
-            </p>
-            <p className="mt-2 text-sm">{GOAL_LABELS[event.goal]}</p>
-          </Link>
-        ))
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {events.map((event) => (
+            <Link key={event.id} href={`/events/${event.id}`} className="surface flex flex-col p-6 transition hover:bg-[#f7f3ea]">
+              <p className="kicker">{formatDay(event.date)}</p>
+              <h2 className="serif mt-3 text-2xl leading-tight">{event.name}</h2>
+              <p className="mt-2 text-sm text-muted">{event.location}</p>
+              <p className="mt-auto pt-6 text-sm font-semibold">{GOAL_LABELS[event.goal]}</p>
+            </Link>
+          ))}
+        </div>
       )}
-    </div>
+    </PageWrap>
   );
 }

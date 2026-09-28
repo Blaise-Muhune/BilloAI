@@ -9,6 +9,15 @@ async function authHeaders(json = true) {
   return headers;
 }
 
+export async function getPublicJson<T>(path: string): Promise<T> {
+  const response = await fetch(path);
+  const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
+  if (!response.ok) {
+    throw new Error(payload.error || "Request failed.");
+  }
+  return payload;
+}
+
 export async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(path, { headers: await authHeaders(false) });
   const payload = (await response.json().catch(() => ({}))) as T & { error?: string };

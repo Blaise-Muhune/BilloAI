@@ -1,10 +1,11 @@
 "use client";
 
 import { sendEmailVerification } from "firebase/auth";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
-import { Button, Field, Steps } from "@/components/ui";
+import { Button, Field, PageHeader, PageWrap, SelectField, Steps } from "@/components/ui";
 import { postJson } from "@/lib/api";
 import { getUser, listEvents } from "@/lib/data";
 import { INDIVIDUAL_MONTHLY_USD, INDIVIDUAL_YEARLY_USD, ORGANIZER_SEAT_USD, usd } from "@/lib/pricing";
@@ -30,8 +31,8 @@ function BillingForm() {
       setAccount(nextUser);
       setEvents(nextEvents);
       setEventId(nextEvents[0]?.id ?? "");
+      if (params.get("plan") === "organizer" || nextUser?.workspace === "group") setPlanStep("organizer");
     });
-    if (params.get("plan") === "organizer") setPlanStep("organizer");
   }, [user, params]);
 
   async function checkout(plan: "individual" | "organizer") {
@@ -62,13 +63,12 @@ function BillingForm() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="serif text-4xl">Plans</h1>
-      <p className="text-muted">
-        Your first event includes card reading and drafts. After that, Individual is {usd(INDIVIDUAL_MONTHLY_USD)} a
-        month, or {usd(INDIVIDUAL_YEARLY_USD)} a year. Organizer is {usd(ORGANIZER_SEAT_USD)} a seat for that event. You
-        always send the message yourself.
-      </p>
+    <PageWrap>
+      <PageHeader
+        kicker="Plan"
+        title="Keep seeing who is worth staying connected to"
+        body={`Your first event includes matching people you met to why you went. After that, Individual is ${usd(INDIVIDUAL_MONTHLY_USD)} a month, or ${usd(INDIVIDUAL_YEARLY_USD)} a year. Group seats are ${usd(ORGANIZER_SEAT_USD)} each for that event or week. You always send the message yourself.`}
+      />
       {status === "success" ? <p className="text-sm text-accent">Checkout finished. Your plan updates after Stripe confirms it.</p> : null}
       {status === "cancel" ? <p className="text-sm text-muted">Checkout was canceled.</p> : null}
       {account ? (
@@ -86,33 +86,37 @@ function BillingForm() {
       ) : null}
       {error ? <p className="text-sm text-high">{error}</p> : null}
       {planStep === "choose" ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <button type="button" className="surface p-4 text-left" onClick={() => setPlanStep("individual")}>
-            <span className="block font-semibold">Individual</span>
-            <span className="serif mt-2 block text-3xl">{usd(INDIVIDUAL_MONTHLY_USD)}</span>
-            <span className="mt-1 block text-sm text-muted">per month after your first event. Or {usd(INDIVIDUAL_YEARLY_USD)} a year.</span>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <button type="button" className="surface p-7 text-left transition hover:bg-[#f7f3ea]" onClick={() => setPlanStep("individual")}>
+            <span className="kicker">For you</span>
+            <span className="mt-3 block font-semibold">Individual</span>
+            <span className="serif mt-3 block text-5xl">{usd(INDIVIDUAL_MONTHLY_USD)}</span>
+            <span className="mt-2 block text-sm text-muted">per month after your first event. Or {usd(INDIVIDUAL_YEARLY_USD)} a year.</span>
+            <span className="mt-6 block text-sm font-semibold text-accent">Choose Individual</span>
           </button>
-          <button type="button" className="surface p-4 text-left" onClick={() => setPlanStep("organizer")}>
-            <span className="block font-semibold">Organizer</span>
-            <span className="serif mt-2 block text-3xl">{usd(ORGANIZER_SEAT_USD)}</span>
-            <span className="mt-1 block text-sm text-muted">per seat for that event. You never see attendee contacts.</span>
+          <button type="button" className="surface p-7 text-left transition hover:bg-[#f7f3ea]" onClick={() => setPlanStep("organizer")}>
+            <span className="kicker">For a company or a room</span>
+            <span className="mt-3 block font-semibold">Group seats</span>
+            <span className="serif mt-3 block text-5xl">{usd(ORGANIZER_SEAT_USD)}</span>
+            <span className="mt-2 block text-sm text-muted">per seat, once. They keep who they met. You see counts.</span>
+            <span className="mt-6 block text-sm font-semibold text-accent">Choose group seats</span>
           </button>
         </div>
       ) : null}
       {planStep === "individual" ? (
-        <section className="mx-auto max-w-xl space-y-3">
+        <section className="surface mx-auto max-w-2xl space-y-5 p-6 lg:p-8">
           <h2 className="serif text-3xl">Individual</h2>
-          <p className="text-muted">Use your first event first. Then keep card reading and drafts on every event after that.</p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <button type="button" className={`rounded-2xl border px-4 py-3 text-left ${interval === "month" ? "border-accent bg-white" : "border-line"}`} onClick={() => setInterval("month")}>
+          <p className="text-muted">Use your first event first. Then keep seeing who from each room is worth staying connected to.</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <button type="button" className={`rounded-2xl border px-4 py-4 text-left ${interval === "month" ? "border-accent bg-white" : "border-line"}`} onClick={() => setInterval("month")}>
               <span className="block font-semibold">{usd(INDIVIDUAL_MONTHLY_USD)} a month</span>
             </button>
-            <button type="button" className={`rounded-2xl border px-4 py-3 text-left ${interval === "year" ? "border-accent bg-white" : "border-line"}`} onClick={() => setInterval("year")}>
+            <button type="button" className={`rounded-2xl border px-4 py-4 text-left ${interval === "year" ? "border-accent bg-white" : "border-line"}`} onClick={() => setInterval("year")}>
               <span className="block font-semibold">{usd(INDIVIDUAL_YEARLY_USD)} a year</span>
               <span className="text-sm text-muted">{usd(15)} a month if you pay the year</span>
             </button>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Button type="button" tone="ghost" onClick={() => setPlanStep("choose")}>
               Back
             </Button>
@@ -123,22 +127,28 @@ function BillingForm() {
         </section>
       ) : null}
       {planStep === "organizer" ? (
-        <section className="mx-auto max-w-xl space-y-3">
+        <section className="surface mx-auto max-w-2xl space-y-5 p-6 lg:p-8">
           <Steps labels={["Event", "Seats"]} index={seatStep} />
           {seatStep === 0 ? (
             <>
-              <h2 className="serif text-3xl">Which event?</h2>
-              <label className="block text-sm">
-                Event
-                <select className="mt-1 w-full rounded-2xl border border-line bg-white px-3 py-3" value={eventId} onChange={(event) => setEventId(event.target.value)}>
+              <h2 className="serif text-3xl">Which event or week?</h2>
+              {events.length === 0 ? (
+                <p className="text-sm text-muted">
+                  Create that first.{" "}
+                  <Link href="/events/new" className="font-semibold text-accent">
+                    Add an event
+                  </Link>
+                </p>
+              ) : (
+                <SelectField label="Event" value={eventId} onChange={(event) => setEventId(event.target.value)}>
                   {events.map((event) => (
                     <option key={event.id} value={event.id}>
                       {event.name}
                     </option>
                   ))}
-                </select>
-              </label>
-              <div className="flex gap-3">
+                </SelectField>
+              )}
+              <div className="flex flex-wrap gap-3">
                 <Button type="button" tone="ghost" onClick={() => setPlanStep("choose")}>
                   Back
                 </Button>
@@ -150,18 +160,18 @@ function BillingForm() {
           ) : (
             <>
               <h2 className="serif text-3xl">How many seats?</h2>
-              <p className="text-muted">{usd(ORGANIZER_SEAT_USD)} per seat, once, for this event.</p>
+              <p className="text-muted">{usd(ORGANIZER_SEAT_USD)} per seat, once, for the people you are paying for.</p>
               <Field label="Seats" type="number" min={1} max={500} value={seats} onChange={(event) => setSeats(Number(event.target.value))} />
-              <p className="serif text-3xl">
+              <p className="serif text-4xl">
                 {usd(Math.min(500, Math.max(1, seats || 0)) * ORGANIZER_SEAT_USD)}{" "}
                 <span className="font-sans text-base text-muted">for {Math.min(500, Math.max(1, seats || 0))} seats</span>
               </p>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <Button type="button" tone="ghost" onClick={() => setSeatStep(0)}>
                   Back
                 </Button>
                 <Button type="button" disabled={pending || !eventId} onClick={() => void checkout("organizer")}>
-                  Pay {usd(Math.min(500, Math.max(1, seats || 0)) * ORGANIZER_SEAT_USD)} for this event
+                  Pay {usd(Math.min(500, Math.max(1, seats || 0)) * ORGANIZER_SEAT_USD)} for these seats
                 </Button>
               </div>
             </>
@@ -171,7 +181,7 @@ function BillingForm() {
       <Button type="button" tone="ghost" onClick={() => void portal()}>
         Manage billing
       </Button>
-    </div>
+    </PageWrap>
   );
 }
 

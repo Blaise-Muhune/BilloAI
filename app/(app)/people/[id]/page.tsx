@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
-import { Avatar, Button, PriorityBadge } from "@/components/ui";
+import { Avatar, Button, PageWrap, PriorityBadge } from "@/components/ui";
 import { postJson } from "@/lib/api";
 import { getContact, getEvent, openTaskForContact, updateContact, updateTask, createTask } from "@/lib/data";
 import { addDays, todayISO } from "@/lib/dates";
@@ -112,134 +112,154 @@ export default function PersonPage() {
 
   if (missing) {
     return (
-      <div className="space-y-3">
+      <PageWrap>
         <h1 className="serif text-4xl">That person is not here.</h1>
         <p className="text-muted">They may have been deleted.</p>
-        <Link href="/people" className="font-semibold text-accent">Back to people</Link>
-      </div>
+        <Link href="/people" className="font-semibold text-accent">
+          Back to people
+        </Link>
+      </PageWrap>
     );
   }
   if (!contact) return <p className="text-muted">Loading…</p>;
 
   const note = contact.structuredNote;
   const enrichment = contact.enrichment;
+  const facts = [
+    ["Pain point", note?.painPoint],
+    ["Interest", note?.interest],
+    ["Opportunity", note?.opportunity],
+    ["Personal detail", note?.personalDetail],
+    ["Follow-up promise", note?.followUpPromise],
+  ].filter(([, value]) => value);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start gap-3">
-        <Avatar name={contact.name || "?"} />
-        <div>
-        <PriorityBadge level={contact.relevance?.level ?? null} />
-        <h1 className="serif mt-2 text-4xl">{contact.name || "Unnamed contact"}</h1>
-        <p className="text-muted">{[contact.title, contact.company].filter(Boolean).join(", ")}</p>
-        {contact.otherContact ? <p className="text-sm text-muted">Also: {contact.otherContact}</p> : null}
-        {contact.relevance?.opportunityType ? <p className="mt-2">{contact.relevance.opportunityType}</p> : null}
+    <PageWrap>
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] xl:items-start">
+        <div className="space-y-6">
+          <div className="surface flex items-start gap-5 p-6 lg:p-8">
+            <Avatar name={contact.name || "?"} size="lg" />
+            <div className="min-w-0">
+              <PriorityBadge level={contact.relevance?.level ?? null} />
+              <h1 className="serif mt-3 text-4xl leading-tight xl:text-5xl">{contact.name || "Unnamed contact"}</h1>
+              <p className="mt-2 text-muted">{[contact.title, contact.company].filter(Boolean).join(" · ")}</p>
+              {contact.relevance?.opportunityType ? <p className="mt-2 font-semibold">{contact.relevance.opportunityType}</p> : null}
+              {event ? (
+                <Link href={`/events/${event.id}`} className="mt-3 inline-block text-sm font-semibold text-accent">
+                  {event.name}
+                </Link>
+              ) : null}
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm">
+                {contact.email ? (
+                  <a className="text-accent" href={`mailto:${contact.email}`}>
+                    {contact.email}
+                  </a>
+                ) : null}
+                {contact.phone ? <span className="text-muted">{contact.phone}</span> : null}
+                {contact.otherContact ? <span className="text-muted">{contact.otherContact}</span> : null}
+                {contact.linkedin ? (
+                  <a className="text-accent" href={contact.linkedin} target="_blank" rel="noreferrer">
+                    LinkedIn
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          {contact.relevance ? (
+            <section className="surface space-y-3 p-6">
+              <h2 className="kicker">Why they matter</h2>
+              <ul className="list-disc space-y-1 pl-5">
+                {contact.relevance.reasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+              <p className="font-semibold">{contact.relevance.suggestedAction}</p>
+            </section>
+          ) : (
+            <Button type="button" onClick={() => void rescore()}>
+              See if they fit
+            </Button>
+          )}
+          {error ? <p className="text-sm text-high">{error}</p> : null}
+
+          {facts.length ? (
+            <section className="surface overflow-hidden">
+              <h2 className="kicker px-6 pt-5">Conversation</h2>
+              <dl className="mt-2 divide-y divide-line">
+                {facts.map(([label, value]) => (
+                  <div key={label} className="grid gap-1 px-6 py-4 sm:grid-cols-[10rem_minmax(0,1fr)]">
+                    <dt className="text-sm text-muted">{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          ) : null}
+
+          {enrichment && !enrichment.unavailable ? (
+            <section className="surface space-y-3 p-6">
+              <h2 className="kicker">Who they are, in public</h2>
+              {enrichment.roleSummary ? <p className="font-semibold">{enrichment.roleSummary}</p> : null}
+              <p>{enrichment.companyDescription}</p>
+              <p className="text-sm text-muted">{[enrichment.industry, enrichment.companySize].filter(Boolean).join(" · ")}</p>
+              {[
+                ["They sell", enrichment.products],
+                ["They care about", enrichment.priorities],
+                ["Public interests", enrichment.interests],
+              ]
+                .filter(([, value]) => value)
+                .map(([label, value]) => (
+                  <p key={label}>
+                    <span className="text-muted">{label}. </span>
+                    {value}
+                  </p>
+                ))}
+              {enrichment.news.map((item) => (
+                <a key={item.url} href={item.url} className="block text-sm text-accent" target="_blank" rel="noreferrer">
+                  {item.title}
+                </a>
+              ))}
+              {enrichment.sources.map((source) => (
+                <a key={source} href={source} className="block truncate text-sm text-accent" target="_blank" rel="noreferrer">
+                  {source}
+                </a>
+              ))}
+            </section>
+          ) : enrichment?.unavailable ? (
+            <p className="text-sm text-muted">No public professional page turned up for these details. The score used the card and your note only.</p>
+          ) : null}
         </div>
+
+        <section className="surface space-y-4 p-6 lg:sticky lg:top-8">
+          <h2 className="kicker">Stay connected</h2>
+          <p className="text-sm text-muted">A note you can send to keep the conversation going. Nothing goes out on its own.</p>
+          <div className="flex flex-wrap gap-2">
+            {TASK_CHANNELS.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => void writeChannel(item)}
+                className={`rounded-full px-3 py-1.5 text-sm font-semibold ${channel === item ? "bg-accent text-accent-ink" : "bg-[#f7f3ea] text-muted"}`}
+              >
+                {channelLabel[item]}
+              </button>
+            ))}
+          </div>
+          <textarea value={draft} onChange={(event) => setDraft(event.target.value)} className="field-control min-h-52" />
+          <Button
+            type="button"
+            className="w-full"
+            onClick={async () => {
+              await navigator.clipboard.writeText(draft);
+              setCopied(true);
+            }}
+            disabled={!draft}
+          >
+            {copied ? "Copied" : "Copy the note"}
+          </Button>
+        </section>
       </div>
-
-      {contact.relevance ? (
-        <section className="surface space-y-2 p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Why</h2>
-          <ul className="list-disc space-y-1 pl-5">
-            {contact.relevance.reasons.map((reason) => (
-              <li key={reason}>{reason}</li>
-            ))}
-          </ul>
-          <p className="font-semibold">{contact.relevance.suggestedAction}</p>
-        </section>
-      ) : (
-        <Button type="button" onClick={() => void rescore()}>
-          Score this contact
-        </Button>
-      )}
-      {error ? <p className="text-sm text-high">{error}</p> : null}
-
-      {note ? (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Conversation</h2>
-          {[
-            ["Pain point", note.painPoint],
-            ["Interest", note.interest],
-            ["Opportunity", note.opportunity],
-            ["Personal detail", note.personalDetail],
-            ["Follow-up promise", note.followUpPromise],
-          ]
-            .filter(([, value]) => value)
-            .map(([label, value]) => (
-              <p key={label}>
-                <span className="text-muted">{label}. </span>
-                {value}
-              </p>
-            ))}
-        </section>
-      ) : null}
-
-      {enrichment && !enrichment.unavailable ? (
-        <section className="surface space-y-2 p-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Who they are, in public</h2>
-          {enrichment.roleSummary ? <p className="font-semibold">{enrichment.roleSummary}</p> : null}
-          <p>{enrichment.companyDescription}</p>
-          <p className="text-sm text-muted">
-            {[enrichment.industry, enrichment.companySize].filter(Boolean).join(" · ")}
-          </p>
-          {[
-            ["They sell", enrichment.products],
-            ["They care about", enrichment.priorities],
-            ["Public interests", enrichment.interests],
-          ]
-            .filter(([, value]) => value)
-            .map(([label, value]) => (
-              <p key={label}>
-                <span className="text-muted">{label}. </span>
-                {value}
-              </p>
-            ))}
-          {enrichment.news.map((item) => (
-            <a key={item.url} href={item.url} className="block text-sm text-accent" target="_blank" rel="noreferrer">
-              {item.title}
-            </a>
-          ))}
-          {enrichment.sources.map((source) => (
-            <a key={source} href={source} className="block text-sm text-accent" target="_blank" rel="noreferrer">
-              {source}
-            </a>
-          ))}
-        </section>
-      ) : enrichment?.unavailable ? (
-        <p className="text-sm text-muted">No public professional page turned up for these details. The score used the card and your note only.</p>
-      ) : null}
-
-      <section className="surface space-y-3 p-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Follow-up</h2>
-        <p className="text-sm text-muted">This draft is not sent. Copy it and send it yourself.</p>
-        <div className="flex flex-wrap gap-2">
-          {TASK_CHANNELS.map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => void writeChannel(item)}
-              className={`rounded-full px-3 py-1 text-sm ${channel === item ? "bg-accent text-accent-ink" : "bg-card"}`}
-            >
-              {channelLabel[item]}
-            </button>
-          ))}
-        </div>
-        <textarea
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          className="min-h-40 w-full rounded-2xl border border-line bg-white p-3"
-        />
-        <Button
-          type="button"
-          onClick={async () => {
-            await navigator.clipboard.writeText(draft);
-            setCopied(true);
-          }}
-          disabled={!draft}
-        >
-          {copied ? "Copied" : "Copy draft"}
-        </Button>
-      </section>
-    </div>
+    </PageWrap>
   );
 }

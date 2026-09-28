@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
-import { Area, Button, Field } from "@/components/ui";
+import { Area, Button, Field, PageHeader, PageWrap, SelectField } from "@/components/ui";
 import { postForm, postJson } from "@/lib/api";
 import { addDays, todayISO } from "@/lib/dates";
 import { createContact, createEvent, createTask, getEvent, getPublicProfile, listEvents } from "@/lib/data";
@@ -345,38 +345,55 @@ export function CaptureWizard() {
   }
 
   return (
-    <div className="space-y-5">
-      {step !== "confirm" ? <h1 className="serif text-4xl">Capture</h1> : null}
+    <PageWrap>
+      {step !== "confirm" ? (
+        <PageHeader
+          kicker="Add someone"
+          title={step === "working" ? "Seeing if this connection is a fit" : "Add someone you met"}
+          body={
+            step === "working"
+              ? "Using the conversation, public context, and why you went."
+              : "We’ll match them to why you went, so you know if this connection is worth keeping."
+          }
+        />
+      ) : null}
       {error ? <p className="text-sm text-high">{error}</p> : null}
 
       {step === "event" ? (
-        <div className="mx-auto max-w-xl space-y-4">
-          <p className="text-muted">If the night already happened, name it now and say why you went. That is how a contact gets marked high or low.</p>
-          {events.map((event) => (
-            <button
-              key={event.id}
-              type="button"
-              onClick={() => {
-                setEventId(event.id);
-                setStep("method");
-              }}
-              className="surface block w-full p-4 text-left"
-            >
-              <span className="font-semibold">{event.name}</span>
-            </button>
-          ))}
-          <form onSubmit={(event) => void makeEvent(event)} className="space-y-3">
-            <Field label="Event name" value={eventName} onChange={(event) => setEventName(event.target.value)} placeholder="Chamber mixer, last night" />
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-muted">Why were you there?</span>
-              <select value={goal} onChange={(event) => setGoal(event.target.value as NetworkingGoal)} className="w-full rounded-2xl border border-line bg-white px-3 py-3">
-                {NETWORKING_GOALS.map((item) => (
-                  <option key={item} value={item}>
-                    {GOAL_LABELS[item]}
-                  </option>
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
+          <div className="space-y-3">
+            <p className="text-muted">If the night already happened, name it now and say why you went. That’s how we know if this person is worth staying connected to.</p>
+            {events.length ? (
+              <div className="surface list-stack">
+                {events.map((event) => (
+                  <button
+                    key={event.id}
+                    type="button"
+                    onClick={() => {
+                      setEventId(event.id);
+                      setStep("method");
+                    }}
+                    className="block w-full px-5 py-4 text-left hover:bg-[#f7f3ea]"
+                  >
+                    <span className="block font-semibold">{event.name}</span>
+                    <span className="mt-1 block text-sm text-muted">{GOAL_LABELS[event.goal]}</span>
+                  </button>
                 ))}
-              </select>
-            </label>
+              </div>
+            ) : (
+              <p className="text-sm text-muted">No events yet. Add one on the right.</p>
+            )}
+          </div>
+          <form onSubmit={(event) => void makeEvent(event)} className="surface space-y-4 p-6 lg:p-8">
+            <h2 className="serif text-2xl">New event</h2>
+            <Field label="Event name" value={eventName} onChange={(event) => setEventName(event.target.value)} placeholder="Chamber mixer, last night" />
+            <SelectField label="Why were you there?" value={goal} onChange={(event) => setGoal(event.target.value as NetworkingGoal)}>
+              {NETWORKING_GOALS.map((item) => (
+                <option key={item} value={item}>
+                  {GOAL_LABELS[item]}
+                </option>
+              ))}
+            </SelectField>
             <Field label="In your own words" value={goalDetail} onChange={(event) => setGoalDetail(event.target.value)} placeholder="Find operators who need automation" />
             <Button type="submit" disabled={savingEvent} className="w-full">
               {savingEvent ? "Saving…" : "Use this event"}
@@ -386,11 +403,11 @@ export function CaptureWizard() {
       ) : null}
 
       {step === "method" ? (
-        <div className="mx-auto max-w-xl space-y-8">
-          <section className="space-y-3">
-            <h2 className="serif text-3xl">Add photos</h2>
-            <p className="text-muted">Each photo starts as a different person. If two shots are the same card, add the other side on the next screen.</p>
-            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-4 shadow-sm">
+        <div className="grid gap-6 lg:grid-cols-2">
+          <section className="surface space-y-4 p-6 lg:p-8">
+            <h2 className="serif text-3xl">Save a card</h2>
+            <p className="text-muted">Each photo is a different person. If two shots are the same card, add the other side on the next screen.</p>
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-5 shadow-sm">
               <span>
                 <span className="block font-semibold">{reading || "Choose photos"}</span>
                 <span className="text-sm text-muted">Up to 12 cards or screenshots</span>
@@ -411,8 +428,8 @@ export function CaptureWizard() {
               />
             </label>
           </section>
-          <section className="space-y-3">
-            <h2 className="serif text-3xl">Or type who they are</h2>
+          <section className="surface space-y-4 p-6 lg:p-8">
+            <h2 className="serif text-3xl">Or add them from a name or link</h2>
             <p className="text-muted">Paste a LinkedIn or website, or type a first name. WhatsApp belongs on the next screen.</p>
             <Field label="Link or name from your notes" value={link} placeholder="linkedin.com/in/… or a URL" onChange={(event) => setLink(event.target.value)} />
             <Button type="button" className="w-full" onClick={() => void continueTyped()}>
@@ -427,67 +444,86 @@ export function CaptureWizard() {
       ) : null}
 
       {step === "confirm" ? (
-        <div className="mx-auto max-w-xl space-y-4">
-          {queue.length > 1 ? <p className="kicker">Person {queueIndex + 1} of {queue.length}</p> : null}
-          <h1 className="serif text-4xl">{fields.name || "Who is this?"}</h1>
-          {preview ? <img src={preview} alt="This card, only while you confirm" className="max-h-48 w-full rounded-2xl object-contain bg-white" /> : null}
-          <p className="text-sm text-muted">The photo stays on this screen only. We look up public professional context unless you turn that off.</p>
-          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-dashed border-line px-4 py-3">
-            <span className="text-sm font-semibold">{reading || "Add the other side of this card"}</span>
-            <input
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              disabled={Boolean(reading)}
-              onChange={(event) => {
-                const files = Array.from(event.target.files ?? []);
-                if (!files.length) return;
-                void onImage(files, true);
-                event.target.value = "";
-              }}
-            />
-          </label>
-          <Field label="Name" value={fields.name} onChange={(event) => setField("name", event.target.value)} />
-          <Field label="Company" value={fields.company} onChange={(event) => setField("company", event.target.value)} />
-          <Field label="Title" value={fields.title} onChange={(event) => setField("title", event.target.value)} />
-          <Field label="Email" value={fields.email} onChange={(event) => setField("email", event.target.value)} />
-          <Field label="Phone" value={fields.phone} onChange={(event) => setField("phone", event.target.value)} />
-          <Field label="WhatsApp or other" value={fields.otherContact} onChange={(event) => setField("otherContact", event.target.value)} />
-          <Field label="LinkedIn" value={fields.linkedin} onChange={(event) => setField("linkedin", event.target.value)} />
-          <Field label="Website" value={fields.website} onChange={(event) => setField("website", event.target.value)} />
-          <Field label="City or event location" value={fields.location} onChange={(event) => setField("location", event.target.value)} />
-          <Area label="One line about what you talked about" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Promised the pricing note. Works nights at the plant." />
-          <Button type="button" tone="ghost" onClick={() => void toggleRecording()}>
-            {recording ? "Stop voice note" : "Speak it if that is faster"}
-          </Button>
-          <div className="flex flex-wrap gap-2">
-            {tags.map((tag) => {
-              const on = chosenTags.includes(tag);
-              return (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => setChosenTags((current) => (on ? current.filter((item) => item !== tag) : [...current, tag]))}
-                  className={`rounded-full px-3 py-2 text-sm ${on ? "bg-accent text-accent-ink" : "bg-card text-muted"}`}
-                >
-                  {tag}
-                </button>
-              );
-            })}
+        <div className="grid gap-8 lg:grid-cols-[minmax(18rem,0.85fr)_minmax(0,1.15fr)]">
+          <div className="space-y-4">
+            {queue.length > 1 ? (
+              <p className="kicker">
+                Person {queueIndex + 1} of {queue.length}
+              </p>
+            ) : null}
+            <h1 className="serif text-4xl xl:text-5xl">{fields.name || "Who is this?"}</h1>
+            {preview ? (
+              <img src={preview} alt="This card, only while you confirm" className="max-h-80 w-full rounded-2xl bg-white object-contain" />
+            ) : (
+              <div className="surface grid min-h-56 place-items-center text-sm text-muted">No photo on this one</div>
+            )}
+            <p className="text-sm text-muted">The photo stays on this screen only. We look up public professional context unless you turn that off.</p>
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-dashed border-line px-4 py-3">
+              <span className="text-sm font-semibold">{reading || "Add the other side of this card"}</span>
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                disabled={Boolean(reading)}
+                onChange={(event) => {
+                  const files = Array.from(event.target.files ?? []);
+                  if (!files.length) return;
+                  void onImage(files, true);
+                  event.target.value = "";
+                }}
+              />
+            </label>
           </div>
-          <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" checked={allowPublicLookup} onChange={(event) => setAllowPublicLookup(event.target.checked)} />
-            Look up this person and their company on the public web so the match uses more than the card.
-          </label>
-          <Button type="button" className="w-full" onClick={() => void finish()}>
-            {queueIndex + 1 < queue.length ? "Save and next person" : "Find out if they match"}
-          </Button>
+          <div className="surface space-y-5 p-5 lg:p-8">
+            <div className="form-grid">
+              <Field label="Name" value={fields.name} onChange={(event) => setField("name", event.target.value)} />
+              <Field label="Company" value={fields.company} onChange={(event) => setField("company", event.target.value)} />
+              <Field label="Title" value={fields.title} onChange={(event) => setField("title", event.target.value)} />
+              <Field label="Email" value={fields.email} onChange={(event) => setField("email", event.target.value)} />
+              <Field label="Phone" value={fields.phone} onChange={(event) => setField("phone", event.target.value)} />
+              <Field label="WhatsApp or other" value={fields.otherContact} onChange={(event) => setField("otherContact", event.target.value)} />
+              <Field label="LinkedIn" value={fields.linkedin} onChange={(event) => setField("linkedin", event.target.value)} />
+              <Field label="Website" value={fields.website} onChange={(event) => setField("website", event.target.value)} />
+              <Field label="City or event location" value={fields.location} onChange={(event) => setField("location", event.target.value)} className="lg:col-span-2" />
+            </div>
+            <Area label="One line about what you talked about" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Promised the pricing note. Works nights at the plant." />
+            <Button type="button" tone="ghost" onClick={() => void toggleRecording()}>
+              {recording ? "Stop voice note" : "Speak it if that is faster"}
+            </Button>
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag) => {
+                const on = chosenTags.includes(tag);
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setChosenTags((current) => (on ? current.filter((item) => item !== tag) : [...current, tag]))}
+                    className={`rounded-full px-3 py-2 text-sm ${on ? "bg-accent text-accent-ink" : "bg-[#f7f3ea] text-muted"}`}
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
+            </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" checked={allowPublicLookup} onChange={(event) => setAllowPublicLookup(event.target.checked)} />
+              Look up this person and their company on the public web so the match uses more than the card.
+            </label>
+            <Button type="button" className="w-full" onClick={() => void finish()}>
+              {queueIndex + 1 < queue.length ? "Save and add another" : "See if this connection is a fit"}
+            </Button>
+          </div>
         </div>
       ) : null}
 
       {step === "working" ? (
-        <p className="text-muted">Checking who they are in public, then scoring them against why you went…</p>
+        <div className="surface grid min-h-[22rem] place-items-center p-10 text-center">
+          <div>
+            <p className="serif text-3xl">Seeing if this connection is a fit.</p>
+            <p className="mt-3 text-muted">This uses the conversation, public context, and why you went.</p>
+          </div>
+        </div>
       ) : null}
-    </div>
+    </PageWrap>
   );
 }

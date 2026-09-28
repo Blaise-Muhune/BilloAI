@@ -10,14 +10,12 @@ export default function NewEventPage() {
   const router = useRouter();
 
   return (
-    <div className="space-y-5">
-      <EventForm
-        onSave={async (input) => {
-          if (!user) return;
-          const id = await createEvent(user.uid, input);
-          router.push(`/events/${id}`);
-        }}
-      />
-    </div>
+    <EventForm
+      onSave={async (input) => {
+        if (!user) return;
+        const id = await createEvent(user.uid, input);
+        router.push(`/events/${id}`);
+      }}
+    />
   );
 }

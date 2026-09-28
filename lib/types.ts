@@ -45,6 +45,8 @@ export type TaskStatus = "open" | "done";
 
 export type AccountPlan = "free" | "individual" | "organizer";
 export type SubscriptionStatus = "none" | "active" | "past_due" | "canceled";
+export type Workspace = "network" | "group";
+export type GroupKind = "company" | "event";
 
 export interface UserDoc {
   name: string;
@@ -56,6 +58,8 @@ export interface UserDoc {
   consentAt: string;
   onboardedAt?: string;
   includedEventId?: string;
+  workspace?: Workspace;
+  groupKind?: GroupKind | "";
 }
 
 export interface PublicProfile {
@@ -92,6 +96,7 @@ export interface OrganizedEventDoc {
   seatsUsed: number;
   joinCode: string;
   createdAt: string;
+  groupKind?: GroupKind | "";
 }
 
 export interface EventMembershipDoc {

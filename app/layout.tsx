@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     default: "BilloAI",
     template: "%s · BilloAI",
   },
-  description: "Remember who you met, understand who matters, and know who to follow up with.",
+  description: "After you network, know who from the room is worth staying connected to.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

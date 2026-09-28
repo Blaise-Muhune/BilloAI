@@ -48,3 +48,12 @@ export function IconPlus({ className }: IconProps) {
     </svg>
   );
 }
+
+export function IconGroup({ className }: IconProps) {
+  return (
+    <svg className={base(className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M4.5 20V9.5L12 4l7.5 5.5V20" />
+      <path d="M9.5 20v-6h5v6" />
+    </svg>
+  );
+}

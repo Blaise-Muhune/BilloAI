@@ -19,9 +19,17 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { AuthProvider, useAuth } from "@/components/auth-provider";
 import { SupportLink } from "@/components/support";
 import { Button, Field, SetupNotice, Steps } from "@/components/ui";
-import { ensureUser, getUser, saveConsent } from "@/lib/data";
+import { ensureUser, getUser, saveConsent, saveWorkspace } from "@/lib/data";
 import { INDIVIDUAL_MONTHLY_USD, usd } from "@/lib/pricing";
 import { firebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
+import {
+  groupCopy,
+  groupKindFromIntent,
+  isGroupIntent,
+  pathAfterAuth,
+  persistAuthContext,
+  readStoredIntent,
+} from "@/lib/workspace";
 
 function messageFor(error: unknown) {
   const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
@@ -43,7 +51,9 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
   const params = useSearchParams();
   const { user, ready } = useAuth();
-  const host = params.get("for") === "organizer";
+  const forParam = params.get("for");
+  const group = isGroupIntent(forParam);
+  const copy = groupCopy(groupKindFromIntent(forParam || readStoredIntent()));
   const handingOff = useRef(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -56,18 +66,22 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const configured = isFirebaseConfigured();
 
   useEffect(() => {
-    if (host) sessionStorage.setItem("billo-intent", "organizer");
-  }, [host]);
+    persistAuthContext({ for: forParam, code: params.get("code"), from: params.get("from") });
+  }, [forParam, params]);
 
   useEffect(() => {
     if (!ready || !user || handingOff.current) return;
-    const intent = sessionStorage.getItem("billo-intent") === "organizer";
-    if (intent) {
-      router.replace(mode === "signup" ? "/onboarding?for=organizer" : "/billing?plan=organizer");
-      return;
-    }
-    router.replace("/home");
-  }, [ready, user, router, mode]);
+    handingOff.current = true;
+    void (async () => {
+      await ensureUser(user.uid, user.displayName || "You", user.email || "");
+      const existing = await getUser(user.uid);
+      const intent = readStoredIntent();
+      if (isGroupIntent(intent)) {
+        await saveWorkspace(user.uid, "group", existing?.groupKind || groupKindFromIntent(intent) || undefined);
+      }
+      router.replace(pathAfterAuth({ onboarded: Boolean(existing?.onboardedAt) }));
+    })();
+  }, [ready, user, router]);
 
   useEffect(() => {
     if (!configured) return;
@@ -97,8 +111,11 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
       await saveConsent(account.uid);
     }
     if (!fromGoogle) await sendEmailVerification(account);
-    const intent = host || sessionStorage.getItem("billo-intent") === "organizer";
-    router.replace(intent ? "/onboarding?for=organizer" : "/onboarding");
+    const intent = readStoredIntent();
+    if (isGroupIntent(intent)) {
+      await saveWorkspace(account.uid, "group", existing?.groupKind || groupKindFromIntent(intent) || undefined);
+    }
+    router.replace(pathAfterAuth({ onboarded: Boolean(existing?.onboardedAt) }));
   }
 
   async function onSubmit(event: React.FormEvent) {
@@ -120,7 +137,6 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
       } else {
         const credential = await signInWithEmailAndPassword(auth, email, password);
         await ensureUser(credential.user.uid, credential.user.displayName || "You", credential.user.email || email);
-        router.replace("/home");
       }
     } catch (err) {
       setError(messageFor(err));
@@ -174,20 +190,33 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
     }
   }
 
+  const flipQuery = new URLSearchParams();
+  if (forParam) flipQuery.set("for", forParam);
+  const joinCode = params.get("code");
+  const fromKind = params.get("from");
+  if (joinCode) flipQuery.set("code", joinCode);
+  if (fromKind) flipQuery.set("from", fromKind);
+  const flipSuffix = flipQuery.toString();
+  const flipHref = `${mode === "signup" ? "/login" : "/signup"}${flipSuffix ? `?${flipSuffix}` : ""}`;
+
   return (
-    <main className="mx-auto flex min-h-full max-w-lg flex-col justify-center px-5 py-12">
+    <div className="min-h-full lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(22rem,30rem)]">
+      <main className="mx-auto flex w-full max-w-lg flex-col justify-center px-5 py-12 lg:max-w-none lg:px-16">
+        <div className="mx-auto w-full max-w-md">
       <p className="kicker text-accent">BilloAI</p>
       {mode === "signup" ? <Steps labels={["You", "Email"]} index={signupStep} /> : null}
-      <h1 className="serif mt-2 text-4xl leading-tight">
+      <h1 className="serif mt-2 text-4xl leading-tight xl:text-5xl">
         {mode === "login" ? "Welcome back" : signupStep === 0 ? "What should we call you?" : "Your email"}
       </h1>
       <p className="mt-3 text-muted">
         {mode === "login"
-          ? `Your first event includes card reading and drafts. After that those tools are ${usd(INDIVIDUAL_MONTHLY_USD)} a month.`
+          ? group
+            ? "Switch to Group after you sign in, or continue here if this account already pays for seats."
+            : `Your first event shows who from the room is worth staying connected to. After that it is ${usd(INDIVIDUAL_MONTHLY_USD)} a month.`
           : signupStep === 0
-            ? host
-              ? "Next you will name the event, then buy seats. You will not see attendee contacts."
-              : "Then you will set up your card and your first event."
+            ? group
+              ? "Next you will name the event or week, then buy seats. You will not see who they met."
+              : "Then you will set up your card and the event, so you know who from the night is worth staying connected to."
             : "Use at least 8 characters. We will email a verification link."}
       </p>
       <div className="mt-8 space-y-4">
@@ -197,8 +226,8 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
             <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
             <span>
               I agree to the <Link href="/privacy" className="text-accent">privacy policy</Link> and{" "}
-              <Link href="/terms" className="text-accent">terms</Link>. BilloAI may process my notes and card images to
-              suggest follow-ups. Card photos are not stored. I send any message myself.
+              <Link href="/terms" className="text-accent">terms</Link>. BilloAI may process my notes and card images so I can
+              stay connected with people I met. Card photos are not stored. I send any message myself.
             </span>
           </label>
         ) : null}
@@ -278,16 +307,34 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
       </p>
       <p className="mt-3 text-sm text-muted">
         {mode === "signup" ? (
-          <Link href={host ? "/login?for=organizer" : "/login"} className="font-semibold text-accent">
+          <Link href={flipHref} className="font-semibold text-accent">
             Already have an account
           </Link>
         ) : (
-          <Link href={host ? "/signup?for=organizer" : "/signup"} className="font-semibold text-accent">
+          <Link href={flipHref} className="font-semibold text-accent">
             Create an account
           </Link>
         )}
       </p>
-    </main>
+        </div>
+      </main>
+      <aside className="preview-pane hidden min-h-full flex-col justify-between px-10 py-12 text-card lg:flex">
+        <div>
+          <p className="kicker text-[#9ddec8]">{group ? copy.kicker : "After the room"}</p>
+          <p className="serif mt-6 text-5xl leading-tight">
+            {group ? copy.overviewTitle : "Leave knowing who was worth the conversation."}
+          </p>
+          <p className="mt-6 max-w-sm text-white/70">
+            {group
+              ? copy.overviewBody
+              : "Say why you went. Keep who you met. Stay connected with the people who fit. You send every message."}
+          </p>
+        </div>
+        <p className="max-w-sm text-sm text-white/45">
+          Card photos are read and discarded. The group paying for seats never sees who you met.
+        </p>
+      </aside>
+    </div>
   );
 }
 

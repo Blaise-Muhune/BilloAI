@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
-import { Empty, PersonLink } from "@/components/ui";
+import { Empty, PageHeader, PageWrap, PersonLink } from "@/components/ui";
 import { listContacts } from "@/lib/data";
 import type { ContactRecord, RelevanceLevel } from "@/lib/types";
 
@@ -49,14 +50,37 @@ export default function PeoplePage() {
   });
 
   return (
-    <div className="space-y-5">
-      <h1 className="serif text-4xl">People</h1>
-      <input
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder="The Ford person, or a promise you made"
-        className="w-full rounded-2xl border border-line bg-white px-3 py-3"
+    <PageWrap>
+      <PageHeader
+        kicker="People"
+        title="People from the rooms you were in"
+        body="Search a name or a company. Filter by how well they fit why you went."
+        action={
+          <Link href="/capture" className="inline-flex rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink md:hidden">
+            Add someone
+          </Link>
+        }
       />
+      <div className="surface flex flex-col gap-3 p-3 lg:flex-row lg:items-center lg:p-4">
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="The Ford person, or a promise you made"
+          className="field-control lg:flex-1"
+        />
+        <div className="flex flex-wrap gap-2">
+          {filters.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setFilter(item)}
+              className={`rounded-full px-3 py-2 text-sm font-semibold capitalize ${filter === item ? "bg-accent text-accent-ink" : "bg-[#f7f3ea] text-muted"}`}
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+      </div>
       {error ? (
         <p className="text-sm text-high">
           {error}{" "}
@@ -65,35 +89,31 @@ export default function PeoplePage() {
           </button>
         </p>
       ) : null}
-      <div className="flex gap-2">
-        {filters.map((item) => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => setFilter(item)}
-            className={`rounded-full px-3 py-1 text-sm ${filter === item ? "bg-accent text-accent-ink" : "bg-card text-muted"}`}
-          >
-            {item}
-          </button>
-        ))}
-      </div>
       {visible.length === 0 ? (
         contacts.length > 0 && needle ? (
           <Empty title="No one matches that" body="Try a company, a first name, or a word from the note." />
         ) : (
-          <Empty title="Your network is empty" body="Contacts you capture at an event will live here." href="/capture" action="Capture someone" />
+          <Empty title="No one from a night yet" body="Add someone you met. They’ll show up here with how well they match your goal." href="/capture" action="Add someone you met" />
         )
       ) : (
-        visible.map((contact) => (
-          <PersonLink
-            key={contact.id}
-            href={`/people/${contact.id}`}
-            name={contact.name || "Unnamed"}
-            detail={[contact.title, contact.company].filter(Boolean).join(", ")}
-            level={contact.relevance?.level ?? null}
-          />
-        ))
+        <div className="surface list-stack">
+          <div className="desk-head">
+            <span>Person</span>
+            <span>Role</span>
+            <span>Fit</span>
+          </div>
+          {visible.map((contact) => (
+            <PersonLink
+              key={contact.id}
+              href={`/people/${contact.id}`}
+              name={contact.name || "Unnamed"}
+              detail={[contact.title, contact.company].filter(Boolean).join(" · ")}
+              level={contact.relevance?.level ?? null}
+              layout="columns"
+            />
+          ))}
+        </div>
       )}
-    </div>
+    </PageWrap>
   );
 }

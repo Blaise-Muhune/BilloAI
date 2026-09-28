@@ -1,4 +1,9 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
+
+export function PageWrap({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <div className={`page-wrap space-y-8 ${className}`}>{children}</div>;
+}
 
 export function SetupNotice() {
   return (
@@ -25,41 +30,69 @@ export function Steps({ labels, index }: { labels: string[]; index: number }) {
 }
 
 export function PageTitle({ kicker, title, body }: { kicker?: string; title: string; body?: string }) {
+  return <PageHeader kicker={kicker} title={title} body={body} />;
+}
+
+export function PageHeader({
+  kicker,
+  title,
+  body,
+  action,
+}: {
+  kicker?: string;
+  title: string;
+  body?: string;
+  action?: ReactNode;
+}) {
   return (
-    <header>
-      {kicker ? <p className="kicker">{kicker}</p> : null}
-      <h1 className="serif mt-1 text-4xl leading-tight">{title}</h1>
-      {body ? <p className="mt-2 text-muted">{body}</p> : null}
+    <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <div className="max-w-3xl">
+        {kicker ? <p className="kicker">{kicker}</p> : null}
+        <h1 className="serif mt-1 text-[2.15rem] leading-[1.1] sm:text-4xl xl:text-[2.85rem]">{title}</h1>
+        {body ? <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">{body}</p> : null}
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
     </header>
   );
 }
 
 export function Field({
   label,
+  className,
   ...props
 }: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
-    <label className="block">
+    <label className={`block ${className ?? ""}`}>
       <span className="mb-1.5 block text-sm font-medium text-muted">{label}</span>
-      <input
-        {...props}
-        className="w-full rounded-2xl border border-line bg-white px-3 py-3 shadow-sm outline-none transition focus:border-accent"
-      />
+      <input {...props} className="field-control" />
     </label>
   );
 }
 
 export function Area({
   label,
+  className,
   ...props
 }: { label: string } & React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
+    <label className={`block ${className ?? ""}`}>
+      <span className="mb-1.5 block text-sm font-medium text-muted">{label}</span>
+      <textarea {...props} className="field-control min-h-28" />
+    </label>
+  );
+}
+
+export function SelectField({
+  label,
+  children,
+  ...props
+}: { label: string } & React.SelectHTMLAttributes<HTMLSelectElement>) {
+  return (
     <label className="block">
       <span className="mb-1.5 block text-sm font-medium text-muted">{label}</span>
-      <textarea
-        {...props}
-        className="min-h-28 w-full rounded-2xl border border-line bg-white px-3 py-3 shadow-sm outline-none transition focus:border-accent"
-      />
+      <select {...props} className="field-control">
+        {children}
+      </select>
     </label>
   );
 }
@@ -76,7 +109,7 @@ export function Button({
   return (
     <button
       {...props}
-      className={`rounded-full px-4 py-3 text-sm font-semibold transition disabled:opacity-50 ${styles} ${props.className ?? ""}`}
+      className={`rounded-full px-5 py-3 text-sm font-semibold transition disabled:opacity-50 ${styles} ${props.className ?? ""}`}
     >
       {children}
     </button>
@@ -95,7 +128,7 @@ export function PriorityBadge({ level }: { level: "high" | "medium" | "low" | nu
   return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${color}`}>{label}</span>;
 }
 
-export function Avatar({ name }: { name: string }) {
+export function Avatar({ name, size = "md" }: { name: string; size?: "md" | "lg" }) {
   const initials =
     name
       .split(" ")
@@ -103,8 +136,9 @@ export function Avatar({ name }: { name: string }) {
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase())
       .join("") || "?";
+  const box = size === "lg" ? "h-16 w-16 text-lg" : "h-11 w-11 text-sm";
   return (
-    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#e5f4ee] text-sm font-semibold text-accent">
+    <span className={`grid shrink-0 place-items-center rounded-full bg-[#e5f4ee] font-semibold text-accent ${box}`}>
       {initials}
     </span>
   );
@@ -115,19 +149,29 @@ export function PersonLink({
   name,
   detail,
   level,
+  layout = "stack",
 }: {
   href: string;
   name: string;
   detail?: string;
   level: "high" | "medium" | "low" | null;
+  layout?: "stack" | "columns";
 }) {
+  const row =
+    layout === "columns"
+      ? "flex items-center gap-3 px-4 py-3.5 transition hover:bg-[#f7f3ea] lg:grid lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_auto] lg:gap-4"
+      : "flex items-center gap-3 px-4 py-3.5 transition hover:bg-[#f7f3ea]";
   return (
-    <Link href={href} className="surface flex items-center gap-3 p-3 transition hover:-translate-y-0.5">
-      <Avatar name={name || "?"} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate font-semibold">{name || "Unnamed"}</span>
-        {detail ? <span className="block truncate text-sm text-muted">{detail}</span> : null}
+    <Link href={href} className={row}>
+      <span className="flex min-w-0 items-center gap-3">
+        <Avatar name={name || "?"} />
+        <span className="min-w-0">
+          <span className="block truncate font-semibold">{name || "Unnamed"}</span>
+          {detail && layout === "stack" ? <span className="block truncate text-sm text-muted">{detail}</span> : null}
+          {detail && layout === "columns" ? <span className="block truncate text-sm text-muted lg:hidden">{detail}</span> : null}
+        </span>
       </span>
+      {layout === "columns" ? <span className="hidden truncate text-sm text-muted lg:block">{detail || "—"}</span> : null}
       <PriorityBadge level={level} />
     </Link>
   );
@@ -135,14 +179,37 @@ export function PersonLink({
 
 export function Empty({ title, body, href, action }: { title: string; body: string; href?: string; action?: string }) {
   return (
-    <div className="surface border-dashed px-5 py-8 text-center">
-      <h2 className="serif text-2xl">{title}</h2>
-      <p className="mx-auto mt-2 max-w-xs text-muted">{body}</p>
+    <div className="surface flex flex-col items-start gap-5 px-6 py-10 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10 lg:py-14">
+      <div className="max-w-xl">
+        <h2 className="serif text-2xl lg:text-3xl">{title}</h2>
+        <p className="mt-2 text-muted">{body}</p>
+      </div>
       {href && action ? (
-        <Link href={href} className="mt-4 inline-block rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
+        <Link href={href} className="shrink-0 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink">
           {action}
         </Link>
       ) : null}
+    </div>
+  );
+}
+
+export function LiveCard({
+  kicker = "Your card",
+  name,
+  line,
+  footer,
+}: {
+  kicker?: string;
+  name: string;
+  line: string;
+  footer?: string;
+}) {
+  return (
+    <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.07] p-8">
+      <p className="kicker text-[#9ddec8]">{kicker}</p>
+      <p className="serif mt-5 text-4xl leading-tight xl:text-5xl">{name}</p>
+      <p className="mt-4 text-lg text-white/70">{line}</p>
+      {footer ? <p className="mt-8 text-sm text-white/45">{footer}</p> : null}
     </div>
   );
 }
