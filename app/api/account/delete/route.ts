@@ -16,7 +16,14 @@ export async function POST(request: Request) {
     await deleteQuery("events", "ownerId", uid);
     await deleteQuery("contacts", "ownerId", uid);
     await deleteQuery("tasks", "ownerId", uid);
-    await deleteQuery("organizedEvents", "organizerId", uid);
+    const organized = await adminDb().collection("organizedEvents").where("organizerId", "==", uid).get();
+    await Promise.all(
+      organized.docs.map(async (item) => {
+        const payments = await item.ref.collection("payments").get();
+        await Promise.all(payments.docs.map((payment) => payment.ref.delete()));
+        await item.ref.delete();
+      }),
+    );
     await deleteQuery("eventMemberships", "uid", uid);
     await adminDb().collection("users").doc(uid).delete();
     await adminDb().collection("publicProfiles").doc(uid).delete();

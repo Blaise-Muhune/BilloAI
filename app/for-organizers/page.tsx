@@ -5,11 +5,11 @@ import { ORGANIZER_SEAT_USD, usd } from "@/lib/pricing";
 
 export const metadata: Metadata = {
   title: "For groups",
-  description: "Pay for a company, a sales team, or a room. They keep who they met. You see counts, never their contacts.",
+  description: "Pay for one event. They keep who they met. You see counts, never their contacts.",
 };
 
 const counts = [
-  { label: "Joined", value: "18" },
+  { label: "Seats used", value: "18" },
   { label: "Captured someone", value: "14" },
   { label: "Follow-ups done", value: "9" },
 ];
@@ -18,7 +18,7 @@ const chapters = [
   {
     n: "01",
     title: "Pay for the seats",
-    body: `${usd(ORGANIZER_SEAT_USD)} each, once, for that event or week. A company buying for a sales team, or a host buying for a room.`,
+    body: `${usd(ORGANIZER_SEAT_USD)} each, once, for one named event. A company sending people that night, or a host buying for a room. Unused seats stay with that event.`,
   },
   {
     n: "02",
@@ -28,7 +28,7 @@ const chapters = [
   {
     n: "03",
     title: "Watch whether it worked",
-    body: "You see how many joined, captured someone, and followed through. You never see names, notes, or drafts.",
+    body: "You see how many seats were used, how many people captured someone, and whether they followed through. You never see names, notes, or drafts.",
   },
 ];
 
@@ -60,17 +60,17 @@ export default function ForOrganizersPage() {
       <main>
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-8 pt-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)] lg:gap-16 lg:pt-20">
           <div>
-            <p className="kicker text-accent">For a company, a team, or a room</p>
+            <p className="kicker text-accent">For one event</p>
             <h1 className="serif mt-4 max-w-[16ch] text-[2.7rem] leading-[1.05] tracking-tight sm:text-6xl">
               Pay for the seats. Never see who they met.
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted">
-              You buy so your people leave knowing who from the room mattered. Their conversations stay on their accounts. You get counts that show the night worked.
+              You buy seats for one night. Your people leave knowing who from the room mattered. Their conversations stay on their accounts. You get counts that show the night worked. If they keep going, Individual is their plan.
             </p>
             <div className="mt-9 grid max-w-lg gap-3 sm:grid-cols-2">
               <Link href="/signup?for=company" className="rounded-[1.4rem] bg-accent px-5 py-4 text-accent-ink shadow-[0_10px_28px_rgb(11_107_79/0.28)]">
                 <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-white/70">Paying for people</span>
-                <span className="mt-2 block font-semibold">Company or sales team</span>
+                <span className="mt-2 block font-semibold">Company, this event</span>
               </Link>
               <Link href="/signup?for=event" className="rounded-[1.4rem] border border-line bg-card px-5 py-4">
                 <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-muted">Hosting a night</span>
@@ -124,6 +124,7 @@ export default function ForOrganizersPage() {
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.12em] text-white/45">What you never see</p>
                 <ul className="mt-4 space-y-3 text-lg text-white/75">
+                  <li>Who joined by name</li>
                   <li>Who they met</li>
                   <li>Notes from the conversation</li>
                   <li>The draft they may send</li>
@@ -153,14 +154,14 @@ export default function ForOrganizersPage() {
           <div className="flex max-w-2xl flex-col items-start">
             <h2 className="serif text-4xl leading-[1.1] sm:text-5xl">Buy the seats. Stay out of the conversations.</h2>
             <p className="mt-5 text-lg leading-relaxed text-muted">
-              {usd(ORGANIZER_SEAT_USD)} a seat, once. Same price here and at checkout.
+              {usd(ORGANIZER_SEAT_USD)} a seat, once, for one event. Same price here and at checkout. Unused seats stay with that night.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="/signup?for=company"
                 className="inline-flex rounded-full bg-accent px-7 py-3.5 text-base font-semibold text-accent-ink shadow-[0_10px_28px_rgb(11_107_79/0.28)]"
               >
-                Set up for a team
+                Set up for this event
               </Link>
               <Link href="/signup?for=event" className="inline-flex rounded-full border border-line bg-card px-6 py-3.5 text-base font-semibold">
                 Set up for a room
@@ -174,7 +175,7 @@ export default function ForOrganizersPage() {
             <div>
               <p className="serif text-2xl">BilloAI</p>
               <p className="mt-2 max-w-sm text-sm text-muted">
-                Group seats are {usd(ORGANIZER_SEAT_USD)} each, once. You do not get a list of their contacts.
+                Group seats are {usd(ORGANIZER_SEAT_USD)} each, once, for one event. You do not get a list of their contacts.
               </p>
             </div>
             <p className="text-sm">

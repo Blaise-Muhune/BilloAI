@@ -55,6 +55,12 @@ export function invitePath(code: string, from?: GroupKind | "" | null) {
   return `/join?code=${encodeURIComponent(code)}${suffix}`;
 }
 
+export function groupSeatsHref(eventId?: string) {
+  const params = new URLSearchParams({ plan: "organizer" });
+  if (eventId) params.set("event", eventId);
+  return `/billing?${params.toString()}`;
+}
+
 export function pathAfterAuth(input: { onboarded: boolean }) {
   const join = readJoinCode();
   const from = readJoinFrom();
@@ -72,37 +78,40 @@ export function groupCopy(kind: GroupKind | "" | undefined) {
     return {
       kicker: "For a company",
       switchLabel: "Group",
-      overviewTitle: "The team, not their contacts",
-      overviewBody: "You pay so your people can keep who they met. You see counts. You never see names, notes, or drafts.",
+      overviewTitle: "This event, not their contacts",
+      overviewBody:
+        "You buy seats for one named event. Your people keep who they met. You see how many seats were used. Unused seats stay with this event. You never see who joined, who they met, notes, or drafts.",
       neverSee: "Your company never sees who you met.",
       joinTitle: "Your company set this up for you",
-      joinBody: "Use the code they sent. Who you meet stays on your account.",
+      joinBody: "This seat is for this event. Who you meet stays on your account. The next event is Individual, or another seat they buy.",
       shareLabel: "Send this to your team",
-      emptySeats: "Create the event or night this team is attending, then pay for seats.",
+      emptySeats: "Name the event they are attending, then pay for seats for that night.",
     };
   }
   if (kind === "event") {
     return {
       kicker: "For a room",
       switchLabel: "Group",
-      overviewTitle: "The room, not the people",
-      overviewBody: "You pay for seats. Attendees keep their own conversations. You see whether the night worked.",
+      overviewTitle: "This night, not the people",
+      overviewBody:
+        "You buy seats for one event. Attendees keep their own conversations. Unused seats stay with this event. You see whether the night worked, not who was in the room.",
       neverSee: "The host never sees who you met.",
       joinTitle: "You were invited to this event",
-      joinBody: "Use the code from the host. Who you meet stays on your account.",
+      joinBody: "This seat is for this event. Who you meet stays on your account. The next event is Individual, or another seat from the host.",
       shareLabel: "Send this to the room",
-      emptySeats: "Create the event, then pay for seats once.",
+      emptySeats: "Name the event, then pay for seats once for that night.",
     };
   }
   return {
     kicker: "For a group",
     switchLabel: "Group",
     overviewTitle: "Counts only. Never their contacts.",
-    overviewBody: "Pay for a company, a sales team, or a networking room. You see how many people joined and stayed connected. You never see who they met.",
+    overviewBody:
+      "Pay for one event: a company sending people, or a host buying for a room. You see how many seats were used. Unused seats stay with that event. You never see who joined or who they met.",
     neverSee: "The group that invited you never sees who you met.",
     joinTitle: "You were invited",
-    joinBody: "Use the code you were sent. Who you meet stays on your account. They see counts, not names.",
+    joinBody: "This seat is for this event. Who you meet stays on your account. They see counts, not names. The next event is Individual, or another seat.",
     shareLabel: "Send this to people you are paying for",
-    emptySeats: "Name the event or night, then pay for seats.",
+    emptySeats: "Name the event, then pay for seats for that night.",
   };
 }

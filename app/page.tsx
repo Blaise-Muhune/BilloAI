@@ -47,7 +47,7 @@ const plans = [
     name: "Individual",
     price: usd(INDIVIDUAL_MONTHLY_USD),
     unit: "per month",
-    body: `Keep seeing who is worth staying connected to on every event after the first. ${usd(INDIVIDUAL_YEARLY_USD)} if you pay the year.`,
+    body: `Keep seeing who is worth staying connected to on every event after the first. ${usd(INDIVIDUAL_YEARLY_USD)} a year if you keep going.`,
     href: "/signup",
     action: "Get Individual",
     featured: true,
@@ -55,8 +55,8 @@ const plans = [
   {
     name: "Group",
     price: usd(ORGANIZER_SEAT_USD),
-    unit: "per seat, once",
-    body: "Pay for a company, a sales team, or a room. They keep who they met. You see counts.",
+    unit: "per seat, once, for one event",
+    body: "Pay for one named night. People you pay for keep who they met. Unused seats stay with that event. You see counts.",
     href: "/signup?for=group",
     action: "Set up a group",
     featured: false,
@@ -202,7 +202,7 @@ export default function LandingPage() {
           <p className="kicker text-accent">Pricing</p>
           <h2 className="serif mt-3 text-4xl leading-tight sm:text-5xl">Same prices here and at checkout.</h2>
           <p className="mt-4 max-w-xl text-muted">
-            Your first event is included. Individual is for every event after that. Group seats are once, for the people you pay for.
+            Your first event is included. Individual is for every event after that. Group seats are ${usd(ORGANIZER_SEAT_USD)} once, for one named event.
           </p>
           <div className="mt-10 grid items-stretch gap-4 lg:grid-cols-3">
             {plans.map((plan) => (
@@ -254,7 +254,7 @@ export default function LandingPage() {
             <div>
               <p className="serif text-2xl">BilloAI</p>
               <p className="mt-2 max-w-sm text-sm text-muted">
-                First event included. Individual is {usd(INDIVIDUAL_MONTHLY_USD)} a month. Group seats are {usd(ORGANIZER_SEAT_USD)} each.
+                First event included. Individual is {usd(INDIVIDUAL_MONTHLY_USD)} a month. Group seats are {usd(ORGANIZER_SEAT_USD)} each for one event.
               </p>
             </div>
             <p className="text-sm">

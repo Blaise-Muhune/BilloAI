@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { FieldValue } from "firebase-admin/firestore";
 import type Stripe from "stripe";
 import { adminDb } from "@/lib/firebase/admin";
+import { clampSeats } from "@/lib/pricing";
 import { stripeClient } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -22,6 +24,37 @@ async function applySubscription(subscription: Stripe.Subscription) {
   );
 }
 
+async function applySeatPayment(session: Stripe.Checkout.Session) {
+  const organizedEventId = session.metadata?.organizedEventId;
+  const uid = session.metadata?.uid;
+  const seats = clampSeats(Number(session.metadata?.seats || 0));
+  if (!organizedEventId || !uid || seats < 1) return;
+
+  const customer = typeof session.customer === "string" ? session.customer : session.customer?.id;
+  if (customer) {
+    const userRef = adminDb().collection("users").doc(uid);
+    const current = await userRef.get();
+    const currentPlan = current.data()?.plan;
+    await userRef.set(
+      {
+        stripeCustomerId: customer,
+        workspace: "group",
+        ...(currentPlan === "individual" ? {} : { plan: "organizer" }),
+      },
+      { merge: true },
+    );
+  }
+
+  const orgRef = adminDb().collection("organizedEvents").doc(organizedEventId);
+  const payRef = orgRef.collection("payments").doc(session.id);
+  await adminDb().runTransaction(async (tx) => {
+    const pay = await tx.get(payRef);
+    if (pay.exists) return;
+    tx.set(payRef, { seats, uid, createdAt: new Date().toISOString() });
+    tx.set(orgRef, { seatLimit: FieldValue.increment(seats) }, { merge: true });
+  });
+}
+
 export async function POST(request: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) return NextResponse.json({ error: "Webhook secret is not configured." }, { status: 500 });
@@ -39,20 +72,7 @@ export async function POST(request: Request) {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
     if (session.mode === "payment" && session.metadata?.plan === "organizer" && session.metadata.organizedEventId) {
-      const customer = typeof session.customer === "string" ? session.customer : session.customer?.id;
-      const seats = Number(session.metadata.seats || 0);
-      if (customer && session.metadata.uid) {
-        await adminDb()
-          .collection("users")
-          .doc(session.metadata.uid)
-          .set({ stripeCustomerId: customer, workspace: "group" }, { merge: true });
-      }
-      if (seats > 0) {
-        await adminDb()
-          .collection("organizedEvents")
-          .doc(session.metadata.organizedEventId)
-          .set({ seatLimit: seats }, { merge: true });
-      }
+      await applySeatPayment(session);
     }
     if (session.subscription) {
       const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription.id;

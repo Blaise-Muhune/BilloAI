@@ -17,7 +17,15 @@ const empty: EventInput = {
 
 const labels = ["The event", "When and where", "The goal", "Who to meet"];
 
-export function EventForm({ onSave }: { onSave: (input: EventInput) => Promise<void> }) {
+export function EventForm({
+  onSave,
+  variant = "network",
+}: {
+  onSave: (input: EventInput) => Promise<void>;
+  variant?: "network" | "seats";
+}) {
+  const seats = variant === "seats";
+  const last = seats ? 1 : 3;
   const [input, setInput] = useState<EventInput>(empty);
   const [step, setStep] = useState(0);
   const [error, setError] = useState("");
@@ -37,11 +45,11 @@ export function EventForm({ onSave }: { onSave: (input: EventInput) => Promise<v
       setError("Add where it is and the date.");
       return;
     }
-    if (step === 2 && !input.goalDetail.trim()) {
+    if (!seats && step === 2 && !input.goalDetail.trim()) {
       setError("Say what would make this event successful.");
       return;
     }
-    if (step === 3 && !input.targetPeople.trim()) {
+    if (!seats && step === 3 && !input.targetPeople.trim()) {
       setError("Say who you want to meet.");
       return;
     }
@@ -50,18 +58,22 @@ export function EventForm({ onSave }: { onSave: (input: EventInput) => Promise<v
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (step < 3) {
+    if (step < last) {
       next();
       return;
     }
-    if (!input.targetPeople.trim()) {
+    if (!seats && !input.targetPeople.trim()) {
       setError("Say who you want to meet.");
       return;
     }
     setPending(true);
     setError("");
     try {
-      await onSave(input);
+      await onSave(
+        seats
+          ? { ...input, goal: "customers", goalDetail: "", targetPeople: "", targetCompaniesOrRoles: "" }
+          : input,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save the event.");
       setPending(false);
@@ -72,10 +84,10 @@ export function EventForm({ onSave }: { onSave: (input: EventInput) => Promise<v
     <PageWrap>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <form onSubmit={onSubmit} className="surface space-y-5 p-6 lg:p-8">
-          <Steps labels={labels} index={step} />
+          <Steps labels={seats ? ["The event", "When and where"] : labels} index={step} />
           {step === 0 ? (
             <>
-              <h1 className="serif text-4xl">What is the event?</h1>
+              <h1 className="serif text-4xl">{seats ? "What night are these seats for?" : "What is the event?"}</h1>
               <div className="form-grid">
                 <Field label="Event name" value={input.name} onChange={(event) => set("name", event.target.value)} required />
                 <Field label="Event type" value={input.type} onChange={(event) => set("type", event.target.value)} placeholder="Conference, chamber, meetup" required />
@@ -135,7 +147,7 @@ export function EventForm({ onSave }: { onSave: (input: EventInput) => Promise<v
               </Button>
             ) : null}
             <Button type="submit" disabled={pending} className="min-w-40">
-              {step < 3 ? "Continue" : pending ? "Saving…" : "Create event"}
+              {step < last ? "Continue" : pending ? "Saving…" : seats ? "Use this for seats" : "Create event"}
             </Button>
           </div>
         </form>
@@ -143,7 +155,11 @@ export function EventForm({ onSave }: { onSave: (input: EventInput) => Promise<v
           <p className="kicker text-[#9ddec8]">Live preview</p>
           <p className="serif mt-4 text-3xl leading-tight">{input.name || "Your next event"}</p>
           <p className="mt-3 text-white/70">{[input.location, input.date].filter(Boolean).join(" · ") || "Place and date"}</p>
-          <p className="mt-6 text-sm leading-relaxed text-white/65">{input.goalDetail || GOAL_LABELS[input.goal]}</p>
+          <p className="mt-6 text-sm leading-relaxed text-white/65">
+            {seats
+              ? "Seats attach to this. Each person sets why they went. You never see that."
+              : input.goalDetail || GOAL_LABELS[input.goal]}
+          </p>
         </aside>
       </div>
     </PageWrap>

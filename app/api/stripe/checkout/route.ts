@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb, sessionFromRequest } from "@/lib/firebase/admin";
+import { clampSeats, SEAT_MAX, SEAT_MIN } from "@/lib/pricing";
 import { appOrigin, integrationId, stripeClient } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -34,12 +35,15 @@ export async function POST(request: Request) {
 
     if (body.plan === "organizer") {
       const seats = Number(body.seats);
-      if (!body.eventId || !Number.isFinite(seats) || seats < 1 || seats > 500) {
+      if (!body.eventId || !Number.isFinite(seats) || seats < SEAT_MIN || seats > SEAT_MAX) {
         return NextResponse.json({ error: "Choose an event and a seat count from 1 to 500." }, { status: 400 });
       }
       const event = await adminDb().collection("events").doc(body.eventId).get();
       if (!event.exists || event.data()?.ownerId !== session.uid) {
         return NextResponse.json({ error: "That event was not found." }, { status: 404 });
+      }
+      if (!event.data()?.forSeats) {
+        return NextResponse.json({ error: "Choose the event those seats attach to, not a night you captured for yourself." }, { status: 400 });
       }
       const existing = await adminDb()
         .collection("organizedEvents")
@@ -47,11 +51,14 @@ export async function POST(request: Request) {
         .where("eventId", "==", body.eventId)
         .limit(1)
         .get();
+      const eventData = event.data();
       if (existing.empty) {
         const created = await adminDb().collection("organizedEvents").add({
           organizerId: session.uid,
           eventId: body.eventId,
-          name: event.data()?.name ?? "Event",
+          name: eventData?.name ?? "Event",
+          date: String(eventData?.date ?? ""),
+          location: String(eventData?.location ?? ""),
           seatLimit: 0,
           seatsUsed: 0,
           joinCode: joinCode(),
@@ -61,6 +68,14 @@ export async function POST(request: Request) {
         organizedEventId = created.id;
       } else {
         organizedEventId = existing.docs[0]!.id;
+        await existing.docs[0]!.ref.set(
+          {
+            name: eventData?.name ?? existing.docs[0]!.data().name,
+            date: String(eventData?.date ?? existing.docs[0]!.data().date ?? ""),
+            location: String(eventData?.location ?? existing.docs[0]!.data().location ?? ""),
+          },
+          { merge: true },
+        );
       }
     }
 
@@ -73,7 +88,7 @@ export async function POST(request: Request) {
     if (!price) return NextResponse.json({ error: "Stripe prices are not configured yet." }, { status: 500 });
 
     const origin = appOrigin(request);
-    const quantity = body.plan === "organizer" ? Number(body.seats) : 1;
+    const quantity = body.plan === "organizer" ? clampSeats(Number(body.seats)) : 1;
     const checkout = await stripe.checkout.sessions.create({
       mode: body.plan === "organizer" ? "payment" : "subscription",
       client_reference_id: session.uid,

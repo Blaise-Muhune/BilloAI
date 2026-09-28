@@ -22,7 +22,7 @@ export default function AccountPage() {
     setError("");
     try {
       const [events, contacts, tasks] = await Promise.all([
-        listEvents(user.uid),
+        listEvents(user.uid, { all: true }),
         listContacts(user.uid),
         listTasks(user.uid),
       ]);
@@ -77,7 +77,7 @@ export default function AccountPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         {[
           ["/profile", "Your card", "The QR other BilloAI users can scan"],
-          ["/billing", "Plan", "Individual or group seats"],
+          ["/billing", "Plan", "Individual every event, or seats for one night"],
           ["/group", "Group", "Seats and counts for the people you pay for"],
           ["/join", "Join", "Enter a code a company or host sent you"],
         ].map(([href, title, body]) => (

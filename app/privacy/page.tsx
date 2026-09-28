@@ -21,8 +21,9 @@ export default function PrivacyPage() {
         you.
       </p>
       <p>
-        If you join a group a company or host paid for, they can see how many seats are used. They cannot read your contacts,
-        notes, or drafts. Your QR card shows only the name, company, title, email, LinkedIn, and website you put on it.
+        If you join a group a company or host paid for, that seat is for that event only. They can see how many seats are
+        used. They cannot see who joined by name, and they cannot read your contacts, notes, or drafts. Your QR card
+        shows only the name, company, title, email, LinkedIn, and website you put on it.
       </p>
       <p>You can export or delete your account from the account page.</p>
       <p>

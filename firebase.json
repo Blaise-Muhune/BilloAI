@@ -15,11 +15,18 @@
         "authorizedRedirectUris": [
           "http://localhost",
           "https://www.billoai.com",
-          "https://billio-ai.web.app",
-          "https://billio-ai.firebaseapp.com",
-          "https://billio-ai.vercel.app"
+          "https://billoai.com",
+          "https://billoai-9ea4c.web.app",
+          "https://billoai-9ea4c.firebaseapp.com"
         ]
       }
-    }
+    },
+    "authorizedDomains": [
+      "localhost",
+      "www.billoai.com",
+      "billoai.com",
+      "billoai-9ea4c.firebaseapp.com",
+      "billoai-9ea4c.web.app"
+    ]
   }
 }

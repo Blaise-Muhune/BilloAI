@@ -33,15 +33,22 @@ export async function assertAiAccess(uid: string, emailVerified: boolean, eventI
     throw new AccessError("Verify your email before using AI on more events.", 403);
   }
   if (plan === "individual" && status === "active") return;
-  throw new AccessError("Your first event includes this. After that it is on the Individual plan, or a paid seat.", 402);
+  throw new AccessError("Your first event includes this. After that it is Individual, or a seat paid for that event.", 402);
 }
 
 async function includedOnEvent(uid: string, eventId: string, stored: string) {
+  const event = await adminDb().collection("events").doc(eventId).get();
+  if (event.data()?.forSeats) return false;
   if (stored && stored === eventId) return true;
   if (stored) return false;
   const events = await adminDb().collection("events").where("ownerId", "==", uid).get();
   const oldest = events.docs
-    .map((item) => ({ id: item.id, createdAt: String(item.data().createdAt ?? "") }))
+    .map((item) => ({
+      id: item.id,
+      createdAt: String(item.data().createdAt ?? ""),
+      forSeats: Boolean(item.data().forSeats),
+    }))
+    .filter((item) => !item.forSeats)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
   return oldest?.id === eventId;
 }

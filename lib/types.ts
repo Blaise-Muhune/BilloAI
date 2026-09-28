@@ -86,6 +86,7 @@ export interface EventDoc extends EventInput {
   ownerId: string;
   createdAt: string;
   organizedEventId: string;
+  forSeats?: boolean;
 }
 
 export interface OrganizedEventDoc {
@@ -97,6 +98,8 @@ export interface OrganizedEventDoc {
   joinCode: string;
   createdAt: string;
   groupKind?: GroupKind | "";
+  date?: string;
+  location?: string;
 }
 
 export interface EventMembershipDoc {

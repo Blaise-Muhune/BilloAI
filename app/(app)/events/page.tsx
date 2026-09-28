@@ -54,7 +54,9 @@ export default function EventsPage() {
               <p className="kicker">{formatDay(event.date)}</p>
               <h2 className="serif mt-3 text-2xl leading-tight">{event.name}</h2>
               <p className="mt-2 text-sm text-muted">{event.location}</p>
-              <p className="mt-auto pt-6 text-sm font-semibold">{GOAL_LABELS[event.goal]}</p>
+              <p className="mt-auto pt-6 text-sm font-semibold">
+                {event.goalDetail.trim() ? GOAL_LABELS[event.goal] : "Set why you went"}
+              </p>
             </Link>
           ))}
         </div>

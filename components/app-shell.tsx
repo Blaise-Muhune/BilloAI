@@ -9,7 +9,7 @@ import { IconCalendar, IconGroup, IconHome, IconPeople, IconPlus, IconTasks } fr
 import { getUser, listEvents, markOnboarded, saveWorkspace } from "@/lib/data";
 import { firebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import type { GroupKind, UserDoc, Workspace } from "@/lib/types";
-import { readWorkspace } from "@/lib/workspace";
+import { groupSeatsHref, readWorkspace } from "@/lib/workspace";
 
 const networkLinks = [
   { href: "/home", label: "Home", icon: IconHome },
@@ -21,7 +21,7 @@ const networkLinks = [
 
 const groupLinks = [
   { href: "/group", label: "Overview", icon: IconGroup },
-  { href: "/events", label: "Events", icon: IconCalendar },
+  { href: groupSeatsHref(), label: "Seats", icon: IconCalendar },
 ];
 
 const networkAccount = [
@@ -30,9 +30,7 @@ const networkAccount = [
   { href: "/join", label: "Join with a code" },
 ];
 
-const groupAccount = [
-  { href: "/billing?plan=organizer", label: "Seats" },
-];
+const groupAccount: { href: string; label: string }[] = [];
 
 function pageLabel(pathname: string, workspace: Workspace) {
   if (pathname.startsWith("/home")) return "Home";
@@ -53,8 +51,10 @@ function pageLabel(pathname: string, workspace: Workspace) {
 
 function pathWorkspace(pathname: string): Workspace | null {
   if (pathname.startsWith("/group") || pathname.startsWith("/organizer")) return "group";
+  if (pathname.startsWith("/events/new")) return null;
   if (
     pathname.startsWith("/home") ||
+    pathname.startsWith("/events") ||
     pathname.startsWith("/capture") ||
     pathname.startsWith("/people") ||
     pathname.startsWith("/tasks") ||
@@ -95,7 +95,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         if (!cancel) setAllowed(true);
         return;
       }
-      const events = await listEvents(user.uid);
+      const events = await listEvents(user.uid, { all: true });
       if (events.length > 0) {
         await markOnboarded(user.uid).catch(() => undefined);
         if (!cancel) setAllowed(true);
@@ -197,7 +197,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         ) : (
           <div className="mt-5 px-4">
             <Link
-              href="/billing?plan=organizer"
+              href={groupSeatsHref()}
               className="flex items-center justify-center rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_8px_20px_rgb(11_107_79/0.22)] hover:brightness-110"
             >
               Add seats
@@ -207,7 +207,10 @@ function Shell({ children }: { children: React.ReactNode }) {
         <p className="kicker mt-7 px-7">{workspace === "group" ? "The group" : "Tonight"}</p>
         <nav className="mt-2 space-y-1 px-3">
           {links.map((link) => {
-            const active = pathname === link.href || (link.href !== "/home" && link.href !== "/group" && pathname.startsWith(`${link.href}/`)) || pathname === link.href;
+            const hrefPath = link.href.split("?")[0] ?? link.href;
+            const active =
+              pathname === hrefPath ||
+              (hrefPath !== "/home" && hrefPath !== "/group" && pathname.startsWith(`${hrefPath}/`));
             const Icon = link.icon;
             return (
               <Link
@@ -224,21 +227,25 @@ function Shell({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <p className="kicker mt-8 px-7">Account</p>
-        <nav className="mt-2 space-y-0.5 px-3">
-          {accountLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              aria-current={pathname === link.href.split("?")[0] ? "page" : undefined}
-              className={`block rounded-xl px-3 py-2 text-sm font-semibold ${
-                pathname === link.href.split("?")[0] ? "bg-[#f7f3ea] text-foreground" : "text-muted hover:bg-[#f7f3ea] hover:text-foreground"
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
+        {accountLinks.length > 0 ? (
+          <>
+            <p className="kicker mt-8 px-7">Account</p>
+            <nav className="mt-2 space-y-0.5 px-3">
+              {accountLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  aria-current={pathname === link.href.split("?")[0] ? "page" : undefined}
+                  className={`block rounded-xl px-3 py-2 text-sm font-semibold ${
+                    pathname === link.href.split("?")[0] ? "bg-[#f7f3ea] text-foreground" : "text-muted hover:bg-[#f7f3ea] hover:text-foreground"
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+          </>
+        ) : null}
         <div className="mx-3 mb-4 mt-auto space-y-1">
           <Link href="/account" className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold hover:bg-[#f7f3ea]">
             <span className="grid h-9 w-9 place-items-center rounded-full bg-foreground text-xs text-card">{initial}</span>
@@ -292,7 +299,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             </Link>
           ) : null}
           {workspace === "group" ? (
-            <Link href="/billing?plan=organizer" className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
+            <Link href={groupSeatsHref()} className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
               Add seats
             </Link>
           ) : null}
@@ -301,7 +308,10 @@ function Shell({ children }: { children: React.ReactNode }) {
         <nav className="fixed inset-x-0 bottom-0 border-t border-line bg-[#f7f3ea]/95 backdrop-blur md:hidden">
           <div className={`mx-auto grid max-w-lg px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1 ${workspace === "group" ? "grid-cols-2" : "grid-cols-5"}`}>
             {links.map((link) => {
-              const active = pathname === link.href || (link.href !== "/home" && link.href !== "/group" && pathname.startsWith(`${link.href}/`));
+              const hrefPath = link.href.split("?")[0] ?? link.href;
+              const active =
+                pathname === hrefPath ||
+                (hrefPath !== "/home" && hrefPath !== "/group" && pathname.startsWith(`${hrefPath}/`));
               const Icon = link.icon;
               const capture = link.href === "/capture";
               return (

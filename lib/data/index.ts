@@ -109,10 +109,14 @@ export async function savePublicProfile(uid: string, profile: PublicProfile) {
   await setDoc(doc(db, "publicProfiles", uid), profile);
 }
 
-export async function listEvents(uid: string) {
+export async function listEvents(uid: string, opts?: { seats?: boolean; all?: boolean }) {
   const snap = await getDocs(query(collection(firebaseDb(), "events"), where("ownerId", "==", uid)));
   return snap.docs
     .map((item) => mapDoc(item.id, item.data() as EventDoc))
+    .filter((item) => {
+      if (opts?.all) return true;
+      return opts?.seats ? Boolean(item.forSeats) : !item.forSeats;
+    })
     .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
 }
 
@@ -122,17 +126,26 @@ export async function getEvent(uid: string, id: string) {
   return requireOwner(mapDoc(snap.id, snap.data() as EventDoc), uid);
 }
 
-export async function createEvent(uid: string, input: EventInput) {
+export async function updateEvent(uid: string, id: string, patch: Partial<EventInput>) {
+  const current = await getEvent(uid, id);
+  if (!current) throw new Error("Event not found.");
+  await updateDoc(doc(firebaseDb(), "events", id), patch);
+}
+
+export async function createEvent(uid: string, input: EventInput, options?: { forSeats?: boolean }) {
   const payload: EventDoc = {
     ...input,
     ownerId: uid,
     organizedEventId: "",
     createdAt: new Date().toISOString(),
+    forSeats: Boolean(options?.forSeats),
   };
   const created = await addDoc(collection(firebaseDb(), "events"), payload);
-  const account = await getUser(uid);
-  if (!account?.includedEventId) {
-    await setDoc(doc(firebaseDb(), "users", uid), { includedEventId: created.id }, { merge: true });
+  if (!options?.forSeats) {
+    const account = await getUser(uid);
+    if (!account?.includedEventId) {
+      await setDoc(doc(firebaseDb(), "users", uid), { includedEventId: created.id }, { merge: true });
+    }
   }
   return created.id;
 }

@@ -31,7 +31,8 @@ service cloud.firestore {
     }
 
     match /publicProfiles/{uid} {
-      allow read: if signedIn();
+      allow get: if signedIn();
+      allow list: if false;
       allow write: if signedIn() && request.auth.uid == uid;
     }
 
@@ -63,6 +64,10 @@ service cloud.firestore {
         && request.resource.data.joinCode == resource.data.joinCode
         && request.resource.data.seatsUsed == resource.data.seatsUsed;
       allow delete: if signedIn() && resource.data.organizerId == request.auth.uid;
+
+      match /payments/{payId} {
+        allow read, write: if false;
+      }
     }
 
     match /eventMemberships/{id} {

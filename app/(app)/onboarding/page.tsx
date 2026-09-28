@@ -102,7 +102,7 @@ export default function OnboardingPage() {
         }
       }
       await markOnboarded(user.uid);
-      router.replace(group ? "/billing?plan=organizer" : nextHref);
+      router.replace(nextHref);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not finish setup.");
       setPending(false);
@@ -134,26 +134,34 @@ export default function OnboardingPage() {
 
   async function saveEvent() {
     if (!user) return;
-    if (!eventName.trim() || !location.trim() || !goalDetail.trim()) {
+    if (!eventName.trim() || !location.trim()) {
+      setError("Add the event name and where it is.");
+      return;
+    }
+    if (!group && !goalDetail.trim()) {
       setError("Add the event name, where it is, and what success looks like.");
       return;
     }
     setPending(true);
     setError("");
     try {
-      const id = await createEvent(user.uid, {
-        name: eventName,
-        type: "Event",
-        location,
-        date,
-        goal,
-        goalDetail,
-        targetPeople: "",
-        targetCompaniesOrRoles: "",
-      });
+      const id = await createEvent(
+        user.uid,
+        {
+          name: eventName,
+          type: "Event",
+          location,
+          date,
+          goal: group ? "customers" : goal,
+          goalDetail: group ? "" : goalDetail,
+          targetPeople: "",
+          targetCompaniesOrRoles: "",
+        },
+        group ? { forSeats: true } : undefined,
+      );
       setEventId(id);
       if (group) {
-        if (user.emailVerified) await finish("/billing?plan=organizer");
+        if (user.emailVerified) await finish(`/billing?plan=organizer&event=${id}`);
         else setStep(4);
         return;
       }
@@ -175,7 +183,7 @@ export default function OnboardingPage() {
     : group
       ? [
           { n: "1", title: "Who you are", body: "Your name on the account. People you pay for never see your private notes." },
-          { n: "2", title: "The event or week", body: "Seats attach to this. Then you pay once and share the join link." },
+          { n: "2", title: "The event", body: "Seats attach to this night. Then you pay once and share the join link." },
         ]
       : [
           { n: "1", title: "Your card", body: "Name, company, and title. This is the only thing another user can scan." },
@@ -221,7 +229,7 @@ export default function OnboardingPage() {
                 {invited
                   ? copy.joinBody
                   : group
-                    ? "Name the event or week, then buy seats. You get a join link. You will not see who they meet."
+                    ? "Name the event, then buy seats for that night. You get a join link. You will not see who they meet."
                     : "Four short steps. After this you’ll know who from the night is worth staying connected to."}
               </p>
               <ol className={`mt-10 grid gap-4 ${group || invited ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
@@ -298,16 +306,22 @@ export default function OnboardingPage() {
 
           {step === 2 ? (
             <section className="max-w-3xl space-y-5">
-              <div className="lg:hidden">
-                <Steps labels={["The event", "The goal"]} index={eventPart} />
-              </div>
+              {group ? null : (
+                <div className="lg:hidden">
+                  <Steps labels={["The event", "The goal"]} index={eventPart} />
+                </div>
+              )}
               <h1 className="serif text-4xl xl:text-5xl">
-                {eventPart === 0 ? (group ? "The event or week seats attach to" : "Your next event") : "What does success look like?"}
+                {eventPart === 0
+                  ? group
+                    ? "The event seats attach to"
+                    : "Your next event"
+                  : "What does success look like?"}
               </h1>
               <p className="text-muted">
                 {eventPart === 0
                   ? group
-                    ? "Seats attach to this. You cannot skip this step."
+                    ? "Name the night. People you pay for set their own goal. You never see it."
                     : "Skip this if you are not heading to one yet."
                   : "This sentence is how we know who is worth staying connected to."}
               </p>
@@ -344,12 +358,14 @@ export default function OnboardingPage() {
                   <Button
                     type="button"
                     className="min-w-40"
+                    disabled={pending && group}
                     onClick={() => {
                       setError("");
-                      setEventPart(1);
+                      if (group) void saveEvent();
+                      else setEventPart(1);
                     }}
                   >
-                    Continue
+                    {group ? (pending ? "Saving…" : "Create event") : "Continue"}
                   </Button>
                 ) : (
                   <Button type="button" className="min-w-40" disabled={pending} onClick={() => void saveEvent()}>
@@ -420,7 +436,7 @@ export default function OnboardingPage() {
                 >
                   {sent ? "Verification email sent" : "Send verification email"}
                 </Button>
-                <Button type="button" disabled={pending} onClick={() => void finish(group ? "/billing?plan=organizer" : eventId ? `/capture?event=${eventId}` : "/capture")}>
+                <Button type="button" disabled={pending} onClick={() => void finish(group ? (eventId ? `/billing?plan=organizer&event=${eventId}` : "/billing?plan=organizer") : eventId ? `/capture?event=${eventId}` : "/capture")}>
                   {pending ? "Finishing…" : group ? "Go pay for seats" : invited ? "Join" : "Add someone you met"}
                 </Button>
               </div>
@@ -443,7 +459,7 @@ export default function OnboardingPage() {
                 kicker="Tonight"
                 name={eventName || "Your next event"}
                 line={`${location || "Place"}${date ? ` · ${date}` : ""}`}
-                footer={goalDetail || GOAL_LABELS[goal]}
+                footer={group ? "Seats attach here. They set the goal." : goalDetail || GOAL_LABELS[goal]}
               />
             )}
           </div>

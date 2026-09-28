@@ -1,13 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { Button, Empty, PageHeader, PageWrap } from "@/components/ui";
 import { getJson } from "@/lib/api";
 import { getUser, listOrganizedEvents, saveWorkspace } from "@/lib/data";
+import { formatDay } from "@/lib/dates";
 import type { GroupKind, OrganizedEventDoc } from "@/lib/types";
-import { groupCopy, invitePath } from "@/lib/workspace";
+import { groupCopy, groupSeatsHref, invitePath } from "@/lib/workspace";
 
 type Organized = OrganizedEventDoc & { id: string };
 
@@ -78,22 +80,22 @@ function GroupOverview() {
         <div className="grid gap-4 lg:grid-cols-2">
           <button type="button" className="surface p-7 text-left transition hover:bg-[#f7f3ea]" onClick={() => void chooseKind("company")}>
             <span className="kicker">Paying for people</span>
-            <span className="serif mt-3 block text-3xl">A company or sales team</span>
+            <span className="serif mt-3 block text-3xl">A company sending people</span>
             <span className="mt-3 block text-sm leading-relaxed text-muted">
-              You buy seats. They keep who they met. You see whether the team actually followed through.
+              You buy seats for one event they are attending. They keep who they met. You see whether they followed through that night.
             </span>
           </button>
           <button type="button" className="surface p-7 text-left transition hover:bg-[#f7f3ea]" onClick={() => void chooseKind("event")}>
             <span className="kicker">Hosting a night</span>
             <span className="serif mt-3 block text-3xl">A room or event</span>
             <span className="mt-3 block text-sm leading-relaxed text-muted">
-              You buy seats for attendees. They leave with their own network. You see counts for the room.
+              You buy seats for attendees of this event. They leave with their own network. You see counts for the room.
             </span>
           </button>
         </div>
       ) : null}
       {kind && events.length === 0 ? (
-        <Empty title="No seats yet" body={copy.emptySeats} href="/events/new" action="Create the event" />
+        <Empty title="No seats yet" body={copy.emptySeats} href="/events/new?for=group" action="Create the event" />
       ) : null}
       {kind && events.length > 0 ? (
         <div className="grid gap-4 xl:grid-cols-2">
@@ -105,10 +107,11 @@ function GroupOverview() {
                 <div>
                   <p className="serif text-2xl">{event.name}</p>
                   <p className="mt-1 text-sm text-muted">
-                    {event.seatsUsed} of {event.seatLimit} seats used
+                    {event.date ? `${formatDay(event.date)} · ` : ""}
+                    {event.seatLimit > 0 ? `${event.seatsUsed} of ${event.seatLimit} seats used` : "Payment has not confirmed yet"}
                   </p>
                 </div>
-                {event.joinCode ? (
+                {event.seatLimit > 0 && event.joinCode ? (
                   <div className="rounded-2xl bg-[#f7f3ea] p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted">{copy.shareLabel}</p>
                     <p className="mt-2 break-all text-sm font-semibold">{share}</p>
@@ -118,24 +121,47 @@ function GroupOverview() {
                     </Button>
                   </div>
                 ) : (
-                  <p className="text-sm text-muted">Join link appears after payment confirms.</p>
+                  <p className="text-sm text-muted">
+                    Join link appears after payment confirms. Unused seats stay with this event.
+                  </p>
                 )}
-                {stats ? (
+                {event.seatLimit > 0 ? (
+                  <Link
+                    href={groupSeatsHref(event.eventId)}
+                    className="inline-flex text-sm font-semibold text-accent"
+                  >
+                    Add seats
+                  </Link>
+                ) : (
+                  <Link href={groupSeatsHref(event.eventId)} className="inline-flex text-sm font-semibold text-accent">
+                    Finish paying for seats
+                  </Link>
+                )}
+                {event.seatLimit > 0 && stats ? (
                   <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    <Stat label="People who joined" value={stats.attendees} />
+                    <Stat label="Seats used" value={stats.attendees} />
                     <Stat label="People who captured someone" value={stats.attendeesWhoCaptured} />
                     <Stat label="Contacts saved" value={stats.contacts} />
                     <Stat label="High-fit matches" value={stats.high} />
                     <Stat label="Follow-ups started" value={stats.followUps} />
                     <Stat label="Follow-ups finished" value={stats.followUpsDone} />
                   </dl>
-                ) : (
+                ) : event.seatLimit > 0 ? (
                   <p className="text-sm text-muted">Loading counts…</p>
-                )}
+                ) : null}
               </article>
             );
           })}
         </div>
+      ) : null}
+      {kind ? (
+        <p className="text-sm text-muted">
+          If this is every month,{" "}
+          <Link href="/billing" className="font-semibold text-accent">
+            Individual is the year-round plan for each person
+          </Link>
+          . Unused seats do not move to the next event.
+        </p>
       ) : null}
       {kind ? (
         <p className="text-sm text-muted">

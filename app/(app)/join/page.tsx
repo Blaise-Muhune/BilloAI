@@ -7,9 +7,10 @@ import { useAuth } from "@/components/auth-provider";
 import { Button, Field, PageHeader, PageWrap } from "@/components/ui";
 import { getJson, getPublicJson, postJson } from "@/lib/api";
 import { persistAuthContext, clearJoinCode, groupCopy, readJoinFrom } from "@/lib/workspace";
+import { formatDay } from "@/lib/dates";
 import type { GroupKind } from "@/lib/types";
 
-type Preview = { name: string; open: boolean; kind?: GroupKind | ""; own?: boolean };
+type Preview = { name: string; open: boolean; kind?: GroupKind | ""; own?: boolean; date?: string; location?: string };
 
 function JoinForm() {
   const { user, ready } = useAuth();
@@ -105,7 +106,9 @@ function JoinForm() {
         {preview && !preview.own ? (
           <p className="text-sm text-muted">
             {preview.name}
-            {preview.open ? " · seats open" : " · no seats left"}
+            {preview.date ? ` · ${formatDay(preview.date)}` : ""}
+            {preview.location ? ` · ${preview.location}` : ""}
+            {preview.open ? " · seats open for this event" : " · no seats left for this event"}
           </p>
         ) : null}
         {error ? <p className="text-sm text-high">{error}</p> : null}
@@ -132,7 +135,7 @@ function JoinForm() {
         <p className="kicker text-[#9ddec8]">Private to you</p>
         <p className="serif mt-3 text-3xl leading-tight">{copy.neverSee}</p>
         <p className="mt-4 text-sm leading-relaxed text-white/65">
-          They see counts. Notes, drafts, and contacts stay on your account.
+          They see counts. Notes, drafts, and contacts stay on your account. This seat is only for this event.
         </p>
       </aside>
     </div>

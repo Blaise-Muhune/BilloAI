@@ -27,7 +27,11 @@ export async function GET(request: Request) {
   const metrics: Counts[] = await Promise.all(
     organized.docs.map(async (item) => {
       const data = item.data();
-      const memberships = await adminDb().collection("eventMemberships").where("organizedEventId", "==", item.id).get();
+      const memberships = await adminDb()
+        .collection("eventMemberships")
+        .where("organizedEventId", "==", item.id)
+        .select("eventId")
+        .get();
       const eventIds = memberships.docs.map((membership) => String(membership.data().eventId));
       const owners = new Set<string>();
       let contacts = 0;
@@ -38,7 +42,7 @@ export async function GET(request: Request) {
       let followUpsDone = 0;
 
       for (const eventId of eventIds) {
-        const people = await adminDb().collection("contacts").where("eventId", "==", eventId).get();
+        const people = await adminDb().collection("contacts").where("eventId", "==", eventId).select("ownerId", "relevance").get();
         contacts += people.size;
         people.docs.forEach((contact) => {
           owners.add(String(contact.data().ownerId ?? ""));
@@ -47,7 +51,7 @@ export async function GET(request: Request) {
           else if (level === "medium") medium += 1;
           else if (level === "low") low += 1;
         });
-        const tasks = await adminDb().collection("tasks").where("eventId", "==", eventId).get();
+        const tasks = await adminDb().collection("tasks").where("eventId", "==", eventId).select("status").get();
         followUps += tasks.size;
         followUpsDone += tasks.docs.filter((task) => task.data().status === "done").length;
       }

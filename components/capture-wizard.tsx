@@ -6,7 +6,7 @@ import { useAuth } from "@/components/auth-provider";
 import { Area, Button, Field, PageHeader, PageWrap, SelectField } from "@/components/ui";
 import { postForm, postJson } from "@/lib/api";
 import { addDays, todayISO } from "@/lib/dates";
-import { createContact, createEvent, createTask, getEvent, getPublicProfile, listEvents } from "@/lib/data";
+import { createContact, createEvent, createTask, getEvent, getPublicProfile, listEvents, updateEvent } from "@/lib/data";
 import { compressImage } from "@/lib/images";
 import { GOAL_LABELS, NETWORKING_GOALS, type ContactFields, type ContactSource, type EventRecord, type NetworkingGoal, type UnderstandResult } from "@/lib/types";
 
@@ -55,7 +55,7 @@ export function CaptureWizard() {
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [eventId, setEventId] = useState(preset);
   const [source, setSource] = useState<ContactSource>("card");
-  const [step, setStep] = useState<"event" | "method" | "confirm" | "working">(preset ? "method" : "event");
+  const [step, setStep] = useState<"event" | "goal" | "method" | "confirm" | "working">(preset ? "method" : "event");
   const [fields, setFields] = useState<ContactFields>(emptyFields);
   const [preview, setPreview] = useState("");
   const [note, setNote] = useState("");
@@ -78,9 +78,13 @@ export function CaptureWizard() {
     if (!user) return;
     void listEvents(user.uid).then((next) => {
       setEvents(next);
-      if (!preset && next.length === 1) {
-        setEventId(next[0]!.id);
-        setStep("method");
+      const chosen = preset ? next.find((item) => item.id === preset) : next.length === 1 ? next[0] : null;
+      if (chosen) {
+        setEventId(chosen.id);
+        setStep(chosen.goalDetail.trim() ? "method" : "goal");
+      } else if (preset) {
+        setEventId("");
+        setStep("event");
       }
     });
   }, [user, preset]);
@@ -290,6 +294,28 @@ export function CaptureWizard() {
     }
   }
 
+  async function saveGoal(event: React.FormEvent) {
+    event.preventDefault();
+    if (!user || !eventId) return;
+    if (!goalDetail.trim()) {
+      setError("Say why you were there. That is how we know who is worth staying connected to.");
+      return;
+    }
+    setSavingEvent(true);
+    setError("");
+    try {
+      await updateEvent(user.uid, eventId, { goal, goalDetail });
+      setEvents((current) =>
+        current.map((item) => (item.id === eventId ? { ...item, goal, goalDetail } : item)),
+      );
+      setStep("method");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save why you went.");
+    } finally {
+      setSavingEvent(false);
+    }
+  }
+
   async function finish() {
     if (!user || !eventId) return;
     if (!fields.name.trim()) {
@@ -371,12 +397,14 @@ export function CaptureWizard() {
                     type="button"
                     onClick={() => {
                       setEventId(event.id);
-                      setStep("method");
+                      setStep(event.goalDetail.trim() ? "method" : "goal");
                     }}
                     className="block w-full px-5 py-4 text-left hover:bg-[#f7f3ea]"
                   >
                     <span className="block font-semibold">{event.name}</span>
-                    <span className="mt-1 block text-sm text-muted">{GOAL_LABELS[event.goal]}</span>
+                    <span className="mt-1 block text-sm text-muted">
+                      {event.goalDetail.trim() ? GOAL_LABELS[event.goal] : "Set why you went"}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -400,6 +428,29 @@ export function CaptureWizard() {
             </Button>
           </form>
         </div>
+      ) : null}
+
+      {step === "goal" ? (
+        <form onSubmit={(event) => void saveGoal(event)} className="surface mx-auto max-w-xl space-y-5 p-6 lg:p-8">
+          <h2 className="serif text-3xl">Why are you at this event?</h2>
+          <p className="text-muted">The company or host does not set this. Matching who you meet to why you went stays on your account.</p>
+          <SelectField label="Goal" value={goal} onChange={(event) => setGoal(event.target.value as NetworkingGoal)}>
+            {NETWORKING_GOALS.map((item) => (
+              <option key={item} value={item}>
+                {GOAL_LABELS[item]}
+              </option>
+            ))}
+          </SelectField>
+          <Field
+            label="In your own words"
+            value={goalDetail}
+            onChange={(event) => setGoalDetail(event.target.value)}
+            placeholder="Find operators who need automation"
+          />
+          <Button type="submit" disabled={savingEvent} className="min-w-40">
+            {savingEvent ? "Saving…" : "Use this goal"}
+          </Button>
+        </form>
       ) : null}
 
       {step === "method" ? (
