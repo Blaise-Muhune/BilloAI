@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     await adminDb().collection("rateLimits").doc(uid).delete().catch(() => undefined);
     const [files] = await adminBucket().getFiles({ prefix: `users/${uid}/` });
     await Promise.all(files.map((file) => file.delete()));
-    await adminAuth().deleteUser(uid);
+    await (await adminAuth()).deleteUser(uid);
     return NextResponse.json({ deleted: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not delete the account.";

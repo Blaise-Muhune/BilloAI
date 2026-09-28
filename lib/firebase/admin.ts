@@ -1,7 +1,12 @@
 import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
-import { getAuth, type DecodedIdToken } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 import { getStorage } from "firebase-admin/storage";
+import { createRemoteJWKSet, jwtVerify } from "jose";
+import type { DecodedIdToken } from "firebase-admin/auth";
+
+const googleJwks = createRemoteJWKSet(
+  new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com"),
+);
 
 function adminApp(): App {
   if (getApps().length) return getApps()[0]!;
@@ -32,7 +37,8 @@ function adminApp(): App {
   throw new Error("Firebase Admin is not configured.");
 }
 
-export function adminAuth() {
+export async function adminAuth() {
+  const { getAuth } = await import("firebase-admin/auth");
   return getAuth(adminApp());
 }
 
@@ -48,9 +54,15 @@ export function adminBucket() {
 export async function sessionFromRequest(request: Request): Promise<DecodedIdToken | null> {
   const header = request.headers.get("authorization") ?? "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
-  if (!token) return null;
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  if (!token || !projectId) return null;
   try {
-    return await adminAuth().verifyIdToken(token);
+    const { payload } = await jwtVerify(token, googleJwks, {
+      issuer: `https://securetoken.google.com/${projectId}`,
+      audience: projectId,
+    });
+    if (!payload.sub) return null;
+    return { ...payload, uid: payload.sub } as DecodedIdToken;
   } catch {
     return null;
   }

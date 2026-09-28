@@ -3,6 +3,7 @@ import { guardAi } from "@/lib/ai/guard";
 import { extractCard } from "@/lib/ai/run";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const body = (await request.json()) as { image?: string; eventId?: string };

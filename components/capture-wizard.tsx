@@ -116,6 +116,7 @@ export function CaptureWizard() {
     setSource("photo");
     const people: Queued[] = mergeIntoCurrent ? [] : [];
     let failed = 0;
+    let lastError = "";
     try {
       for (let index = 0; index < chosen.length; index += 1) {
         setReading(mergeIntoCurrent ? "Reading the other side…" : `Reading ${index + 1} of ${chosen.length}`);
@@ -131,13 +132,17 @@ export function CaptureWizard() {
           } else {
             people.push(next);
           }
-        } catch {
+        } catch (err) {
           failed += 1;
+          lastError = err instanceof Error ? err.message : "Could not read that photo.";
         }
       }
-      if (mergeIntoCurrent) return;
+      if (mergeIntoCurrent) {
+        if (failed && lastError) setError(lastError);
+        return;
+      }
       if (!people.length) {
-        setError("Could not read those photos.");
+        setError(lastError || "Could not read those photos.");
         return;
       }
       if (failed) setError(`${failed} photo${failed === 1 ? "" : "s"} could not be read. Confirm the ones that worked.`);
