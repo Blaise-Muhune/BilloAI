@@ -2,6 +2,7 @@ import { generateText, Output, stepCountIs, transcribe } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { addDays, todayISO } from "@/lib/dates";
+import { scoreWithJev } from "@/lib/ai/jev";
 import { clampRelevance, hasConversationEvidence, hasVerifiedPublic, shouldLookupPublic } from "@/lib/relevance";
 import type {
   ContactFields,
@@ -188,18 +189,30 @@ export async function understand(input: {
     input.allowPublicLookup === false || !shouldLookupPublic(contact) ? Promise.resolve(emptyEnrichment()) : enrich(contact),
   ]);
 
+  const jev = await scoreWithJev({
+    event: input.event,
+    contact,
+    rawNote: input.rawNote,
+    structuredNote,
+    enrichment,
+  }).catch(() => null);
+
   const scored = await generateText({
     model,
     output: Output.object({
       schema: z.object({ relevance: relevanceSchema, draft: draftSchema }),
     }),
     prompt: `You help a person decide who deserves follow-up time after a networking event. Do not give false hope.
-Compare the contact and any verified public context with the user's goal.
+${
+  jev
+    ? `The fit decision is already locked: level=${jev.level}, skipFollowUp=${jev.skipFollowUp}. Do not change those fields. Write reasons, opportunityType, suggestedAction, and the draft to match that decision.`
+    : `Compare the contact and any verified public context with the user's goal.
 High only if they clearly buy, fund, partner, hire, or introduce toward that goal AND you can cite a conversation fact or a verified public page. A title on a card is not enough for High.
 Medium if there is a real but weaker overlap and at least one cited fact.
 Low if the overlap is thin. Low may say do not follow up.
 unknown if there is no conversation note and no verified public page, or the identity is uncertain. Never upgrade unknown to High.
-skipFollowUp is true for unknown, and for Low when a message is not worth sending.
+skipFollowUp is true for unknown, and for Low when a message is not worth sending.`
+}
 opportunityType in plain words. Examples: "Buyer for plant automation" or "Not a fit — recruiter, not an operator" or "Not enough to say".
 Reasons must cite the goal plus a conversation fact or a public source URL that was found. Do not invent private facts. Do not invent company facts when enrichment is unavailable.
 Suggested action must be honest. If skipFollowUp, say do not follow up and why.
@@ -223,7 +236,14 @@ Public enrichment unavailable: ${enrichment.unavailable}
 ${JSON.stringify(enrichment)}`,
   });
 
-  const relevance = clampRelevance(scored.output.relevance, input.rawNote, structuredNote, enrichment);
+  const relevance = clampRelevance(
+    jev
+      ? { ...scored.output.relevance, level: jev.level, skipFollowUp: jev.skipFollowUp }
+      : scored.output.relevance,
+    input.rawNote,
+    structuredNote,
+    enrichment,
+  );
   const draft =
     relevance.skipFollowUp || relevance.level === "unknown"
       ? { ...scored.output.draft, body: "", title: relevance.suggestedAction }
