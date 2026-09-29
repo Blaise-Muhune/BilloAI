@@ -17,6 +17,8 @@ const privateSources = [
   "/profile/:path*",
   "/account",
   "/account/:path*",
+  "/c",
+  "/c/:path*",
   "/billing",
   "/billing/:path*",
   "/onboarding",

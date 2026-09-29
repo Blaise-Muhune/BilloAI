@@ -157,7 +157,7 @@ export default function PersonPage() {
     try {
       const result = await postJson<UnderstandResult>("/api/ai/understand", {
         event,
-        contact,
+        contact: fieldsFrom(contact),
         rawNote: contact.rawNote,
         allowPublicLookup,
       });

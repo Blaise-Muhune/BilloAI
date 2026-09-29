@@ -4,6 +4,31 @@ export type GroupKind = "company" | "event";
 const INTENT_KEY = "billo-intent";
 const JOIN_KEY = "billo-join";
 const JOIN_FROM_KEY = "billo-join-from";
+const NEXT_KEY = "billo-next";
+
+export function safeAppPath(value: string | null | undefined) {
+  if (!value) return "";
+  if (!value.startsWith("/") || value.startsWith("//") || value.includes("://")) return "";
+  if (value.startsWith("/login") || value.startsWith("/signup")) return "";
+  return value;
+}
+
+export function persistNextPath(value: string | null | undefined) {
+  if (typeof window === "undefined") return;
+  const path = safeAppPath(value);
+  if (path) sessionStorage.setItem(NEXT_KEY, path);
+}
+
+export function peekNextPath() {
+  if (typeof window === "undefined") return "";
+  return safeAppPath(sessionStorage.getItem(NEXT_KEY));
+}
+
+export function consumeNextPath() {
+  const path = peekNextPath();
+  if (typeof window !== "undefined") sessionStorage.removeItem(NEXT_KEY);
+  return path;
+}
 
 export function isGroupIntent(value: string | null | undefined) {
   return value === "group" || value === "company" || value === "organizer" || value === "event";
@@ -25,13 +50,14 @@ export function readWorkspace(value: string | null | undefined): Workspace {
   return "network";
 }
 
-export function persistAuthContext(input: { for?: string | null; code?: string | null; from?: string | null }) {
+export function persistAuthContext(input: { for?: string | null; code?: string | null; from?: string | null; next?: string | null }) {
   if (typeof window === "undefined") return;
   if (isGroupIntent(input.for) || isTeamIntent(input.for)) sessionStorage.setItem(INTENT_KEY, input.for!);
   if (input.from === "team") sessionStorage.setItem(INTENT_KEY, "team");
   const code = input.code?.trim().toLowerCase();
   if (code) sessionStorage.setItem(JOIN_KEY, code);
   if (input.from === "company" || input.from === "event" || input.from === "team") sessionStorage.setItem(JOIN_FROM_KEY, input.from);
+  persistNextPath(input.next);
 }
 
 export function readStoredIntent() {
@@ -80,6 +106,8 @@ export function pathAfterAuth(input: { onboarded: boolean }) {
     const forParam = intent === "company" ? "company" : "group";
     return input.onboarded ? "/group" : `/onboarding?for=${forParam}`;
   }
+  const next = peekNextPath();
+  if (next) return input.onboarded ? consumeNextPath() : "/onboarding";
   return input.onboarded ? "/home" : "/onboarding";
 }
 

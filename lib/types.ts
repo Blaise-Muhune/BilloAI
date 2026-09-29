@@ -62,6 +62,7 @@ export interface UserDoc {
   workspace?: Workspace;
   groupKind?: GroupKind | "";
   teamId?: string;
+  staffAccess?: boolean;
   lastSeenAt?: string;
   emailUnsubscribedAt?: string;
   emailDigestAt?: string;
@@ -76,6 +77,7 @@ export interface PublicProfile {
   email: string;
   linkedin: string;
   website: string;
+  links: { label: string; url: string }[];
 }
 
 export interface EventInput {

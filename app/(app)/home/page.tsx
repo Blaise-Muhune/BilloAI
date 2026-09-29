@@ -150,6 +150,9 @@ export default function HomePage() {
             <Link href="/capture" className="mt-6 inline-flex rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink">
               Add someone you met
             </Link>
+            <Link href="/profile" className="mt-3 block text-sm font-semibold text-[#9ddec8]">
+              Show your QR
+            </Link>
           </div>
           <div className="flex items-center justify-between">
             <h2 className="kicker">Upcoming events</h2>

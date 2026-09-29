@@ -117,7 +117,7 @@ export default function AccountPage() {
       />
       <div className="grid gap-4 sm:grid-cols-2">
         {[
-          ["/profile", "Your card", "The QR other BilloAI users can scan"],
+          ["/profile", "Your card", "The QR their phone camera can scan. Also linked from Account."],
           ["/billing", "Plan", "Individual, Team seats, or Group seats for one event"],
           ["/team", "Team", "Year-round seats, the hunt list, and coverage counts"],
           ["/group", "Group", "Seats and counts for the people you pay for"],

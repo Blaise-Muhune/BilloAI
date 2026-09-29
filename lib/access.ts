@@ -1,4 +1,5 @@
 import { adminDb } from "@/lib/firebase/admin";
+import { hasStaffProAccess } from "@/lib/staff-pro";
 import type { AccountPlan } from "@/lib/types";
 
 const WINDOW_MS = 60_000;
@@ -21,6 +22,7 @@ export async function assertAiAccess(uid: string, emailVerified: boolean, eventI
   const data = user.data();
   const plan = data?.plan as AccountPlan | undefined;
   const status = data?.subscriptionStatus as string | undefined;
+  if (hasStaffProAccess(String(data?.email ?? ""), Boolean(data?.staffAccess))) return;
   const included = Boolean(eventId && (await includedOnEvent(uid, eventId, String(data?.includedEventId ?? ""))));
   let member = false;
   if (eventId) {
@@ -65,6 +67,7 @@ async function hasActiveTeamSeat(uid: string) {
   const adminUid = String(team.data()?.adminUid ?? "");
   if (!adminUid) return false;
   const admin = await adminDb().collection("users").doc(adminUid).get();
+  if (hasStaffProAccess(String(admin.data()?.email ?? ""), Boolean(admin.data()?.staffAccess))) return true;
   return admin.data()?.plan === "team" && admin.data()?.subscriptionStatus === "active";
 }
 
@@ -125,6 +128,9 @@ export async function accessStatus(uid: string) {
   const data = user.data();
   const plan = data?.plan as AccountPlan | undefined;
   const status = data?.subscriptionStatus as string | undefined;
+  if (hasStaffProAccess(String(data?.email ?? ""), Boolean(data?.staffAccess))) {
+    return { kind: "staff" as const, line: "Staff access · Individual, Group, and Team.", eventName: "" };
+  }
   if (await hasActiveTeamSeat(uid)) {
     return { kind: "team" as const, line: "You’re on a Team seat.", eventName: "" };
   }

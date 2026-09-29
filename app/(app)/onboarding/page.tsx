@@ -13,9 +13,11 @@ import { userMessage } from "@/lib/errors";
 import { createEvent, getPublicProfile, getUser, markOnboarded, savePublicProfile, saveWorkspace } from "@/lib/data";
 import { todayISO } from "@/lib/dates";
 import { firebaseAuth } from "@/lib/firebase/client";
+import { emptyProfile } from "@/lib/profile-links";
 import { GOAL_LABELS, NETWORKING_GOALS, type GroupKind, type NetworkingGoal, type PublicProfile } from "@/lib/types";
 import {
   clearJoinCode,
+  consumeNextPath,
   groupCopy,
   groupKindFromIntent,
   isGroupIntent,
@@ -27,7 +29,7 @@ import {
   teamCopy,
 } from "@/lib/workspace";
 
-const steps = ["Welcome", "Your card", "First event", "Stay connected", "Email"] as const;
+const steps = ["Welcome", "Your card", "First event", "You're ready", "Email"] as const;
 
 export default function OnboardingPage() {
   return (
@@ -46,14 +48,7 @@ function OnboardingFlow() {
   const [kind, setKind] = useState<GroupKind | "">(groupKindFromIntent(params.get("for")));
   const [invited, setInvited] = useState(params.get("join") === "1" || Boolean(params.get("code")));
   const [step, setStep] = useState(0);
-  const [profile, setProfile] = useState<PublicProfile>({
-    name: "",
-    company: "",
-    title: "",
-    email: "",
-    linkedin: "",
-    website: "",
-  });
+  const [profile, setProfile] = useState<PublicProfile>(emptyProfile());
   const [eventName, setEventName] = useState("");
   const [location, setLocation] = useState("");
   const [date, setDate] = useState(todayISO());
@@ -85,13 +80,14 @@ function OnboardingFlow() {
       const [account, card] = await Promise.all([getUser(user.uid), getPublicProfile(user.uid)]);
       if (account?.onboardedAt) {
         router.replace(
-          team || isTeamIntent(readStoredIntent())
-            ? "/team"
-            : group || isGroupIntent(readStoredIntent())
-              ? "/group"
-              : invited || readJoinCode()
-                ? `/join?code=${readJoinCode()}`
-                : "/home",
+          consumeNextPath() ||
+            (team || isTeamIntent(readStoredIntent())
+              ? "/team"
+              : group || isGroupIntent(readStoredIntent())
+                ? "/group"
+                : invited || readJoinCode()
+                  ? `/join?code=${readJoinCode()}`
+                  : "/home"),
         );
         return;
       }
@@ -102,6 +98,7 @@ function OnboardingFlow() {
         email: card?.email || user.email || "",
         linkedin: card?.linkedin || "",
         website: card?.website || "",
+        links: card?.links || [],
       });
       if (user.emailVerified) setStep((current) => (current === 4 ? 3 : current));
     })();
@@ -117,10 +114,10 @@ function OnboardingFlow() {
       const code = readJoinCode() || params.get("code")?.trim().toLowerCase() || "";
       if (code) {
         try {
-          const result = await postJson<{ eventId?: string; team?: boolean }>("/api/join", { code });
+          await postJson("/api/join", { code });
           clearJoinCode();
           await markOnboarded(user.uid);
-          router.replace(result.team ? "/home" : `/capture?event=${result.eventId}`);
+          router.replace("/home");
           return;
         } catch {
           await markOnboarded(user.uid);
@@ -129,7 +126,7 @@ function OnboardingFlow() {
         }
       }
       await markOnboarded(user.uid);
-      router.replace(nextHref);
+      router.replace(consumeNextPath() || nextHref);
     } catch (err) {
       setError(userMessage(err, "Could not finish setup."));
       setPending(false);
@@ -209,7 +206,7 @@ function OnboardingFlow() {
   const copy = team ? teamCopy() : groupCopy(kind);
   const welcomeItems = invited
     ? [
-        { n: "1", title: "Your card", body: "Name, company, and title. This is the only thing another user can scan." },
+        { n: "1", title: "Your card", body: "Name, company, and title. Their camera opens your card. Notes stay private." },
         { n: "2", title: "Join what they paid for", body: copy.joinBody },
       ]
     : team
@@ -223,9 +220,9 @@ function OnboardingFlow() {
           { n: "2", title: "The event", body: "Seats attach to this event. Then you pay once and share the join link." },
         ]
       : [
-          { n: "1", title: "Your card", body: "Name, company, and title. This is the only thing another user can scan." },
-          { n: "2", title: "The event and the goal", body: "Priority only works when BilloAI knows why you showed up." },
-          { n: "3", title: "Stay connected", body: "We’ll show who fits why you went, and a note you can send yourself." },
+          { n: "1", title: "Your card", body: "Name, company, and title. Their camera opens your card. Notes stay private." },
+          { n: "2", title: "The event and the goal", body: "Say why you went. That sentence is how we tell who is worth your time." },
+          { n: "3", title: "Who was worth it", body: "People you meet are scored against that goal. The rest can wait." },
         ];
 
   return (
@@ -270,7 +267,7 @@ function OnboardingFlow() {
                     ? "Pay for year-round seats, then set the hunt. You will not see who they meet — only coverage counts and a company-level already-in-play signal."
                     : group
                     ? "Name the event, then buy seats for that event. You get a join link. You will not see who they meet."
-                    : "Four short steps. After this you’ll know who from the event is worth staying connected to."}
+                    : "Four short steps. After this, people you meet are scored against why you went."}
               </p>
               <ol className={`mt-10 grid gap-4 ${group || team || invited ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
                 {welcomeItems.map((item, index) => (
@@ -301,8 +298,8 @@ function OnboardingFlow() {
               <div className="lg:hidden">
                 <Steps labels={["Who you are", "Email"]} index={cardPart} />
               </div>
-              <h1 className="serif text-4xl xl:text-5xl">{cardPart === 0 ? "Your card" : "Your email on the card"}</h1>
-              <p className="text-muted">People who scan your BilloAI QR see only these fields. Notes stay private.</p>
+              <h1 className="serif text-4xl xl:text-5xl">{cardPart === 0 ? "Your card" : "How they reach you"}</h1>
+              <p className="text-muted">People who scan your QR see this. Add LinkedIn if you have it. More links later on Your card. Notes stay private.</p>
               <div className="form-grid">
                 {cardPart === 0 ? (
                   <>
@@ -311,7 +308,11 @@ function OnboardingFlow() {
                     <Field label="Title" value={profile.title} onChange={(event) => setProfile({ ...profile, title: event.target.value })} className="lg:col-span-2" />
                   </>
                 ) : (
-                  <Field label="Email" type="email" value={profile.email} onChange={(event) => setProfile({ ...profile, email: event.target.value })} className="lg:col-span-2" />
+                  <>
+                    <Field label="Email" type="email" value={profile.email} onChange={(event) => setProfile({ ...profile, email: event.target.value })} />
+                    <Field label="LinkedIn" value={profile.linkedin} placeholder="linkedin.com/in/…" onChange={(event) => setProfile({ ...profile, linkedin: event.target.value })} />
+                    <Field label="Website" value={profile.website} placeholder="yoursite.com" onChange={(event) => setProfile({ ...profile, website: event.target.value })} className="lg:col-span-2" />
+                  </>
                 )}
               </div>
               <div className="flex flex-wrap gap-3">
@@ -363,7 +364,7 @@ function OnboardingFlow() {
                   ? group
                     ? "Name the event. People you pay for set their own goal. You never see it."
                     : "Skip this if you are not heading to one yet."
-                  : "This sentence is how we know who is worth staying connected to."}
+                  : "This sentence is how we tell who is worth your time."}
               </p>
               {eventPart === 0 ? (
                 <div className="form-grid">
@@ -422,35 +423,32 @@ function OnboardingFlow() {
           ) : null}
 
           {step === 3 ? (
-            <section className="max-w-4xl space-y-6">
-              <h1 className="serif text-4xl xl:text-5xl">Keep the people you meet</h1>
-              <p className="max-w-2xl text-muted">Save them, say what you talked about, and see who is worth staying connected to.</p>
-              <div className="grid gap-4 lg:grid-cols-3">
-                <div className="rounded-[1.6rem] bg-foreground p-6 text-card">
-                  <p className="font-semibold">Save who you met</p>
-                  <p className="mt-2 text-sm leading-relaxed text-white/70">
-                    A card photo is read, then discarded. We look them up in public so the match uses more than a name.
-                  </p>
-                </div>
-                <div className="rounded-[1.6rem] border border-line bg-card p-6">
-                  <p className="font-semibold">Say what you talked about</p>
-                  <p className="mt-2 text-sm leading-relaxed text-muted">Type it or speak it. That conversation is how we know if they fit why you went.</p>
-                </div>
-                <div className="rounded-[1.6rem] border border-line bg-card p-6">
-                  <p className="font-semibold">Stay connected if they fit</p>
-                  <p className="mt-2 text-sm leading-relaxed text-muted">You’ll get a note you can send. Nothing goes out on its own.</p>
-                </div>
+            <section className="max-w-2xl space-y-6">
+              <h1 className="serif text-4xl xl:text-5xl">You’ll know who was worth it</h1>
+              <p className="text-lg leading-relaxed text-muted">
+                After the room, people you meet are scored against why you went. Matches are worth your time. Everyone else can wait.
+              </p>
+              <div className="rounded-[1.6rem] bg-foreground p-6 text-card sm:p-8">
+                <p className="kicker text-[#9ddec8]">Why you went</p>
+                <p className="serif mt-3 text-3xl leading-tight">
+                  {goalDetail.trim() || (eventName.trim() ? GOAL_LABELS[goal] : "You’ll add this when you have an event.")}
+                </p>
+                <p className="mt-3 text-sm leading-relaxed text-white/65">
+                  {eventName.trim()
+                    ? [eventName, location].filter(Boolean).join(" · ")
+                    : "When you have an event, people you meet are scored against why you went. The rest can wait."}
+                </p>
               </div>
               <Button
                 type="button"
-                className="min-w-52"
+                className="min-w-40"
                 busy={pending}
                 onClick={() => {
-                  if (user?.emailVerified) void finish(eventId ? `/capture?event=${eventId}` : "/home");
+                  if (user?.emailVerified) void finish("/home");
                   else setStep(4);
                 }}
               >
-                {user?.emailVerified ? "Add someone you met" : "Continue"}
+                {pending ? "Finishing…" : user?.emailVerified ? "Finish" : "Continue"}
               </Button>
             </section>
           ) : null}
@@ -465,7 +463,7 @@ function OnboardingFlow() {
                   ? `Verify ${user?.email || "your email"} so you can pay for seats.`
                   : invited
                     ? `Verify ${user?.email || "your email"}, then you will join what they set up for you.`
-                    : `Your first event can match people you meet now. Verify ${user?.email || "your email"} before you pay or use that on later events.`}
+                    : `Your first event can score people against why you went. Verify ${user?.email || "your email"} before you pay or use that on later events.`}
               </p>
               <div className="flex flex-wrap gap-3">
                 <Button
@@ -478,8 +476,8 @@ function OnboardingFlow() {
                 >
                   {sent ? "Verification email sent" : "Send verification email"}
                 </Button>
-                <Button type="button" busy={pending} onClick={() => void finish(team ? "/billing?plan=team" : group ? (eventId ? `/billing?plan=organizer&event=${eventId}` : "/billing?plan=organizer") : eventId ? `/capture?event=${eventId}` : "/capture")}>
-                  {pending ? "Finishing…" : team ? "Go pay for Team seats" : group ? "Go pay for seats" : invited ? "Join" : "Add someone you met"}
+                <Button type="button" busy={pending} onClick={() => void finish(team ? "/billing?plan=team" : group ? (eventId ? `/billing?plan=organizer&event=${eventId}` : "/billing?plan=organizer") : "/home")}>
+                  {pending ? "Finishing…" : team ? "Go pay for Team seats" : group ? "Go pay for seats" : invited ? "Join" : "Finish"}
                 </Button>
               </div>
             </section>
@@ -488,13 +486,20 @@ function OnboardingFlow() {
       </div>
       <aside className="preview-pane hidden min-h-full flex-col justify-between px-10 py-12 text-card lg:flex">
         <div>
-          <p className="kicker text-[#9ddec8]">{step < 2 ? "What others can scan" : "Why this event exists"}</p>
+          <p className="kicker text-[#9ddec8]">{step < 2 ? "What others can scan" : step === 3 ? "Who is worth your time" : "Why this event exists"}</p>
           <div className="mt-8">
             {step < 2 ? (
               <LiveCard
                 name={profile.name || "Your name"}
                 line={[profile.title, profile.company].filter(Boolean).join(" · ") || "Title and company"}
                 footer={profile.email || user?.email || "Email on the card"}
+              />
+            ) : step === 3 ? (
+              <LiveCard
+                kicker="Why you went"
+                name={goalDetail.trim() || (eventName.trim() ? GOAL_LABELS[goal] : "Who was worth it")}
+                line={eventName.trim() ? [eventName, location].filter(Boolean).join(" · ") : "People you meet are scored against this."}
+                footer="Matches are worth your time. The rest can wait."
               />
             ) : (
               <LiveCard
@@ -513,7 +518,9 @@ function OnboardingFlow() {
               ? "You will see who used a seat. You will not see their contacts, notes, or drafts."
               : invited
                 ? copy.neverSee
-                : "Notes stay private. The card is the only thing another BilloAI user can scan."}
+                : step === 3
+                  ? "People you meet are scored against why you went. The rest can wait."
+                  : "Notes stay private. The card is the only thing another BilloAI user can scan."}
         </p>
       </aside>
     </div>

@@ -142,8 +142,10 @@ function BillingForm() {
       {!ready ? <BillingBodySkeleton /> : null}
       {ready && account ? (
         <p className="text-sm">
-          Current plan: {planLabel(account.plan)}. Status: {statusLabel(account.subscriptionStatus)}.
-          {user && !user.emailVerified ? " Verify your email before you can subscribe." : ""}
+          {account.staffAccess
+            ? "Staff access is on. Individual, Group, and Team are included — no Stripe charge."
+            : `Current plan: ${planLabel(account.plan)}. Status: ${statusLabel(account.subscriptionStatus)}.`}
+          {user && !user.emailVerified && !account.staffAccess ? " Verify your email before you can subscribe." : ""}
         </p>
       ) : null}
       {user && !user.emailVerified ? (

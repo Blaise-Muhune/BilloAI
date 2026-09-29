@@ -22,7 +22,12 @@ export async function POST(request: Request) {
     if (!body.event || !body.contact) {
       return NextResponse.json({ error: "Event and contact are required." }, { status: 400 });
     }
-    const team = await teamContextForUser(uid);
+    let team = null;
+    try {
+      team = await teamContextForUser(uid);
+    } catch (error) {
+      reportServerError("understand-team", error);
+    }
     const event = applyTeamHunt(body.event, team);
     const result = await understand({
       event,
@@ -35,9 +40,13 @@ export async function POST(request: Request) {
     });
     let alreadyInPlay = false;
     if (team) {
-      alreadyInPlay = await companyAlreadyInPlay(team.teamId, body.contact.company, uid);
-      if (result.relevance.level === "high" || result.relevance.level === "medium") {
-        await recordCompanyPlay(team.teamId, body.contact.company, uid, result.relevance.level);
+      try {
+        alreadyInPlay = await companyAlreadyInPlay(team.teamId, body.contact.company, uid);
+        if (result.relevance.level === "high" || result.relevance.level === "medium") {
+          await recordCompanyPlay(team.teamId, body.contact.company, uid, result.relevance.level);
+        }
+      } catch (error) {
+        reportServerError("understand-team-play", error);
       }
     }
     return NextResponse.json({ ...result, alreadyInPlay });

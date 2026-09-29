@@ -133,12 +133,25 @@ const plans = [
   },
 ];
 
-const comparison = [
-  { feature: "Who it’s for", individual: "You, every event", group: "Payer, one named event", team: "Sales / BD, year-round" },
-  { feature: "Matching after the first event", individual: "On your account", group: "On that named event only", team: "On assigned seats, all year" },
-  { feature: "Who they met", individual: "Yours", group: "Theirs — you never see names", team: "Theirs — you never see names" },
-  { feature: "Company hunt", individual: "No", group: "No", team: "Yes, plus already-in-play" },
-  { feature: "How you pay", individual: `${usd(INDIVIDUAL_MONTHLY_USD)} / mo or ${usd(INDIVIDUAL_YEARLY_USD)} / yr`, group: `${usd(ORGANIZER_SEAT_USD)} once per seat`, team: `From ${usd(TEAM_YEARLY_FLOOR_USD)} / yr` },
+const pick = [
+  {
+    href: "#plan-individual",
+    who: "You go to events",
+    plan: "Individual",
+    why: `First event is included. Then ${usd(INDIVIDUAL_MONTHLY_USD)} a month, or ${usd(INDIVIDUAL_YEARLY_USD)} a year.`,
+  },
+  {
+    href: "#plan-group",
+    who: "You pay for other people, one event",
+    plan: "Group",
+    why: `${usd(ORGANIZER_SEAT_USD)} once per seat. You see who used a seat. You never see who they met.`,
+  },
+  {
+    href: "#plan-team",
+    who: "A sales team, all year",
+    plan: "Team",
+    why: `${usd(TEAM_SEAT_YEARLY_USD)} a seat / year, or ${usd(TEAM_SEAT_MONTHLY_USD)} a month. From ${usd(TEAM_YEARLY_FLOOR_USD)} a year for ${TEAM_SEAT_MIN} seats.`,
+  },
 ];
 
 const landingGraph = {
@@ -392,7 +405,7 @@ export default function LandingPage() {
           <p className="kicker text-accent">Pricing</p>
           <h2 className="serif mt-3 text-4xl leading-tight sm:text-5xl">Find the plan that matches how you work.</h2>
           <p className="mt-4 max-w-2xl text-muted">
-            Matching on your first event is included. After that there are three paid ways — Individual, Group, or Team. Same numbers at checkout. Free is how you start, not a fourth column.
+            Matching on your first event is included. After that, pick the one that matches how you work. Same numbers at checkout.
           </p>
           <ul className="mt-8 grid gap-3 sm:grid-cols-3">
             {who.map((item) => (
@@ -442,38 +455,19 @@ export default function LandingPage() {
               </article>
             ))}
           </div>
-          <div className="mt-12 overflow-x-auto">
-            <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
-              <caption className="sr-only">What differs between Individual, Group, and Team</caption>
-              <thead>
-                <tr className="border-b border-line">
-                  <th scope="col" className="py-3 pr-4 font-semibold">
-                    What differs
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-semibold">
-                    Individual
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-semibold">
-                    Group
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-semibold">
-                    Team
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {comparison.map((row) => (
-                  <tr key={row.feature} className="border-b border-line">
-                    <th scope="row" className="py-3 pr-4 font-semibold">
-                      {row.feature}
-                    </th>
-                    <td className="px-4 py-3 text-muted">{row.individual}</td>
-                    <td className="px-4 py-3 text-muted">{row.group}</td>
-                    <td className="px-4 py-3 text-muted">{row.team}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mt-12">
+            <h3 className="font-semibold">Which one?</h3>
+            <ul className="mt-4 grid gap-3 lg:grid-cols-3">
+              {pick.map((item) => (
+                <li key={item.plan}>
+                  <a href={item.href} className="surface block min-h-full p-5 transition hover:border-accent">
+                    <p className="text-sm text-muted">{item.who}</p>
+                    <p className="mt-1 font-semibold">{item.plan}</p>
+                    <p className="mt-2 text-sm leading-relaxed text-muted">{item.why}</p>
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 

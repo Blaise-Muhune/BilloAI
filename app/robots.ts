@@ -14,6 +14,7 @@ const privatePaths = [
   "/billing",
   "/onboarding",
   "/join",
+  "/c/",
   "/group",
   "/team",
   "/organizer",

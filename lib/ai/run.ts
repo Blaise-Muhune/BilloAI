@@ -5,6 +5,7 @@ import { addDays, todayISO } from "@/lib/dates";
 import { CHANNEL_DRAFT_RULES, FIT_RULES } from "@/lib/ai/fit-rules";
 import { scoreWithJev } from "@/lib/ai/jev";
 import { clampChannel } from "@/lib/channels";
+import { reportServerError } from "@/lib/errors";
 import { asHref } from "@/lib/links";
 import { clampRelevance, hasConversationEvidence, hasVerifiedPublic, shouldLookupPublic } from "@/lib/relevance";
 import type {
@@ -51,17 +52,19 @@ const enrichmentSchema = z.object({
   sources: z.array(z.string()),
 });
 
+const channels = z.enum(["email", "linkedin", "text", "call", "intro"]);
+
 const relevanceSchema = z.object({
   level: z.enum(["high", "medium", "low", "unknown"]),
-  reasons: z.array(z.string()).min(1).max(4),
+  reasons: z.array(z.string()),
   suggestedAction: z.string(),
   opportunityType: z.string(),
   skipFollowUp: z.boolean(),
-  recommendedChannel: z.enum(["email", "linkedin", "text", "call", "intro"]).optional(),
+  recommendedChannel: channels.nullable(),
 });
 
 const draftSchema = z.object({
-  channel: z.enum(["email", "linkedin", "text", "call", "intro"]),
+  channel: channels,
   title: z.string(),
   body: z.string(),
   dueDate: z.string(),
@@ -154,15 +157,19 @@ export async function transcribeNote(audio: Uint8Array, mediaType: string) {
 }
 
 async function structureNote(rawNote: string): Promise<StructuredNote> {
-  if (!rawNote.trim()) {
-    return { painPoint: "", interest: "", opportunity: "", personalDetail: "", followUpPromise: "" };
+  const empty = { painPoint: "", interest: "", opportunity: "", personalDetail: "", followUpPromise: "" };
+  if (!rawNote.trim()) return empty;
+  try {
+    const result = await generateText({
+      model,
+      output: Output.object({ schema: noteSchema }),
+      prompt: `Structure this networking note. Leave a field empty if it was not said. Do not invent details. If they offered to introduce a colleague or named someone on another team, put that in opportunity.\n\n${rawNote}`,
+    });
+    return result.output ?? empty;
+  } catch (error) {
+    reportServerError("structure-note", error);
+    return empty;
   }
-  const result = await generateText({
-    model,
-    output: Output.object({ schema: noteSchema }),
-    prompt: `Structure this networking note. Leave a field empty if it was not said. Do not invent details. If they offered to introduce a colleague or named someone on another team, put that in opportunity.\n\n${rawNote}`,
-  });
-  return result.output;
 }
 
 function withFields(contact: ContactFields): ContactFields {
@@ -236,27 +243,47 @@ export async function understand(input: {
     teamHunt: input.teamHunt,
   }).catch(() => null);
 
-  const scored = await generateText({
-    model,
-    output: Output.object({
-      schema: z.object({ relevance: relevanceSchema, draft: draftSchema }),
-    }),
-    prompt: `You help a person decide who deserves follow-up time after a networking event. Do not give false hope.
+  const scoreSchema = z.object({ relevance: relevanceSchema, draft: draftSchema });
+  type Scored = z.infer<typeof scoreSchema>;
+  const fallbackScore: Scored = {
+    relevance: {
+      level: "unknown",
+      reasons: ["Scoring did not finish. Add what you talked about, then try again."],
+      suggestedAction: "Do not follow up on a guess. Add what you talked about, then score again.",
+      opportunityType: "Not enough to say",
+      skipFollowUp: true,
+      recommendedChannel: null,
+    },
+    draft: {
+      channel: "linkedin",
+      title: "Do not follow up on a guess.",
+      body: "",
+      dueDate: todayISO(),
+    },
+  };
+
+  let scored: Scored = fallbackScore;
+  try {
+    const result = await generateText({
+      model,
+      output: Output.object({ schema: scoreSchema }),
+      prompt: `You help a person decide who deserves follow-up time after a networking event. Do not give false hope.
 ${FIT_RULES}
+${CHANNEL_DRAFT_RULES}
 ${
   jev
-    ? `The fit decision is already locked: level=${jev.level}, skipFollowUp=${jev.skipFollowUp}. Do not change those fields. Write reasons, opportunityType, suggestedAction, and the draft to match that decision.`
+    ? `The fit decision is already locked: level=${jev.level}, skipFollowUp=${jev.skipFollowUp}. Do not change those fields. Write reasons, opportunityType, suggestedAction, and the draft to match that decision. If skipFollowUp, set recommendedChannel to null and draft.body to an empty string.`
     : `Compare the contact and any verified public context with the user's goal.
 unknown if there is no conversation note and no verified public page, or the identity is uncertain. Never upgrade unknown to High.
-skipFollowUp is true for unknown, and for Low when a message is not worth sending.`
+skipFollowUp is true for unknown, and for Low when a message is not worth sending. If skipFollowUp, set recommendedChannel to null.`
 }
 opportunityType in plain words. Examples: "Buyer for plant automation" or "Intro path — plant ops to OT at a mid-size supplier" or "Not a fit — recruiter, not an operator" or "Company only — no path" or "Not enough to say".
 Reasons must cite the goal plus a conversation fact or a public source URL that was found. Name the path in plain words (buyer, investor, intro, company only). Do not invent private facts, departments, or checks.
 Suggested action must start with the recommended action: "Email them…", "Send a LinkedIn note…", "Text them…", "Call as they asked…", "Ask for an intro to…", or "Do not follow up…".
-recommendedChannel must match that action. If skipFollowUp, omit it.
+recommendedChannel must match that action, or null if skipFollowUp.
 If skipFollowUp or level is unknown, set draft.body to an empty string. Otherwise draft a follow-up the user will review. Never claim it was already sent.
 If the note contains a date, set dueDate to YYYY-MM-DD. Otherwise use ${todayISO()} for high and ${addDays(todayISO(), 7)} otherwise.
-draft.channel must be the same as recommendedChannel. Do not pick email without an email, text or call without a phone or WhatsApp, or intro unless the intro path is real.
+draft.channel must be the same as recommendedChannel when one is set. Do not pick email without an email, text or call without a phone or WhatsApp, or intro unless the intro path is real.
 
 User goal:
 ${goalText(input.event, input.teamHunt)}
@@ -272,21 +299,27 @@ ${JSON.stringify(structuredNote)}
 
 Public enrichment unavailable: ${enrichment.unavailable}
 ${JSON.stringify(enrichment)}`,
-  });
+    });
+    scored = result.output ?? fallbackScore;
+  } catch (error) {
+    reportServerError("understand-score", error);
+  }
 
+  const guessed = {
+    ...scored.relevance,
+    recommendedChannel: scored.relevance.recommendedChannel ?? undefined,
+  };
   const relevance = clampRelevance(
-    jev
-      ? { ...scored.output.relevance, level: jev.level, skipFollowUp: jev.skipFollowUp }
-      : scored.output.relevance,
+    jev ? { ...guessed, level: jev.level, skipFollowUp: jev.skipFollowUp } : guessed,
     input.rawNote,
     structuredNote,
     enrichment,
   );
   const skip = relevance.skipFollowUp || relevance.level === "unknown";
-  const channel = skip ? scored.output.draft.channel : clampChannel(contact, scored.output.draft.channel);
+  const channel = skip ? scored.draft.channel : clampChannel(contact, scored.draft.channel);
   const draft = skip
-    ? { ...scored.output.draft, body: "", title: relevance.suggestedAction, channel }
-    : { ...scored.output.draft, channel };
+    ? { ...scored.draft, body: "", title: relevance.suggestedAction, channel }
+    : { ...scored.draft, channel };
   const nextRelevance = skip
     ? { ...relevance, recommendedChannel: undefined }
     : { ...relevance, recommendedChannel: channel };
@@ -311,10 +344,11 @@ export async function draftChannel(input: {
     return { channel: input.channel, title: "No follow-up yet", body: "", dueDate: todayISO() };
   }
 
-  const result = await generateText({
-    model,
-    output: Output.object({ schema: draftSchema }),
-    prompt: `Write one ${input.channel} follow-up the user will copy and send themselves. Do not say the message was already sent.
+  try {
+    const result = await generateText({
+      model,
+      output: Output.object({ schema: draftSchema }),
+      prompt: `Write one ${input.channel} follow-up the user will copy and send themselves. Do not say the message was already sent.
 If there is no conversation and no verified public fact, return an empty body. Do not invent a relationship.
 ${CHANNEL_DRAFT_RULES}
 Use the conversation and only public facts that exist. If a fact is missing, leave it out.
@@ -326,6 +360,10 @@ Note: ${input.rawNote}
 Structured: ${JSON.stringify(input.structuredNote)}
 Public: ${JSON.stringify(input.enrichment)}
 Today: ${todayISO()}`,
-  });
-  return { ...result.output, channel: input.channel };
+    });
+    return { ...result.output, channel: input.channel };
+  } catch (error) {
+    reportServerError("draft-channel", error);
+    return { channel: input.channel, title: "No follow-up yet", body: "", dueDate: todayISO() };
+  }
 }

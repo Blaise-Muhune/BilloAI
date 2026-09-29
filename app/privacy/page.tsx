@@ -31,8 +31,8 @@ export default function PrivacyPage() {
         <h2 className="serif pt-4 text-2xl">What we store</h2>
         <p>
           We store the account you create (name, email, plan) and the events, contacts, notes, drafts, and tasks you
-          add. Your QR card stores only the name, company, title, email, LinkedIn, and website you put on it. Another
-          signed-in BilloAI user who scans that card sees those fields. They do not see your notes or who else you met.
+          add. Your QR card stores the name, company, title, email, LinkedIn, website, and any other links you put on
+          it. Another person who scans that card sees those fields. They do not see your notes or who else you met.
         </p>
         <p>
           Card photos are read on the spot and discarded. They are not saved to your account. Voice notes are sent to

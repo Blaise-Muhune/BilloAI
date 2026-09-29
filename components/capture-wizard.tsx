@@ -12,7 +12,10 @@ import { ApiError, getJson, isPaywalled, postForm, postJson } from "@/lib/api";
 import { userMessage } from "@/lib/errors";
 import { addDays, todayISO } from "@/lib/dates";
 import { createContact, createEvent, createTask, getEvent, getPublicProfile, listEvents, updateEvent } from "@/lib/data";
+import { CARD_SCHEME, parseCardScan } from "@/lib/card";
 import { asHref, looksLikeLink } from "@/lib/links";
+import { contactFromProfile } from "@/lib/profile-links";
+import { scanQrFile, startQrScan } from "@/lib/qr-scan";
 import { skipFollowUp } from "@/lib/relevance";
 import { compressImage } from "@/lib/images";
 import { GOAL_LABELS, NETWORKING_GOALS, type ContactFields, type ContactSource, type EventRecord, type NetworkingGoal, type UnderstandResult } from "@/lib/types";
@@ -59,6 +62,7 @@ export function CaptureWizard() {
   const router = useRouter();
   const params = useSearchParams();
   const preset = params.get("event") ?? "";
+  const cardParam = params.get("card") ?? "";
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [eventId, setEventId] = useState(preset);
   const [source, setSource] = useState<ContactSource>("card");
@@ -89,6 +93,7 @@ export function CaptureWizard() {
   const [moreDetails, setMoreDetails] = useState(false);
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const openedCard = useRef("");
 
   useEffect(() => {
     if (!user) return;
@@ -119,6 +124,12 @@ export function CaptureWizard() {
       .catch(() => undefined);
     setNight(window.localStorage.getItem("billo-night-capture") === "1");
   }, [user, preset]);
+
+  useEffect(() => {
+    if (!user || !eventsReady || !cardParam || !eventId || openedCard.current === cardParam) return;
+    openedCard.current = cardParam;
+    void handleScan(`${CARD_SCHEME}${cardParam}`);
+  }, [user, eventsReady, cardParam, eventId]);
 
   useEffect(() => {
     return () => {
@@ -236,22 +247,35 @@ export function CaptureWizard() {
 
   async function startScanner() {
     setError("");
+    const host = document.getElementById("qr-reader");
+    if (!host) return;
     try {
-      const { Html5Qrcode } = await import("html5-qrcode");
-      const scanner = new Html5Qrcode("qr-reader");
-      scannerRef.current = scanner;
-      await scanner.start(
-        { facingMode: "environment" },
-        { fps: 8, qrbox: 220 },
-        (text) => {
-          const kind = text.startsWith("billoai:") ? "billo_qr" : "linkedin_qr";
-          setSource(kind);
-          void scanner.stop().then(() => handleQr(kind, text));
-        },
-        () => undefined,
-      );
+      let taken = false;
+      const stop = await startQrScan(host, (text) => {
+        if (taken) return;
+        taken = true;
+        void stop().then(() => handleScan(text));
+      });
+      scannerRef.current = { stop };
     } catch (err) {
-      setError(userMessage(err, "Camera access is required to scan a QR code."));
+      setError(userMessage(err, "Allow the camera, or upload a photo of the QR."));
+    }
+  }
+
+  async function onQrFile(file: File) {
+    setError("");
+    setReading("Reading that QR…");
+    try {
+      const text = await scanQrFile(file);
+      if (!text) {
+        setError("No QR was found in that photo.");
+        return;
+      }
+      await handleScan(text);
+    } catch (err) {
+      setError(userMessage(err, "Could not read that QR photo."));
+    } finally {
+      setReading("");
     }
   }
 
@@ -302,9 +326,9 @@ export function CaptureWizard() {
       startManual();
       return;
     }
-    if (value.startsWith("billoai:")) {
-      setSource("billo_qr");
-      await handleQr("billo_qr", value);
+    const scanned = parseCardScan(value);
+    if (scanned.kind === "billo") {
+      await handleScan(value);
       return;
     }
     if (!looksLikeLink(value)) {
@@ -314,35 +338,37 @@ export function CaptureWizard() {
     await lookupPage(asHref(value), value.toLowerCase().includes("linkedin.com") ? "linkedin_qr" : "manual");
   }
 
-  async function handleQr(kind: "linkedin_qr" | "billo_qr", text: string) {
-    if (kind === "linkedin_qr") {
-      if (!text.includes("linkedin.com")) {
-        setError("That QR is not a LinkedIn profile.");
-        return;
-      }
-      await lookupPage(text, "linkedin_qr");
+  async function handleScan(text: string) {
+    const scanned = parseCardScan(text);
+    if (scanned.kind === "linkedin") {
+      setSource("linkedin_qr");
+      await lookupPage(scanned.href, "linkedin_qr");
       return;
     }
-    const uid = text.startsWith("billoai:") ? text.slice("billoai:".length) : "";
-    if (!uid) {
-      setError("That QR is not a BilloAI card.");
+    if (scanned.kind === "url") {
+      setSource("manual");
+      await lookupPage(scanned.href, "manual");
       return;
     }
+    if (scanned.kind !== "billo") {
+      setError("That QR is not a BilloAI card or a LinkedIn profile.");
+      return;
+    }
+    if (user && scanned.uid === user.uid) {
+      setError("That’s your own card. Show it to the other person, or scan theirs.");
+      return;
+    }
+    setSource("billo_qr");
     setReading("Opening that card…");
     try {
-      const profile = await getPublicProfile(uid);
+      const profile = await getPublicProfile(scanned.uid);
       if (!profile) {
         setError("No BilloAI card was found for that code.");
         return;
       }
       openConfirm({
         ...emptyFields,
-        name: profile.name,
-        company: profile.company,
-        title: profile.title,
-        email: profile.email,
-        linkedin: profile.linkedin,
-        website: profile.website,
+        ...contactFromProfile(profile),
       });
     } finally {
       setReading("");
@@ -664,15 +690,30 @@ export function CaptureWizard() {
           </section>
           <section className="surface space-y-4 p-6 lg:p-8">
             <h2 className="serif text-3xl">Or paste a link</h2>
-            <p className="text-muted">LinkedIn or a site. We look it up and fill what is public. You add anything else you have.</p>
+            <p className="text-muted">LinkedIn, a site, or their BilloAI card link. We fill what is public. You add anything else.</p>
             <Field label="Their link" value={link} placeholder="linkedin.com/in/… or a site" onChange={(event) => setLink(event.target.value)} />
             <Button type="button" className="w-full" busy={reading.startsWith("Looking up")} onClick={() => void continueTyped()} disabled={!link.trim()}>
               {reading.startsWith("Looking up") ? "Looking this up…" : looksLikeLink(link) ? "Look this up" : "Use this name"}
             </Button>
-            <div className="flex flex-wrap gap-x-4 gap-y-2">
-              <button type="button" className="text-sm font-semibold text-accent" onClick={() => void startScanner()}>
-                Scan a QR code
-              </button>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="button" tone="ghost" onClick={() => void startScanner()}>
+                Scan a QR
+              </Button>
+              <label className="cursor-pointer text-sm font-semibold text-accent">
+                Photo of a QR
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="sr-only"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    void onQrFile(file);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
               <button type="button" className="text-sm font-semibold text-accent" onClick={() => startManual()}>
                 Type what you have
               </button>

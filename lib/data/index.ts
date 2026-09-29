@@ -12,6 +12,7 @@ import {
   where,
 } from "firebase/firestore";
 import { firebaseDb } from "@/lib/firebase/client";
+import { normalizeProfile, saveReadyProfile } from "@/lib/profile-links";
 import type {
   ContactDoc,
   ContactRecord,
@@ -66,6 +67,7 @@ export async function ensureUser(uid: string, name: string, email: string) {
         email,
         linkedin: "",
         website: "",
+        links: [],
       } satisfies PublicProfile);
     }
   });
@@ -74,7 +76,7 @@ export async function ensureUser(uid: string, name: string, email: string) {
 export async function getPublicProfile(uid: string) {
   const snap = await getDoc(doc(firebaseDb(), "publicProfiles", uid));
   if (!snap.exists()) return null;
-  return snap.data() as PublicProfile;
+  return normalizeProfile(snap.data() as PublicProfile);
 }
 
 export async function getUser(uid: string) {
@@ -106,7 +108,7 @@ export async function savePublicProfile(uid: string, profile: PublicProfile) {
   } else {
     await setDoc(userRef, { name: profile.name, email: profile.email }, { merge: true });
   }
-  await setDoc(doc(db, "publicProfiles", uid), profile);
+  await setDoc(doc(db, "publicProfiles", uid), saveReadyProfile(profile));
 }
 
 export async function listEvents(uid: string, opts?: { seats?: boolean; all?: boolean }) {

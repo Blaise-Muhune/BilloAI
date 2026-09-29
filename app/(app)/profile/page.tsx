@@ -4,20 +4,21 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { BrandMark } from "@/components/brand";
 import { Pulse } from "@/components/loading";
-import { Button, ErrorNote, Field, PageHeader, PageWrap, Steps } from "@/components/ui";
+import { ProfileLinksEditor } from "@/components/profile-links-editor";
+import { Button, ErrorNote, Field, PageHeader, PageWrap } from "@/components/ui";
+import { cardUrl } from "@/lib/card";
 import { getPublicProfile, savePublicProfile } from "@/lib/data";
 import { userMessage } from "@/lib/errors";
+import { emptyProfile, publicLinkRows } from "@/lib/profile-links";
 import type { PublicProfile } from "@/lib/types";
-
-const empty: PublicProfile = { name: "", company: "", title: "", email: "", linkedin: "", website: "" };
 
 export default function ProfilePage() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<PublicProfile>(empty);
+  const [profile, setProfile] = useState<PublicProfile>(emptyProfile());
   const [qr, setQr] = useState("");
+  const [href, setHref] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [cardReady, setCardReady] = useState(false);
 
@@ -32,32 +33,60 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!user) return;
+    const url = cardUrl(user.uid);
+    setHref(url);
     void import("qrcode").then((QRCode) => {
-      void QRCode.toDataURL(`billoai:${user.uid}`, { margin: 1, width: 280 }).then(setQr);
+      void QRCode.toDataURL(url, {
+        margin: 4,
+        width: 320,
+        errorCorrectionLevel: "M",
+        color: { dark: "#1a1612", light: "#ffffff" },
+      }).then(setQr);
     });
   }, [user]);
 
-  function set<K extends keyof PublicProfile>(key: K, value: string) {
+  function set<K extends keyof PublicProfile>(key: K, value: PublicProfile[K]) {
     setProfile((current) => ({ ...current, [key]: value }));
   }
 
+  async function copyLink() {
+    if (!href) return;
+    try {
+      await navigator.clipboard.writeText(href);
+      setMessage("Link copied.");
+    } catch {
+      setError("Could not copy the link.");
+    }
+  }
+
+  async function shareCard() {
+    if (!href) return;
+    if (!navigator.share) {
+      await copyLink();
+      return;
+    }
+    try {
+      await navigator.share({ title: profile.name || "My BilloAI card", url: href });
+    } catch {
+      /* canceled */
+    }
+  }
+
+  const line = [profile.title, profile.company].filter(Boolean).join(" · ");
+  const shown = publicLinkRows(profile);
+
   return (
     <PageWrap>
-      <PageHeader kicker="Your card" title="What other people can scan" body="Notes stay private. This is the only thing another BilloAI user sees." />
+      <PageHeader kicker="Your card" title="What they see when they scan you" body="Show the QR. Their camera opens your card. LinkedIn and any other link you add sit on it. Notes stay private." />
       <form
-        className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]"
+        className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]"
         onSubmit={async (event) => {
           event.preventDefault();
-          if (step === 0) {
-            if (!profile.name.trim()) {
-              setError("Add your name.");
-              return;
-            }
-            setError("");
-            setStep(1);
+          if (!user) return;
+          if (!profile.name.trim()) {
+            setError("Add your name.");
             return;
           }
-          if (!user) return;
           setError("");
           setMessage("");
           setSaving(true);
@@ -71,45 +100,56 @@ export default function ProfilePage() {
           }
         }}
       >
-        <div className="surface space-y-5 p-6 lg:p-8">
-          <Steps labels={["Who you are", "How to reach you"]} index={step} />
-          {step === 0 ? (
-            <div className="form-grid">
-              <Field label="Name" value={profile.name} onChange={(event) => set("name", event.target.value)} required />
-              <Field label="Company" value={profile.company} onChange={(event) => set("company", event.target.value)} />
-              <Field label="Title" value={profile.title} onChange={(event) => set("title", event.target.value)} className="lg:col-span-2" />
-            </div>
-          ) : (
-            <div className="form-grid">
-              {qr ? <img src={qr} alt="Your BilloAI QR code" className="surface w-40 bg-white p-3 lg:hidden" /> : <Pulse className="h-40 w-40 rounded-2xl lg:hidden" />}
-              <Field label="Email" type="email" value={profile.email} onChange={(event) => set("email", event.target.value)} />
-              <Field label="LinkedIn" value={profile.linkedin} onChange={(event) => set("linkedin", event.target.value)} />
-              <Field label="Website" value={profile.website} onChange={(event) => set("website", event.target.value)} className="lg:col-span-2" />
-            </div>
-          )}
-          {error ? <ErrorNote>{error}</ErrorNote> : null}
-          {message ? <p className="text-sm text-accent">{message}</p> : null}
-          <div className="flex gap-3">
-            {step > 0 ? (
-              <Button type="button" tone="ghost" onClick={() => setStep(0)}>
-                Back
-              </Button>
-            ) : null}
-            <Button type="submit" busy={saving} disabled={!cardReady} className="min-w-40">
-              {step === 0 ? "Continue" : saving ? "Saving…" : "Save card"}
-            </Button>
-          </div>
-        </div>
-        <aside className="surface hidden h-fit p-6 lg:block">
+        <aside className="surface order-first h-fit space-y-4 p-5 lg:order-last lg:p-6">
           <div className="flex items-center gap-2.5">
             <BrandMark className="h-7 w-7" />
             <p className="kicker">Your card</p>
           </div>
-          <p className="serif mt-3 text-3xl">{profile.name || "Your name"}</p>
-          <p className="mt-2 text-muted">{[profile.title, profile.company].filter(Boolean).join(" · ") || "Title and company"}</p>
-          {qr ? <img src={qr} alt="Your BilloAI QR code" className="mt-6 w-full bg-white p-3" /> : <Pulse className="mt-6 aspect-square w-full rounded-2xl" />}
-          <p className="mt-4 text-sm text-muted">Only this is public if someone scans you.</p>
+          {qr ? <img src={qr} alt="Your BilloAI QR code" className="mx-auto w-48 bg-white p-3 lg:w-full" /> : <Pulse className="mx-auto aspect-square w-48 rounded-2xl lg:w-full" />}
+          <div>
+            <p className="serif text-2xl leading-tight">{profile.name || "Your name"}</p>
+            <p className="mt-1 text-sm text-muted">{line || "Title and company"}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" tone="ghost" className="px-4 py-2" onClick={() => void copyLink()}>
+              Copy link
+            </Button>
+            <Button type="button" tone="ghost" className="px-4 py-2" onClick={() => void shareCard()}>
+              Share
+            </Button>
+            {qr ? (
+              <a href={qr} download="billoai-card.png" className="rounded-full border border-line bg-card px-4 py-2 text-sm font-semibold shadow-sm hover:bg-white">
+                Download
+              </a>
+            ) : null}
+          </div>
         </aside>
+
+        <div className="surface space-y-6 p-6 lg:p-8">
+          <div>
+            <p className="kicker text-accent">Who you are</p>
+            <div className="form-grid mt-4">
+              <Field label="Name" value={profile.name} onChange={(event) => set("name", event.target.value)} required />
+              <Field label="Company" value={profile.company} onChange={(event) => set("company", event.target.value)} />
+              <Field label="Title" value={profile.title} onChange={(event) => set("title", event.target.value)} className="lg:col-span-2" />
+            </div>
+          </div>
+          <div>
+            <p className="kicker text-accent">How to reach you</p>
+            <div className="form-grid mt-4">
+              <Field label="Email" type="email" value={profile.email} onChange={(event) => set("email", event.target.value)} />
+              <Field label="LinkedIn" value={profile.linkedin} placeholder="linkedin.com/in/…" onChange={(event) => set("linkedin", event.target.value)} />
+              <Field label="Website" value={profile.website} placeholder="yoursite.com" onChange={(event) => set("website", event.target.value)} className="lg:col-span-2" />
+              <ProfileLinksEditor links={profile.links ?? []} onChange={(links) => set("links", links)} />
+            </div>
+          </div>
+          {error ? <ErrorNote>{error}</ErrorNote> : null}
+          {message ? <p className="text-sm text-accent">{message}</p> : null}
+          {shown.length ? <p className="text-sm text-muted">On the card: {shown.map((item) => item.label).join(" · ")}</p> : null}
+          <Button type="submit" busy={saving} disabled={!cardReady} className="min-w-40">
+            {saving ? "Saving…" : "Save card"}
+          </Button>
+        </div>
       </form>
     </PageWrap>
   );

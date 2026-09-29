@@ -91,7 +91,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const configured = isFirebaseConfigured();
 
   useEffect(() => {
-    persistAuthContext({ for: forParam, code: params.get("code"), from: params.get("from") });
+    persistAuthContext({ for: forParam, code: params.get("code"), from: params.get("from"), next: params.get("next") });
   }, [forParam, params]);
 
   useEffect(() => {

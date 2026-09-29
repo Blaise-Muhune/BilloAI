@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { publicErrorMessage, reportServerError } from "@/lib/errors";
 import { adminDb, sessionFromRequest } from "@/lib/firebase/admin";
+import { isOpsEmail } from "@/lib/ops";
 import { clampSeats, clampTeamSeats, SEAT_MAX, SEAT_MIN, TEAM_SEAT_MAX, TEAM_SEAT_MIN } from "@/lib/pricing";
+import { grantStaffGroupSeats, grantStaffProAccess } from "@/lib/staff-pro";
 import { appOrigin, integrationId, stripeClient } from "@/lib/stripe";
 import { joinCode, teamByAdmin } from "@/lib/team";
 
@@ -10,7 +12,8 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const session = await sessionFromRequest(request);
   if (!session) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
-  if (!session.email_verified) {
+  const staff = isOpsEmail(session.email);
+  if (!session.email_verified && !staff) {
     return NextResponse.json({ error: "Verify your email before paying." }, { status: 403 });
   }
 
@@ -25,7 +28,6 @@ export async function POST(request: Request) {
   }
 
   try {
-    const stripe = stripeClient();
     const userRef = adminDb().collection("users").doc(session.uid);
     const user = await userRef.get();
     const customerId = String(user.data()?.stripeCustomerId ?? "");
@@ -79,7 +81,7 @@ export async function POST(request: Request) {
     }
 
     if (body.plan === "team") {
-      if (user.data()?.plan === "team" && user.data()?.subscriptionStatus === "active") {
+      if (!staff && user.data()?.plan === "team" && user.data()?.subscriptionStatus === "active") {
         return NextResponse.json({ error: "Change the seat count in Manage billing. Do not start a second Team checkout." }, { status: 400 });
       }
       const seats = Number(body.seats);
@@ -105,6 +107,24 @@ export async function POST(request: Request) {
       }
     }
 
+    const origin = appOrigin(request);
+    if (staff) {
+      await grantStaffProAccess({
+        uid: session.uid,
+        email: session.email,
+        name: String(user.data()?.name || session.name || "Team"),
+        teamSeats: body.plan === "team" ? clampTeamSeats(Number(body.seats)) : undefined,
+      });
+      if (body.plan === "organizer" && organizedEventId) {
+        await grantStaffGroupSeats(session.uid, organizedEventId, Number(body.seats));
+        return NextResponse.json({ url: `${origin}/group?status=success` });
+      }
+      if (body.plan === "team") {
+        return NextResponse.json({ url: `${origin}/team?status=success` });
+      }
+      return NextResponse.json({ url: `${origin}/billing?status=success` });
+    }
+
     const price =
       body.plan === "individual"
         ? body.interval === "year"
@@ -117,7 +137,7 @@ export async function POST(request: Request) {
           : process.env.STRIPE_PRICE_ORGANIZER;
     if (!price) return NextResponse.json({ error: "Stripe prices are not configured yet." }, { status: 500 });
 
-    const origin = appOrigin(request);
+    const stripe = stripeClient();
     const quantity =
       body.plan === "organizer"
         ? clampSeats(Number(body.seats))

@@ -39,8 +39,8 @@ const teamLinks = [
   { href: teamBillingHref(), label: "Seats", icon: IconCalendar },
 ];
 
-const groupAccount: { href: string; label: string }[] = [];
-const teamAccount: { href: string; label: string }[] = [];
+const groupAccount = [{ href: "/profile", label: "Your card" }];
+const teamAccount = [{ href: "/profile", label: "Your card" }];
 
 function pageLabel(pathname: string, workspace: Workspace) {
   if (pathname.startsWith("/home")) return "Home";
@@ -71,7 +71,6 @@ function pathWorkspace(pathname: string): Workspace | null {
     pathname.startsWith("/capture") ||
     pathname.startsWith("/people") ||
     pathname.startsWith("/tasks") ||
-    pathname.startsWith("/profile") ||
     pathname.startsWith("/join")
   ) {
     return "network";
@@ -91,7 +90,10 @@ function Shell({ children }: { children: React.ReactNode }) {
   const workspace: Workspace = fromPath ?? readWorkspace(account?.workspace);
 
   useEffect(() => {
-    if (ready && isFirebaseConfigured() && !user && !joining) router.replace("/login");
+    if (ready && isFirebaseConfigured() && !user && !joining) {
+      const next = `${window.location.pathname}${window.location.search}`;
+      router.replace(`/login?next=${encodeURIComponent(next)}`);
+    }
   }, [ready, user, router, joining]);
 
   useEffect(() => {
@@ -173,12 +175,12 @@ function Shell({ children }: { children: React.ReactNode }) {
   const ops = isInboxOwner(user?.email);
 
   return (
-    <div className="min-h-full min-w-0 md:grid md:grid-cols-[17.5rem_minmax(0,1fr)]">
-      <aside className="sticky top-0 hidden h-screen flex-col border-r border-line bg-card md:flex">
-        <Link href={homeHref} className="px-5 pt-6">
+    <div className="min-h-dvh min-w-0 md:grid md:h-dvh md:grid-cols-[17.5rem_minmax(0,1fr)] md:overflow-hidden">
+      <aside className="sticky top-0 hidden h-dvh max-h-dvh min-h-0 flex-col overflow-hidden border-r border-line bg-card pt-[var(--safe-top)] md:flex">
+        <Link href={homeHref} className="shrink-0 px-5 pt-6">
           <BrandLockup />
         </Link>
-        <div className="mx-4 mt-6 grid grid-cols-3 rounded-full bg-[#f7f3ea] p-1 text-[11px] font-semibold">
+        <div className="mx-4 mt-6 grid shrink-0 grid-cols-3 rounded-full bg-[#f7f3ea] p-1 text-[11px] font-semibold">
           <button
             type="button"
             onClick={() => void switchWorkspace("network")}
@@ -202,7 +204,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         {workspace === "network" ? (
-          <div className="mt-5 px-4">
+          <div className="mt-5 shrink-0 px-4">
             <Link
               href="/capture"
               className="flex items-center justify-center rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_8px_20px_rgb(11_107_79/0.22)] hover:brightness-110"
@@ -211,7 +213,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
         ) : (
-          <div className="mt-5 px-4">
+          <div className="mt-5 shrink-0 px-4">
             <Link
               href={workspace === "team" ? teamBillingHref() : groupSeatsHref()}
               className="flex items-center justify-center rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_8px_20px_rgb(11_107_79/0.22)] hover:brightness-110"
@@ -220,7 +222,8 @@ function Shell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
         )}
-        <p className="kicker mt-7 px-7">{workspace === "group" ? "The group" : workspace === "team" ? "The team" : "My network"}</p>
+        <div className="mt-7 min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3">
+        <p className="kicker px-7">{workspace === "group" ? "The group" : workspace === "team" ? "The team" : "My network"}</p>
         <nav className="mt-2 space-y-1 px-3">
           {links.map((link) => {
             const hrefPath = link.href.split("?")[0] ?? link.href;
@@ -278,7 +281,8 @@ function Shell({ children }: { children: React.ReactNode }) {
             </nav>
           </>
         ) : null}
-        <div className="mx-3 mb-4 mt-auto space-y-1">
+        </div>
+        <div className="mt-auto shrink-0 space-y-1 border-t border-line px-3 pb-[max(1rem,var(--safe-bottom))] pt-2">
           <Link href="/account" className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold hover:bg-[#f7f3ea]">
             <span className="grid h-9 w-9 place-items-center rounded-full bg-foreground text-xs text-card">{initial}</span>
             <span className="min-w-0">
@@ -291,8 +295,8 @@ function Shell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </aside>
-      <div className="flex min-h-full min-w-0 flex-col pb-28 md:pb-0">
-        <header className="flex items-center justify-between gap-3 px-4 pt-4 sm:px-5 sm:pt-5 md:hidden">
+      <div className="flex min-h-dvh min-w-0 flex-col pb-[var(--app-bottom-nav)] md:h-full md:min-h-0 md:overflow-hidden md:pb-0">
+        <header className="flex items-center justify-between gap-3 px-[max(1rem,var(--safe-left))] pt-[max(1rem,var(--safe-top))] pr-[max(1rem,var(--safe-right))] sm:px-[max(1.25rem,var(--safe-left))] sm:pt-[max(1.25rem,var(--safe-top))] sm:pr-[max(1.25rem,var(--safe-right))] md:hidden">
           <Link href={homeHref} className="min-w-0">
             <BrandLockup className="max-w-full" markClassName="h-7 w-7" />
           </Link>
@@ -304,7 +308,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             {initial}
           </Link>
         </header>
-        <div className="flex min-w-0 max-w-full gap-2 overflow-x-auto px-4 pt-3 sm:px-5 md:hidden">
+        <div className="flex min-w-0 max-w-full gap-2 overflow-x-auto px-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] pt-3 sm:px-[max(1.25rem,var(--safe-left))] sm:pr-[max(1.25rem,var(--safe-right))] md:hidden">
           <button type="button" onClick={() => void switchWorkspace("network")} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${workspace === "network" ? "bg-foreground text-card" : "border border-line bg-card"}`}>
             My network
           </button>
@@ -351,9 +355,9 @@ function Shell({ children }: { children: React.ReactNode }) {
             </Link>
           ) : null}
         </div>
-        <main className="app-canvas min-w-0 flex-1 px-4 py-5 sm:px-5 sm:py-6 md:px-8 md:py-8 xl:px-12 xl:py-10">{children}</main>
-        <nav className="fixed inset-x-0 bottom-0 border-t border-line bg-[#f7f3ea]/95 backdrop-blur md:hidden">
-          <div className={`mx-auto grid max-w-lg px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1 ${workspace === "group" || workspace === "team" ? "grid-cols-2" : "grid-cols-5"}`}>
+        <main className="app-canvas min-w-0 flex-1 px-[max(1rem,var(--safe-left))] py-5 pr-[max(1rem,var(--safe-right))] sm:px-[max(1.25rem,var(--safe-left))] sm:py-6 sm:pr-[max(1.25rem,var(--safe-right))] md:overflow-y-auto md:overscroll-contain md:px-8 md:py-8 md:pr-8 xl:px-12 xl:py-10 xl:pr-12">{children}</main>
+        <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-[#f7f3ea]/95 pb-[var(--safe-bottom)] pl-[var(--safe-left)] pr-[var(--safe-right)] backdrop-blur md:hidden">
+          <div className={`mx-auto grid max-w-lg px-2 pb-1.5 pt-1.5 ${workspace === "group" || workspace === "team" ? "grid-cols-2" : "grid-cols-5"}`}>
             {links.map((link) => {
               const hrefPath = link.href.split("?")[0] ?? link.href;
               const active =

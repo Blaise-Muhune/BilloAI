@@ -21,6 +21,8 @@ async function applyIndividual(subscription: Stripe.Subscription) {
   if (!uid || subscription.metadata.plan !== "individual") return;
   const status = subscriptionStatus(subscription);
   const customer = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
+  const user = await adminDb().collection("users").doc(uid).get();
+  if (user.data()?.staffAccess) return;
   await adminDb().collection("users").doc(uid).set(
     { plan: status === "canceled" ? "free" : "individual", subscriptionStatus: status, stripeCustomerId: customer },
     { merge: true },
@@ -30,6 +32,8 @@ async function applyIndividual(subscription: Stripe.Subscription) {
 async function applyTeamSubscription(subscription: Stripe.Subscription) {
   const uid = subscription.metadata.uid;
   if (!uid || subscription.metadata.plan !== "team") return;
+  const already = await adminDb().collection("users").doc(uid).get();
+  if (already.data()?.staffAccess) return;
   const status = subscriptionStatus(subscription);
   const customer = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
   const quantity = Number(subscription.items.data[0]?.quantity ?? subscription.metadata.seats ?? 0);
