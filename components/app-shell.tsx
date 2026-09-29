@@ -9,11 +9,12 @@ import { IconCalendar, IconGroup, IconHome, IconPeople, IconPlus, IconTasks } fr
 import { BrandLockup } from "@/components/brand";
 import { BootScreen } from "@/components/loading";
 import { postJson } from "@/lib/api";
-import { getUser, listEvents, markOnboarded, saveWorkspace } from "@/lib/data";
+import { getPublicProfile, getUser, listEvents, markOnboarded, saveWorkspace } from "@/lib/data";
 import { firebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import { isInboxOwner } from "@/lib/support";
 import type { UserDoc, Workspace } from "@/lib/types";
-import { groupSeatsHref, otherWorkspaceLinks, readWorkspace, teamBillingHref, workspaceLabel } from "@/lib/workspace";
+import { profilePhotoHref } from "@/lib/profile-links";
+import { groupSeatsHref, readWorkspace, teamBillingHref, workspaceHereLabel, workspaceRoleQuestions } from "@/lib/workspace";
 
 const networkLinks = [
   { href: "/home", label: "Home", icon: IconHome },
@@ -61,6 +62,33 @@ function pageLabel(pathname: string, workspace: Workspace) {
   return "BilloAI";
 }
 
+function Face({ initial, src, className }: { initial: string; src?: string; className: string }) {
+  return (
+    <span className={`relative grid place-items-center overflow-hidden rounded-full bg-foreground font-semibold text-card ${className}`}>
+      {initial}
+      {src ? <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" /> : null}
+    </span>
+  );
+}
+
+function RoleQuestions({
+  items,
+  className = "",
+}: {
+  items: { id: Workspace; href: string; label: string }[];
+  className?: string;
+}) {
+  return (
+    <nav aria-label="Switch role" className={`flex shrink-0 items-center gap-3 text-sm font-semibold ${className}`}>
+      {items.map((item) => (
+        <Link key={item.id} href={item.href} className="whitespace-nowrap text-accent hover:text-foreground">
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 function pathWorkspace(pathname: string): Workspace | null {
   if (pathname.startsWith("/team")) return "team";
   if (pathname.startsWith("/group") || pathname.startsWith("/organizer")) return "group";
@@ -84,6 +112,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [allowed, setAllowed] = useState(false);
   const [account, setAccount] = useState<UserDoc | null>(null);
+  const [photoAt, setPhotoAt] = useState("");
   const setup = pathname.startsWith("/onboarding");
   const joining = pathname.startsWith("/join");
   const fromPath = pathWorkspace(pathname);
@@ -100,8 +129,9 @@ function Shell({ children }: { children: React.ReactNode }) {
     if (!user) return;
     let cancel = false;
     void (async () => {
-      const next = await getUser(user.uid);
+      const [next, card] = await Promise.all([getUser(user.uid), getPublicProfile(user.uid).catch(() => null)]);
       if (!cancel) setAccount(next);
+      if (!cancel) setPhotoAt(card?.photoUpdatedAt || "");
       if (joining || pathname.startsWith("/admin")) {
         if (!cancel) setAllowed(true);
         return;
@@ -152,6 +182,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   }
 
   const initial = (user?.displayName || user?.email || "You").slice(0, 1).toUpperCase();
+  const photoSrc = user && photoAt ? profilePhotoHref(user.uid, photoAt) : "";
 
   async function leave() {
     await signOut(firebaseAuth());
@@ -166,26 +197,22 @@ function Shell({ children }: { children: React.ReactNode }) {
   const accountLinks = workspace === "group" ? groupAccount : workspace === "team" ? teamAccount : networkAccount;
   const homeHref = workspace === "group" ? "/group" : workspace === "team" ? "/team" : "/home";
   const ops = isInboxOwner(user?.email);
-  const extras = otherWorkspaceLinks(workspace, account);
+  const questions = workspaceRoleQuestions(account, workspace);
+  const hereLabel = workspaceHereLabel(workspace, account);
+  const hideSwitch = pathname.startsWith("/billing");
 
   return (
     <div className="min-h-dvh min-w-0 md:grid md:h-dvh md:grid-cols-[17.5rem_minmax(0,1fr)] md:overflow-hidden">
       <aside className="sticky top-0 hidden h-dvh max-h-dvh min-h-0 flex-col overflow-hidden border-r border-line bg-card pt-[var(--safe-top)] md:flex">
-        <Link href={homeHref} className="shrink-0 px-5 pt-6">
-          <BrandLockup />
-        </Link>
-        {extras.length > 0 ? (
-          <div className="shrink-0 px-5 pt-4">
-            <p className="text-sm font-semibold">{workspaceLabel(workspace)}</p>
-            <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm">
-              {extras.map((link) => (
-                <Link key={link.href} href={link.href} className="font-semibold text-muted hover:text-foreground">
-                  {link.label}
-                </Link>
-              ))}
-            </p>
-          </div>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-3 px-5 pt-6">
+          <Link href={homeHref} className="min-w-0 shrink">
+            <BrandLockup
+              className="max-w-full"
+              wordmarkClassName={hideSwitch ? "serif text-xl leading-none" : "serif hidden text-xl leading-none xl:inline"}
+            />
+          </Link>
+          {hideSwitch ? null : <RoleQuestions items={questions} />}
+        </div>
         {workspace === "network" ? (
           <div className="mt-5 shrink-0 px-4">
             <Link
@@ -206,7 +233,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           </div>
         )}
         <div className="mt-7 min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3">
-        <p className="kicker px-7">{workspace === "group" ? "The group" : workspace === "team" ? "The team" : "My network"}</p>
+        <p className="kicker px-7">{hereLabel}</p>
         <nav className="mt-2 space-y-1 px-3">
           {links.map((link) => {
             const hrefPath = link.href.split("?")[0] ?? link.href;
@@ -245,15 +272,6 @@ function Shell({ children }: { children: React.ReactNode }) {
                   {link.label}
                 </Link>
               ))}
-              {extras.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="block rounded-xl px-3 py-2 text-sm font-semibold text-muted hover:bg-[#f7f3ea] hover:text-foreground"
-                >
-                  {link.label}
-                </Link>
-              ))}
             </nav>
           </>
         ) : null}
@@ -276,7 +294,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         </div>
         <div className="mt-auto shrink-0 space-y-1 border-t border-line px-3 pb-[max(1rem,var(--safe-bottom))] pt-2">
           <Link href="/account" className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold hover:bg-[#f7f3ea]">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-foreground text-xs text-card">{initial}</span>
+            <Face initial={initial} src={photoSrc} className="h-9 w-9 text-xs" />
             <span className="min-w-0">
               <span className="block truncate">{user?.displayName || "Account"}</span>
               <span className="block truncate text-xs font-medium text-muted">{user?.email}</span>
@@ -288,43 +306,36 @@ function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
       <div className="flex min-h-dvh min-w-0 flex-col pb-[var(--app-bottom-nav)] md:h-full md:min-h-0 md:overflow-hidden md:pb-0">
-        <header className="flex items-center justify-between gap-3 px-[max(1rem,var(--safe-left))] pt-[max(1rem,var(--safe-top))] pr-[max(1rem,var(--safe-right))] sm:px-[max(1.25rem,var(--safe-left))] sm:pt-[max(1.25rem,var(--safe-top))] sm:pr-[max(1.25rem,var(--safe-right))] md:hidden">
-          <Link href={homeHref} className="min-w-0">
-            <BrandLockup className="max-w-full" markClassName="h-7 w-7" />
-          </Link>
-          <Link
-            href="/account"
-            className="grid h-10 w-10 place-items-center rounded-full bg-foreground text-sm font-semibold text-card"
-            aria-label="Account"
-          >
-            {initial}
-          </Link>
+        <header className="px-[max(1rem,var(--safe-left))] pt-[max(1rem,var(--safe-top))] pr-[max(1rem,var(--safe-right))] sm:px-[max(1.25rem,var(--safe-left))] sm:pt-[max(1.25rem,var(--safe-top))] sm:pr-[max(1.25rem,var(--safe-right))] md:hidden">
+          <div className="flex items-center gap-2.5">
+            <Link href={homeHref} className="min-w-0 shrink">
+              <BrandLockup
+                className="max-w-full"
+                markClassName="h-7 w-7"
+                wordmarkClassName={
+                  hideSwitch ? "serif text-xl leading-none" : "serif hidden text-lg leading-none min-[400px]:inline"
+                }
+              />
+            </Link>
+            {hideSwitch ? null : <RoleQuestions items={questions} />}
+            <Link
+              href="/account"
+              className="ml-auto shrink-0"
+              aria-label="Account and workspaces"
+            >
+              <Face initial={initial} src={photoSrc} className="h-10 w-10 text-sm" />
+            </Link>
+          </div>
         </header>
-        <div className="flex min-w-0 max-w-full gap-2 overflow-x-auto px-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] pt-3 sm:px-[max(1.25rem,var(--safe-left))] sm:pr-[max(1.25rem,var(--safe-right))] md:hidden">
-          {extras.map((link) => (
-            <Link key={link.href} href={link.href} className="shrink-0 rounded-full border border-line bg-card px-3 py-1.5 text-sm font-semibold">
-              {link.label}
-            </Link>
-          ))}
-          {accountLinks.map((link) => (
-            <Link key={link.href} href={link.href} className="shrink-0 rounded-full border border-line bg-card px-3 py-1.5 text-sm font-semibold">
-              {link.label}
-            </Link>
-          ))}
-          {ops ? (
-            <Link href="/admin" className="shrink-0 rounded-full border border-line bg-card px-3 py-1.5 text-sm font-semibold">
-              Ops
-            </Link>
-          ) : null}
-          <button type="button" onClick={() => void leave()} className="shrink-0 rounded-full border border-line bg-card px-3 py-1.5 text-sm font-semibold">
-            Sign out
-          </button>
-        </div>
         <div className="hidden h-16 items-center justify-between border-b border-line bg-card/80 px-8 backdrop-blur xl:px-12 md:flex">
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{pageLabel(pathname, workspace)}</p>
             <p className="truncate text-xs text-muted">
-              {workspace === "group" ? "Group · who used a seat" : workspace === "team" ? "Team · who has a seat" : user?.email}
+              {workspace === "group"
+                ? `${hereLabel} · who used a seat`
+                : workspace === "team"
+                  ? "Sales · who has a seat"
+                  : user?.email}
             </p>
           </div>
           {workspace === "network" && !pathname.startsWith("/capture") && !pathname.startsWith("/admin") ? (

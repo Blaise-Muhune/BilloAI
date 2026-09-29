@@ -20,14 +20,16 @@ export function BrandMark({ className = "h-8 w-8" }: { className?: string }) {
 export function BrandLockup({
   className = "",
   markClassName = "h-8 w-8",
+  wordmarkClassName = "serif text-xl leading-none sm:text-2xl",
 }: {
   className?: string;
   markClassName?: string;
+  wordmarkClassName?: string;
 }) {
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
       <BrandMark className={markClassName} />
-      <span className="serif text-xl leading-none sm:text-2xl">BilloAI</span>
+      <span className={wordmarkClassName}>BilloAI</span>
     </span>
   );
 }

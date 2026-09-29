@@ -25,8 +25,7 @@ export default function ContactPage() {
         <BrandHomeLink />
         <h1 className="serif pt-4 text-4xl">Contact {SITE_NAME}</h1>
         <p className="text-muted">
-          Billing, a seat, or the product. This is not for people you met — we never email them. We reply to the address
-          you put below.
+          Billing, a seat, or the product. We reply to the address you put below.
         </p>
         <ContactForm />
       </main>

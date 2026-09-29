@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BrandLockup } from "@/components/brand";
+import { JsonLd } from "@/components/json-ld";
+import { LandingCta, LandingHeader } from "@/components/landing-header";
+import { SkipLink } from "@/components/skip-link";
 import { SupportLink } from "@/components/support";
 import { ORGANIZER_SEAT_USD, TEAM_SEAT_YEARLY_USD, TEAM_YEARLY_FLOOR_USD, usd } from "@/lib/pricing";
-import { JsonLd } from "@/components/json-ld";
-import { SkipLink } from "@/components/skip-link";
 import { breadcrumbJsonLd, pageMeta } from "@/lib/seo";
+
+const SETUP_HREF = "/signup?for=group";
+const SETUP_LABEL = "Set up a group";
+const SETUP_NOTE = `${usd(ORGANIZER_SEAT_USD)} a seat, once, for one named event.`;
 
 export const metadata: Metadata = pageMeta({
   title: "Group seats for one event",
@@ -24,22 +29,16 @@ const roster = [
   { name: "Priya Shah", detail: "Used the seat · nothing saved yet" },
 ];
 
-const chapters = [
-  {
-    n: "01",
-    title: "Pay for the seats",
-    body: `${usd(ORGANIZER_SEAT_USD)} each, once, for one named event. A company sending people to that event, or a host buying for a room. Unused seats stay with that event.`,
-  },
-  {
-    n: "02",
-    title: "Send one link",
-    body: "They open it, create their own account, and start capturing. You see who used a seat.",
-  },
-  {
-    n: "03",
-    title: "Watch whether it worked",
-    body: "You see who used a seat, how many people captured someone, and whether they followed through.",
-  },
+const steps = [
+  { n: "1", title: "Pay for the seats", body: `${usd(ORGANIZER_SEAT_USD)} each, once. Unused seats stay with that event.` },
+  { n: "2", title: "Send one link", body: "They open it, create their own account, and start capturing." },
+  { n: "3", title: "See if it worked", body: "Who used a seat, who captured someone, and whether they followed through." },
+];
+
+const whoLinks = [
+  { href: "/", label: "For individuals" },
+  { href: "/for-teams", label: "For teams" },
+  { href: "/contact", label: "Contact" },
 ];
 
 export default function ForOrganizersPage() {
@@ -52,64 +51,38 @@ export default function ForOrganizersPage() {
         ])}
       />
       <SkipLink />
-      <header className="sticky top-0 z-30 border-b border-line/80 bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl min-w-0 items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-5 sm:py-4">
-          <Link href="/">
-            <BrandLockup />
-          </Link>
-          <nav aria-label="Primary" className="flex items-center gap-2 text-sm font-semibold sm:gap-5">
-            <Link href="/" className="hidden text-muted hover:text-foreground sm:inline">
-              For individuals
-            </Link>
-            <Link href="/for-teams" className="hidden text-muted hover:text-foreground sm:inline">
-              For teams
-            </Link>
-            <Link href="/login?for=group" className="text-muted hover:text-foreground">
-              Sign in
-            </Link>
-            <Link href="/signup?for=group" className="rounded-full bg-accent px-4 py-2 text-accent-ink shadow-[0_8px_20px_rgb(11_107_79/0.22)]">
-              Set up a group
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <LandingHeader links={whoLinks} signInHref="/login?for=group" ctaHref={SETUP_HREF} ctaLabel={SETUP_LABEL} />
 
       <main id="main">
-        <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-8 pt-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)] lg:gap-16 lg:pt-20">
+        <section className="mx-auto grid max-w-6xl items-center gap-6 px-5 pb-0 pt-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)] lg:gap-16 lg:pb-8 lg:pt-20">
           <div>
-            <p className="kicker text-accent">For one event</p>
-            <h1 className="serif mt-4 max-w-[16ch] text-[2.7rem] leading-[1.05] tracking-tight sm:text-6xl">
+            <p className="text-sm font-semibold text-accent">You paid for the room. Not the people who went.</p>
+            <h1 className="serif mt-3 max-w-[16ch] text-[2.15rem] leading-[1.08] tracking-tight sm:text-6xl sm:leading-[1.05]">
               Pay for the seats. See if they used them.
             </h1>
-            <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted">
-              You buy seats for one event. You see who went, who captured someone, and whether they followed through. If they keep going, Individual is their plan.
+            <p className="mt-4 max-w-lg text-lg leading-relaxed text-muted sm:mt-6">
+              You see who went, who captured someone, and whether they followed through.
             </p>
-            <div className="mt-9 grid max-w-lg gap-3 sm:grid-cols-2">
-              <Link href="/signup?for=company" className="rounded-[1.4rem] bg-accent px-5 py-4 text-accent-ink shadow-[0_10px_28px_rgb(11_107_79/0.28)]">
-                <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-white/70">Paying for people</span>
-                <span className="mt-2 block font-semibold">Company, this event</span>
-              </Link>
-              <Link href="/signup?for=event" className="rounded-[1.4rem] border border-line bg-card px-5 py-4">
-                <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-muted">Hosting an event</span>
-                <span className="mt-2 block font-semibold">Room or event</span>
-              </Link>
+            <div className="mt-7 sm:mt-9">
+              <LandingCta href={SETUP_HREF} label={SETUP_LABEL} />
+              <p className="mt-3 text-sm text-muted">{SETUP_NOTE}</p>
+              <p className="mt-3 text-sm text-muted">
+                Paying for people?{" "}
+                <Link href="/signup?for=company" className="font-semibold text-accent">
+                  Company, this event
+                </Link>
+                {" · "}
+                Hosting the room?{" "}
+                <Link href="/signup?for=event" className="font-semibold text-accent">
+                  Room or event
+                </Link>
+              </p>
             </div>
-            <p className="mt-5 text-sm text-muted">
-              Already in?{" "}
-              <Link href="/login?for=group" className="font-semibold text-accent">
-                Sign in, then switch to Group
-              </Link>
-              . Sales going every month?{" "}
-              <Link href="/for-teams" className="font-semibold text-accent">
-                Team is year-round, from {usd(TEAM_YEARLY_FLOOR_USD)} a year
-              </Link>
-              — not these one-event seats.
-            </p>
           </div>
 
           <aside className="landing-frame overflow-hidden rounded-[1.6rem] border border-line bg-card" aria-label="Example of what a group sees">
             <div className="bg-foreground px-5 py-4 text-card">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9ddec8]">Group · who used a seat</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9ddec8]">Example · who used a seat</p>
               <p className="serif mt-1 text-2xl">Detroit supplier night</p>
               <p className="mt-1 text-sm text-white/70">18 of 25 seats used</p>
             </div>
@@ -128,56 +101,30 @@ export default function ForOrganizersPage() {
                   <span className="text-muted">{person.detail}</span>
                 </div>
               ))}
-              <p className="pt-1 text-sm text-muted">Who used a seat, and whether they saved someone.</p>
             </div>
           </aside>
         </section>
 
         <section className="mx-auto max-w-6xl px-5 py-8 lg:py-16">
-          <div className="overflow-hidden rounded-[2rem] bg-foreground px-6 py-12 text-card sm:px-10 lg:px-14 lg:py-16">
-            <p className="kicker text-[#9ddec8]">The proof</p>
-            <h2 className="serif mt-3 max-w-2xl text-4xl leading-[1.1] sm:text-5xl">You keep the proof it worked.</h2>
-            <ul className="mt-10 grid gap-3 text-lg sm:grid-cols-3">
-              <li className="rounded-2xl bg-white/10 px-5 py-4">Who used a seat</li>
-              <li className="rounded-2xl bg-white/10 px-5 py-4">How many people captured someone</li>
-              <li className="rounded-2xl bg-white/10 px-5 py-4">How many follow-ups got done</li>
-            </ul>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-6xl px-5 py-8 lg:py-10">
-          <p className="kicker text-accent">How a group works</p>
-          <h2 className="serif mt-3 max-w-xl text-4xl leading-tight sm:text-5xl">One link. Then you see if it worked.</h2>
-          <ol className="mt-10">
-            {chapters.map((chapter) => (
-              <li key={chapter.n} className="grid gap-3 border-t border-line py-8 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-10 sm:py-10">
-                <p className="serif text-5xl leading-none text-accent/35">{chapter.n}</p>
-                <div className="max-w-2xl">
-                  <h3 className="serif text-2xl sm:text-3xl">{chapter.title}</h3>
-                  <p className="mt-3 leading-relaxed text-muted">{chapter.body}</p>
-                </div>
+          <ol className="grid gap-4 sm:grid-cols-3">
+            {steps.map((step) => (
+              <li key={step.n} className="surface p-6">
+                <p className="serif text-3xl text-accent/40">{step.n}</p>
+                <h2 className="serif mt-2 text-2xl">{step.title}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{step.body}</p>
               </li>
             ))}
           </ol>
-        </section>
-
-        <section className="mx-auto max-w-6xl px-5 py-16 lg:py-24">
-          <div className="flex max-w-2xl flex-col items-start">
-            <h2 className="serif text-4xl leading-[1.1] sm:text-5xl">Buy the seats. See if they followed through.</h2>
-            <p className="mt-5 text-lg leading-relaxed text-muted">
-              {usd(ORGANIZER_SEAT_USD)} a seat, once, for one event. Same price here and at checkout. Unused seats stay with that event.
+          <div className="mt-10">
+            <LandingCta href={SETUP_HREF} label={SETUP_LABEL} />
+            <p className="mt-3 text-sm text-muted">{SETUP_NOTE}</p>
+            <p className="mt-3 max-w-xl text-sm text-muted">
+              Sales or BD all year?{" "}
+              <Link href="/for-teams" className="font-semibold text-accent">
+                Team is from {usd(TEAM_YEARLY_FLOOR_USD)} a year
+              </Link>
+              — not these one-event seats.
             </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                href="/signup?for=company"
-                className="inline-flex rounded-full bg-accent px-7 py-3.5 text-base font-semibold text-accent-ink shadow-[0_10px_28px_rgb(11_107_79/0.28)]"
-              >
-                Set up for this event
-              </Link>
-              <Link href="/signup?for=event" className="inline-flex rounded-full border border-line bg-card px-6 py-3.5 text-base font-semibold">
-                Set up for a room
-              </Link>
-            </div>
           </div>
         </section>
 
@@ -186,7 +133,7 @@ export default function ForOrganizersPage() {
             <div>
               <BrandLockup />
               <p className="mt-2 max-w-sm text-sm text-muted">
-                Group seats are {usd(ORGANIZER_SEAT_USD)} each, once, for one event. You see who used a seat and whether they followed through. Team is {usd(TEAM_SEAT_YEARLY_USD)} a seat / year.
+                Group seats are {usd(ORGANIZER_SEAT_USD)} each, once. Team is {usd(TEAM_SEAT_YEARLY_USD)} a seat / year.
               </p>
             </div>
             <p className="text-sm">

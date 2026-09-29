@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Avatar, Button } from "@/components/ui";
 import { formatWhen } from "@/lib/dates";
+import { cardFaceSrc } from "@/lib/profile-links";
 import type { SeatPerson, SeatPersonStatus } from "@/lib/types";
 
 type RosterFilter = "all" | "pending" | SeatPersonStatus;
@@ -132,7 +133,7 @@ export function SeatRoster({
             return (
               <li key={person.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
-                  <Avatar name={label} />
+                  <Avatar name={label} photoSrc={cardFaceSrc(person.uid)} />
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{label}</p>
                     <p className="truncate text-sm text-muted">{person.email}</p>

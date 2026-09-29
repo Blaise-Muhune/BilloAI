@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { TaskListSkeleton } from "@/components/loading";
-import { Empty, ErrorNote, PageHeader, PageWrap } from "@/components/ui";
+import { Avatar, Empty, ErrorNote, PageHeader, PageWrap } from "@/components/ui";
+import { cardFaceSrc } from "@/lib/profile-links";
 import { dueBucket, type DueBucket } from "@/lib/dates";
 import { CHANNEL_LABELS } from "@/lib/channels";
 import { listTasks, updateTask } from "@/lib/data";
@@ -63,11 +64,14 @@ export default function TasksPage() {
               <div className="surface list-stack">
                 {items.map((task) => (
                   <article key={task.id} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <Link href={`/people/${task.contactId}`} className="block min-w-0">
-                      <p className="font-semibold">{task.title}</p>
-                      <p className="text-sm text-muted">
-                        {task.contactName} · {CHANNEL_LABELS[task.channel]}
-                      </p>
+                    <Link href={`/people/${task.contactId}`} className="flex min-w-0 items-center gap-3">
+                      <Avatar name={task.contactName} photoSrc={cardFaceSrc(task.cardUid)} />
+                      <span className="min-w-0">
+                        <p className="font-semibold">{task.title}</p>
+                        <p className="text-sm text-muted">
+                          {task.contactName} · {CHANNEL_LABELS[task.channel]}
+                        </p>
+                      </span>
                     </Link>
                     <button type="button" onClick={() => void markDone(task)} className="self-start text-sm font-semibold text-accent sm:self-center">
                       Mark done

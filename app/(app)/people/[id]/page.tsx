@@ -13,6 +13,7 @@ import { createTask, deleteContact, getContact, getEvent, openTaskForContact, up
 import { addDays, todayISO } from "@/lib/dates";
 import { CHANNEL_LABELS, recommendedLabel, showRecommendedAction } from "@/lib/channels";
 import { userMessage } from "@/lib/errors";
+import { cardFaceSrc } from "@/lib/profile-links";
 import { evidenceLine, skipFollowUp } from "@/lib/relevance";
 import type { ContactFields, ContactRecord, EventRecord, FollowUpDraft, TaskChannel, TaskRecord, UnderstandResult } from "@/lib/types";
 import { TASK_CHANNELS } from "@/lib/types";
@@ -111,6 +112,7 @@ export default function PersonPage() {
         contactId: contact.id,
         eventId: contact.eventId,
         contactName: contact.name,
+        cardUid: contact.cardUid,
         channel: nextChannel,
         title: "Stay connected",
         draft: nextDraft,
@@ -122,6 +124,7 @@ export default function PersonPage() {
         contactId: contact.id,
         eventId: contact.eventId,
         contactName: contact.name,
+        cardUid: contact.cardUid,
         channel: nextChannel,
         title: "Stay connected",
         draft: nextDraft,
@@ -191,6 +194,7 @@ export default function PersonPage() {
           contactId: contact.id,
           eventId: contact.eventId,
           contactName: contact.name,
+          cardUid: contact.cardUid,
           channel: result.draft.channel,
           title: result.structuredNote.followUpPromise || result.draft.title,
           draft: result.draft.body,
@@ -202,6 +206,7 @@ export default function PersonPage() {
           contactId: contact.id,
           eventId: contact.eventId,
           contactName: contact.name,
+          cardUid: contact.cardUid,
           channel: result.draft.channel,
           title: result.structuredNote.followUpPromise || result.draft.title,
           draft: result.draft.body,
@@ -433,7 +438,7 @@ export default function PersonPage() {
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,26rem)] xl:items-start">
         <div className="min-w-0 space-y-4">
           <div className="surface flex min-w-0 items-start gap-4 overflow-hidden p-5 lg:p-6">
-            <Avatar name={contact.name || "?"} size="lg" />
+            <Avatar name={contact.name || "?"} size="lg" photoSrc={cardFaceSrc(contact.cardUid)} />
             <div className="min-w-0">
               <PriorityBadge level={contact.relevance?.level ?? null} size="md" explain />
               <h1 className="serif mt-3 text-3xl leading-tight">{contact.name || "Unnamed contact"}</h1>

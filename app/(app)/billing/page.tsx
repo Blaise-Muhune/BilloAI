@@ -129,11 +129,13 @@ function BillingForm() {
               : "Keep seeing who is worth staying connected to"
         }
         body={
-          planStep === "organizer"
+          planStep === "choose"
+            ? "Pick who this is for. Details after you choose."
+            : planStep === "organizer"
             ? `Group seats are ${usd(ORGANIZER_SEAT_USD)} each, once, for one named event. You see who used a seat and whether they followed through. Unused seats stay with this event. Your own matching is Individual, or your first event.`
             : planStep === "team"
               ? `Team is ${usd(TEAM_SEAT_YEARLY_USD)} per seat per year, or ${usd(TEAM_SEAT_MONTHLY_USD)} a month. Minimum ${TEAM_SEAT_MIN} seats — from ${usd(TEAM_YEARLY_FLOOR_USD)} a year. This is not Group’s ${usd(ORGANIZER_SEAT_USD)} one-event seat.`
-              : `Your first event includes matching. After that, Individual is ${usd(INDIVIDUAL_MONTHLY_USD)} a month or ${usd(INDIVIDUAL_YEARLY_USD)} a year. Team starts at ${usd(TEAM_YEARLY_FLOOR_USD)} a year. Group seats are ${usd(ORGANIZER_SEAT_USD)} each for one event.`
+              : `Your first event includes matching. Then Individual is ${usd(INDIVIDUAL_MONTHLY_USD)} a month or ${usd(INDIVIDUAL_YEARLY_USD)} a year.`
         }
       />
       {pending ? <OverlayStatus label="Taking you to checkout" /> : null}

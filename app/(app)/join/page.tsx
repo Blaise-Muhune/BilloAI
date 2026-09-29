@@ -6,14 +6,15 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { BrandLockup } from "@/components/brand";
 import { BusyBar, JoinBodySkeleton, JoinSkeleton, OverlayStatus } from "@/components/loading";
-import { Button, ErrorNote, Field, PageHeader, PageWrap } from "@/components/ui";
+import { Avatar, Button, ErrorNote, Field, PageHeader, PageWrap } from "@/components/ui";
+import { cardFaceSrc } from "@/lib/profile-links";
 import { getJson, getPublicJson, postJson } from "@/lib/api";
 import { userMessage } from "@/lib/errors";
 import { persistAuthContext, clearJoinCode, groupCopy, readJoinFrom, teamCopy } from "@/lib/workspace";
 import { formatDay } from "@/lib/dates";
 import type { GroupKind } from "@/lib/types";
 
-type Preview = { name: string; open: boolean; kind?: GroupKind | ""; own?: boolean; date?: string; location?: string; team?: boolean };
+type Preview = { name: string; open: boolean; kind?: GroupKind | ""; own?: boolean; date?: string; location?: string; team?: boolean; hostUid?: string };
 
 function JoinForm() {
   const { user, ready } = useAuth();
@@ -127,7 +128,9 @@ function JoinForm() {
           </p>
         ) : null}
         {preview && !preview.own ? (
-          <p className="text-sm text-muted">
+          <div className="flex items-center gap-3 text-sm text-muted">
+            {preview.hostUid ? <Avatar name={preview.name} photoSrc={cardFaceSrc(preview.hostUid)} /> : null}
+            <p>
             {preview.name}
             {preview.date ? ` · ${formatDay(preview.date)}` : ""}
             {preview.location ? ` · ${preview.location}` : ""}
@@ -138,7 +141,8 @@ function JoinForm() {
               : preview.open
                 ? " · seats open for this event"
                 : " · no seats left for this event"}
-          </p>
+            </p>
+          </div>
         ) : null}
         {error ? <ErrorNote>{error}</ErrorNote> : null}
         {preview?.own ? (

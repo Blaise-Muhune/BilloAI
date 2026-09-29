@@ -6,7 +6,7 @@ import { useAuth } from "@/components/auth-provider";
 import { FormSplitSkeleton } from "@/components/loading";
 import { EventForm } from "@/components/event-form";
 import { postJson } from "@/lib/api";
-import { createEvent, getUser } from "@/lib/data";
+import { createEvent, getUser, saveWorkspace } from "@/lib/data";
 
 function NewEventForm() {
   const { user } = useAuth();
@@ -15,7 +15,14 @@ function NewEventForm() {
   const [forGroup, setForGroup] = useState(params.get("for") === "group");
 
   useEffect(() => {
-    if (params.get("for") === "group" || !user) return;
+    if (!user) return;
+    if (params.get("for") === "group") {
+      void getUser(user.uid).then((account) => {
+        const kind = account?.groupKind === "company" || account?.groupKind === "event" ? account.groupKind : "event";
+        void saveWorkspace(user.uid, "group", kind);
+      });
+      return;
+    }
     void getUser(user.uid).then((account) => {
       if (account?.workspace === "group") setForGroup(true);
     });

@@ -7,14 +7,14 @@ import { BusyBar, CaptureBodySkeleton, OverlayStatus, ScreenStatus } from "@/com
 import { HuntWhy, type HuntSummary } from "@/components/hunt-why";
 import { PaywallNotice } from "@/components/paywall";
 import { IconMic } from "@/components/icons";
-import { Area, Button, ErrorNote, Field, PageHeader, PageWrap, SelectField } from "@/components/ui";
+import { Area, Avatar, Button, ErrorNote, Field, PageHeader, PageWrap, SelectField } from "@/components/ui";
 import { ApiError, getJson, isPaywalled, postForm, postJson } from "@/lib/api";
 import { userMessage } from "@/lib/errors";
 import { addDays, todayISO } from "@/lib/dates";
 import { createContact, createEvent, createTask, getEvent, getPublicProfile, listEvents, updateEvent } from "@/lib/data";
 import { CARD_SCHEME, parseCardScan } from "@/lib/card";
 import { asHref, looksLikeLink } from "@/lib/links";
-import { contactFromProfile } from "@/lib/profile-links";
+import { cardFaceSrc, contactFromProfile } from "@/lib/profile-links";
 import { scanQrFile, startQrScan } from "@/lib/qr-scan";
 import { skipFollowUp } from "@/lib/relevance";
 import { compressImage } from "@/lib/images";
@@ -41,7 +41,7 @@ const emptyFields: ContactFields = {
   otherContact: "",
 };
 
-type Queued = { fields: ContactFields; preview: string };
+type Queued = { fields: ContactFields; preview: string; cardUid?: string };
 
 function mergeFields(base: ContactFields, extra: ContactFields): ContactFields {
   return {
@@ -88,6 +88,7 @@ export function CaptureWizard() {
   const [paywallEvent, setPaywallEvent] = useState("");
   const [paywallReason, setPaywallReason] = useState("");
   const [inPlay, setInPlay] = useState(false);
+  const [cardUid, setCardUid] = useState("");
   const [hunt, setHunt] = useState<HuntSummary | null>(null);
   const [night, setNight] = useState(false);
   const [moreDetails, setMoreDetails] = useState(false);
@@ -187,6 +188,7 @@ export function CaptureWizard() {
   function beginPerson(person: Queued) {
     setFields(person.fields);
     setPreview(person.preview);
+    setCardUid(person.cardUid || "");
     setNote("");
     setChosenTags([]);
     setAllowPublicLookup(true);
@@ -199,6 +201,7 @@ export function CaptureWizard() {
     if (!chosen.length) return;
     setError("");
     setSource("photo");
+    setCardUid("");
     const people: Queued[] = mergeIntoCurrent ? [] : [];
     let failed = 0;
     let lastError = "";
@@ -279,9 +282,10 @@ export function CaptureWizard() {
     }
   }
 
-  function openConfirm(next: ContactFields) {
+  function openConfirm(next: ContactFields, nextCardUid = "") {
     setFields(next);
     setPreview("");
+    setCardUid(nextCardUid);
     setNote("");
     setChosenTags([]);
     setAllowPublicLookup(true);
@@ -366,10 +370,13 @@ export function CaptureWizard() {
         setError("No BilloAI card was found for that code.");
         return;
       }
-      openConfirm({
-        ...emptyFields,
-        ...contactFromProfile(profile),
-      });
+      openConfirm(
+        {
+          ...emptyFields,
+          ...contactFromProfile(profile),
+        },
+        scanned.uid,
+      );
     } finally {
       setReading("");
     }
@@ -520,6 +527,7 @@ export function CaptureWizard() {
       eventId,
       source,
       imagePath: "",
+      cardUid,
       rawNote,
       structuredNote: understood?.structuredNote ?? null,
       enrichment: understood?.enrichment ?? null,
@@ -532,6 +540,7 @@ export function CaptureWizard() {
         contactId,
         eventId,
         contactName: fields.name || "Contact",
+        cardUid,
         channel: understood.draft.channel,
         title: promise || understood.draft.title || understood.relevance.suggestedAction,
         draft: understood.draft.body,
@@ -734,6 +743,7 @@ export function CaptureWizard() {
               </p>
             ) : null}
             <h1 className="serif text-4xl xl:text-5xl">{fields.name || "What you have"}</h1>
+            {cardUid && !preview ? <Avatar name={fields.name || "?"} size="lg" photoSrc={cardFaceSrc(cardUid)} /> : null}
             {preview ? (
               <img src={preview} alt="This card, only while you confirm" className="max-h-80 w-full rounded-2xl bg-white object-contain" />
             ) : null}

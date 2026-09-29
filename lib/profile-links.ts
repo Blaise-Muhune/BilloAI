@@ -1,3 +1,4 @@
+import { isCardUid } from "@/lib/card";
 import { asHref } from "@/lib/links";
 import type { ContactFields, PublicProfile } from "@/lib/types";
 
@@ -28,7 +29,7 @@ const HOST_LABELS: Array<{ test: RegExp; label: string }> = [
 ];
 
 export function emptyProfile(): PublicProfile {
-  return { name: "", company: "", title: "", email: "", linkedin: "", website: "", links: [] };
+  return { name: "", company: "", title: "", email: "", linkedin: "", website: "", links: [], photoPath: "", photoUpdatedAt: "" };
 }
 
 export function labelFromUrl(url: string) {
@@ -78,6 +79,8 @@ export function normalizeProfile(data: Partial<PublicProfile> | null | undefined
     linkedin: String(data?.linkedin ?? "").trim(),
     website: String(data?.website ?? "").trim(),
     links: sanitizeLinks(data?.links),
+    photoPath: String(data?.photoPath ?? "").trim(),
+    photoUpdatedAt: String(data?.photoUpdatedAt ?? "").trim(),
   };
 }
 
@@ -90,6 +93,16 @@ export function saveReadyProfile(profile: PublicProfile): PublicProfile {
   );
   next.links = next.links.filter((item) => !skip.has(item.url.toLowerCase()));
   return next;
+}
+
+export function profilePhotoHref(uid: string, updatedAt?: string) {
+  const version = updatedAt?.trim() ? `?v=${encodeURIComponent(updatedAt.trim())}` : "";
+  return `/api/profile/photo/${encodeURIComponent(uid)}${version}`;
+}
+
+export function cardFaceSrc(uid?: string | null) {
+  const id = String(uid ?? "").trim();
+  return id && isCardUid(id) ? profilePhotoHref(id) : "";
 }
 
 export function publicLinkRows(profile: PublicProfile) {

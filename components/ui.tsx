@@ -238,7 +238,7 @@ export function Fold({
   );
 }
 
-export function Avatar({ name, size = "md" }: { name: string; size?: "md" | "lg" }) {
+export function Avatar({ name, size = "md", photoSrc }: { name: string; size?: "md" | "lg"; photoSrc?: string }) {
   const initials =
     name
       .split(" ")
@@ -248,8 +248,18 @@ export function Avatar({ name, size = "md" }: { name: string; size?: "md" | "lg"
       .join("") || "?";
   const box = size === "lg" ? "h-16 w-16 text-lg" : "h-11 w-11 text-sm";
   return (
-    <span className={`grid shrink-0 place-items-center rounded-full bg-[#e5f4ee] font-semibold text-accent ${box}`}>
+    <span className={`relative grid shrink-0 place-items-center overflow-hidden rounded-full bg-[#e5f4ee] font-semibold text-accent ${box}`}>
       {initials}
+      {photoSrc ? (
+        <img
+          src={photoSrc}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+          }}
+        />
+      ) : null}
     </span>
   );
 }
@@ -261,6 +271,7 @@ export function PersonLink({
   action,
   level,
   layout = "stack",
+  photoSrc,
 }: {
   href: string;
   name: string;
@@ -268,6 +279,7 @@ export function PersonLink({
   action?: string;
   level: "high" | "medium" | "low" | "unknown" | null;
   layout?: "stack" | "columns";
+  photoSrc?: string;
 }) {
   const row =
     layout === "columns"
@@ -276,7 +288,7 @@ export function PersonLink({
   return (
     <Link href={href} className={row}>
       <span className="flex min-w-0 items-center gap-3">
-        <Avatar name={name || "?"} />
+        <Avatar name={name || "?"} photoSrc={photoSrc} />
         <span className="min-w-0">
           <span className="block truncate font-semibold">{name || "Unnamed"}</span>
           {action ? <span className="block truncate text-sm font-semibold text-accent">{action}</span> : null}
@@ -311,11 +323,13 @@ export function LiveCard({
   name,
   line,
   footer,
+  photoSrc,
 }: {
   kicker?: string;
   name: string;
   line: string;
   footer?: string;
+  photoSrc?: string;
 }) {
   return (
     <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.07] p-8">
@@ -323,6 +337,7 @@ export function LiveCard({
         <BrandMark className="h-7 w-7" />
         <p className="kicker text-[#9ddec8]">{kicker}</p>
       </div>
+      {photoSrc ? <img src={photoSrc} alt="" className="mt-5 h-16 w-16 rounded-full object-cover" /> : null}
       <p className="serif mt-5 text-4xl leading-tight xl:text-5xl">{name}</p>
       <p className="mt-4 text-lg text-white/70">{line}</p>
       {footer ? <p className="mt-8 text-sm text-white/45">{footer}</p> : null}

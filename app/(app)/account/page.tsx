@@ -13,7 +13,8 @@ import { getPublicProfile, getUser, listContacts, listEvents, listTasks } from "
 import { userMessage } from "@/lib/errors";
 import { firebaseAuth } from "@/lib/firebase/client";
 import type { UserDoc } from "@/lib/types";
-import { hasGroupWorkspace, hasTeamWorkspace } from "@/lib/workspace";
+import { isInboxOwner } from "@/lib/support";
+import { hasGroupWorkspace, hasTeamWorkspace, readWorkspace, workspaceChoices } from "@/lib/workspace";
 
 export default function AccountPage() {
   const { user } = useAuth();
@@ -107,6 +108,11 @@ export default function AccountPage() {
     }
   }
 
+  const workspaces = workspaceChoices(account);
+  const currentWorkspace = readWorkspace(account?.workspace);
+  const canAddGroup = !hasGroupWorkspace(account);
+  const canAddTeam = !hasTeamWorkspace(account);
+
   return (
     <PageWrap>
       {pending ? <OverlayStatus label="Deleting your account" /> : null}
@@ -114,21 +120,92 @@ export default function AccountPage() {
       <PageHeader
         kicker="Account"
         title="You and your data"
-        body="Sign out on this device. Export is a copy of your events, contacts, and tasks. Delete also removes your login."
+        body={
+          workspaces.length > 1
+            ? "Your card, plan, and sign out. Switch below for the job you are doing on this login."
+            : "Your card, plan, and sign out. Same login if you later host a room, send people as a company, or run sales seats."
+        }
         action={
           <Button type="button" tone="ghost" onClick={() => void leave()}>
             Sign out
           </Button>
         }
       />
+      {canAddGroup || canAddTeam ? (
+        <p className="text-sm leading-relaxed text-muted">
+          {canAddGroup ? (
+            <>
+              <Link href="/group?for=event" className="font-semibold text-accent">
+                Host an event
+              </Link>
+              {" — or "}
+              <Link href="/group?for=company" className="font-semibold text-accent">
+                send people as a company
+              </Link>
+              {". Same login."}
+            </>
+          ) : null}
+          {canAddGroup && canAddTeam ? (
+            <>
+              <br />
+            </>
+          ) : null}
+          {canAddTeam ? (
+            <>
+              <Link href="/team" className="font-semibold text-accent">
+                Set up a sales team
+              </Link>
+              {" — year-round seats and one hunt."}
+            </>
+          ) : null}
+        </p>
+      ) : null}
+      {workspaces.length > 1 ? (
+        <section>
+          <h2 className="serif text-3xl">Switch who you are acting as</h2>
+          <p className="mt-2 max-w-xl text-sm text-muted">
+            Same login. You are not opening another account. One is you in the room. One is you paying for seats — as the host, or as a company sending people.
+          </p>
+          <div className="mt-5 grid gap-3" role="list">
+            {workspaces.map((item) => {
+              const here = item.id === currentWorkspace;
+              return (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  role="listitem"
+                  aria-current={here ? "page" : undefined}
+                  className={`flex flex-col gap-3 p-5 transition sm:flex-row sm:items-center sm:justify-between ${
+                    here ? "rounded-[1.6rem] bg-foreground text-card shadow-[0_16px_40px_rgb(40_28_12/0.14)]" : "surface hover:bg-[#f7f3ea]"
+                  }`}
+                >
+                  <span className="min-w-0">
+                    <span className={`kicker ${here ? "text-[#9ddec8]" : "text-accent"}`}>{here ? "Using this now" : "Switch to"}</span>
+                    <span className="serif mt-2 block text-2xl leading-tight">{item.role}</span>
+                    <span className={`mt-1 block text-sm ${here ? "text-white/70" : "text-muted"}`}>
+                      {item.label} · {item.body}
+                    </span>
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-full px-4 py-2 text-center text-sm font-semibold ${
+                      here ? "bg-white/10 text-card" : "bg-accent text-accent-ink"
+                    }`}
+                  >
+                    {here ? "You’re here" : "Switch"}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
       <div className="grid gap-4 sm:grid-cols-2">
         {(
           [
-            ["/profile", "Your card", "The QR their phone camera can scan. Also linked from Account."],
+            ["/profile", "Your card", "The QR their phone camera can scan."],
             ["/billing", "Plan", "Individual, Team seats, or Group seats for one event"],
-            hasTeamWorkspace(account) ? ["/team", "The team", "Year-round seats, the hunt list, and coverage counts"] : null,
-            hasGroupWorkspace(account) ? ["/group", "The group", "Seats and counts for the people you pay for"] : null,
             ["/join", "Join", "Enter a code a company or host sent you"],
+            isInboxOwner(user?.email) ? ["/admin", "Ops", "Accounts, seats, and contact messages"] : null,
           ] as ([string, string, string] | null)[]
         )
           .filter((item): item is [string, string, string] => Boolean(item))

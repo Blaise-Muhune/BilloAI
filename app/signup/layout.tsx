@@ -4,7 +4,7 @@ import { pageMeta } from "@/lib/seo";
 export const metadata: Metadata = {
   ...pageMeta({
     title: "Create your account",
-    description: "Start free. Matching on your first event is included. You send every message.",
+    description: "Start with your first event. Matching is included. No payment to start. You send every message.",
     path: "/signup",
     index: false,
   }),

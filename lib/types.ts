@@ -78,6 +78,8 @@ export interface PublicProfile {
   linkedin: string;
   website: string;
   links: { label: string; url: string }[];
+  photoPath?: string;
+  photoUpdatedAt?: string;
 }
 
 export interface EventInput {
@@ -124,6 +126,7 @@ export type SeatPersonStatus = "invited" | "joined" | "captured";
 
 export interface SeatPerson {
   id: string;
+  uid?: string;
   name: string;
   email: string;
   status: SeatPersonStatus;
@@ -187,6 +190,7 @@ export interface ContactDoc extends ContactFields {
   eventId: string;
   source: ContactSource;
   imagePath: string;
+  cardUid?: string;
   rawNote: string;
   structuredNote: StructuredNote | null;
   enrichment: Enrichment | null;
@@ -201,6 +205,7 @@ export interface TaskDoc {
   contactId: string;
   eventId: string;
   contactName: string;
+  cardUid?: string;
   channel: TaskChannel;
   title: string;
   draft: string;

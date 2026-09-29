@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { deleteProfilePhoto } from "@/lib/azure-blob";
 import { publicErrorMessage, reportServerError } from "@/lib/errors";
 import { adminAuth, adminBucket, adminDb, sessionFromRequest } from "@/lib/firebase/admin";
 import { cancelCustomerSubscriptions } from "@/lib/stripe";
@@ -67,6 +68,7 @@ export async function POST(request: Request) {
       }),
     );
     await adminDb().collection("users").doc(uid).delete();
+    await deleteProfilePhoto(uid).catch(() => undefined);
     await adminDb().collection("publicProfiles").doc(uid).delete();
     await adminDb().collection("rateLimits").doc(uid).delete().catch(() => undefined);
     const [files] = await adminBucket().getFiles({ prefix: `users/${uid}/` });

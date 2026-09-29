@@ -103,15 +103,67 @@ export function hasTeamWorkspace(account?: { staffAccess?: boolean; plan?: strin
   return Boolean(account.staffAccess || account.plan === "team" || account.teamId);
 }
 
-export function otherWorkspaceLinks(
+export function workspaceChoices(account?: Parameters<typeof hasGroupWorkspace>[0] & Parameters<typeof hasTeamWorkspace>[0]) {
+  const kind = account?.groupKind === "company" || account?.groupKind === "event" ? account.groupKind : "";
+  const items: { id: Workspace; href: string; role: string; label: string; body: string }[] = [
+    {
+      id: "network",
+      href: "/home",
+      role: "I went to the room",
+      label: "My network",
+      body: "Your people and follow-ups. You send every message.",
+    },
+  ];
+  if (hasGroupWorkspace(account)) {
+    items.push({
+      id: "group",
+      href: "/group",
+      role: kind === "company" ? "I sent people to an event" : kind === "event" ? "I hosted the event" : "I paid for seats at an event",
+      label: "The group",
+      body:
+        kind === "company"
+          ? "A company buying seats. See who used one and whether they followed through."
+          : kind === "event"
+            ? "The host of the room. See who used a seat and whether they followed through."
+            : "Company sending people, or host of the room. See who used a seat and whether they followed through.",
+    });
+  }
+  if (hasTeamWorkspace(account)) {
+    items.push({
+      id: "team",
+      href: "/team",
+      role: "I run sales seats all year",
+      label: "The team",
+      body: "One hunt for the team. You see coverage, and when a company is already in play.",
+    });
+  }
+  return items;
+}
+
+export function workspaceRoleQuestions(
+  account: Parameters<typeof hasGroupWorkspace>[0] & Parameters<typeof hasTeamWorkspace>[0],
   current: Workspace,
-  account?: Parameters<typeof hasGroupWorkspace>[0],
-): { href: string; label: string }[] {
-  const links: { href: string; label: string }[] = [];
-  if (current !== "network") links.push({ href: "/home", label: "My network" });
-  if (hasGroupWorkspace(account) && current !== "group") links.push({ href: "/group", label: "The group" });
-  if (hasTeamWorkspace(account) && current !== "team") links.push({ href: "/team", label: "The team" });
-  return links;
+) {
+  const kind = account?.groupKind === "company" || account?.groupKind === "event" ? account.groupKind : "";
+  const items: { id: Workspace; href: string; label: string }[] = [
+    { id: "network", href: "/home", label: "Attending?" },
+    {
+      id: "group",
+      href: hasGroupWorkspace(account) ? "/group" : "/group?for=event",
+      label: kind === "company" ? "Sending?" : "Hosting?",
+    },
+    { id: "team", href: "/team", label: "Sales?" },
+  ];
+  return items.filter((item) => item.id !== current);
+}
+
+export function workspaceHereLabel(
+  workspace: Workspace,
+  account?: { groupKind?: GroupKind | "" } | null,
+) {
+  if (workspace === "group") return account?.groupKind === "company" ? "Sending" : "Hosting";
+  if (workspace === "team") return "Sales";
+  return "Attending";
 }
 
 export function workspaceLabel(workspace: Workspace) {

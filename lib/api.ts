@@ -85,6 +85,12 @@ export async function postJson<T>(path: string, body: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
+export async function deleteJson<T>(path: string): Promise<T> {
+  const response = await fetch(path, { method: "DELETE", headers: await authHeaders(false) });
+  if (!response.ok) await readError(response);
+  return (await response.json()) as T;
+}
+
 export async function postForm<T>(path: string, body: FormData): Promise<T> {
   const response = await fetch(path, {
     method: "POST",

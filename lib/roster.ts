@@ -49,6 +49,7 @@ export async function coverageFor(uid: string, eventId?: string) {
 
 export function asSeatPerson(input: {
   id: string;
+  uid?: string;
   name: string;
   email: string;
   joinedAt: string;
@@ -58,6 +59,7 @@ export function asSeatPerson(input: {
   const status = input.invited ? "invited" : input.coverage.captures > 0 ? "captured" : "joined";
   return {
     id: input.id,
+    uid: input.uid,
     name: input.name || input.email.split("@")[0] || "Someone",
     email: input.email,
     status,

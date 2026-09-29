@@ -42,7 +42,7 @@ const privateSources = [
 ];
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["firebase-admin", "jose", "jwks-rsa"],
+  serverExternalPackages: ["firebase-admin", "jose", "jwks-rsa", "@azure/storage-blob", "@azure/identity"],
   async redirects() {
     return [{ source: "/organizer", destination: "/group", permanent: false }];
   },

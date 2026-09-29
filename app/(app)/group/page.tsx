@@ -44,11 +44,17 @@ function GroupOverview() {
   function load() {
     if (!user) return;
     setError("");
+    const fromQuery = params.get("for") === "company" || params.get("for") === "event" ? params.get("for") : "";
     void Promise.all([getUser(user.uid), listOrganizedEvents(user.uid), getJson<{ metrics: Metrics[] }>("/api/organizer/metrics")])
       .then(([account, nextEvents, nextMetrics]) => {
-        setKind(account?.groupKind === "company" || account?.groupKind === "event" ? account.groupKind : "");
+        const saved = account?.groupKind === "company" || account?.groupKind === "event" ? account.groupKind : "";
+        const nextKind = saved || fromQuery;
+        setKind(nextKind === "company" || nextKind === "event" ? nextKind : "");
         setEvents(nextEvents);
         setMetrics(nextMetrics.metrics);
+        if (!saved && (fromQuery === "company" || fromQuery === "event")) {
+          void saveWorkspace(user.uid, "group", fromQuery);
+        }
       })
       .catch((err: unknown) => setError(userMessage(err, "Could not load the group.")))
       .finally(() => setReady(true));
@@ -56,7 +62,7 @@ function GroupOverview() {
 
   useEffect(() => {
     load();
-  }, [user]);
+  }, [user, params]);
 
   async function chooseKind(next: GroupKind) {
     if (!user) return;

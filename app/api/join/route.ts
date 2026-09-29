@@ -23,6 +23,7 @@ export async function GET(request: Request) {
       open,
       kind,
       own: session?.uid === data.organizerId,
+      hostUid: String(data.organizerId ?? ""),
     });
   }
 
@@ -40,6 +41,7 @@ export async function GET(request: Request) {
     kind: "",
     team: true,
     own: session?.uid === team.adminUid,
+    hostUid: team.adminUid,
   });
 }
 

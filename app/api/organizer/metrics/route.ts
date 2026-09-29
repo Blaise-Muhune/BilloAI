@@ -56,6 +56,7 @@ export async function GET(request: Request) {
         members.push(
           asSeatPerson({
             id: membership.id,
+            uid,
             name: String(membership.data().name || profile?.name || ""),
             email: String(membership.data().email || profile?.email || ""),
             joinedAt: String(membership.data().createdAt ?? ""),

@@ -1,39 +1,50 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BrandLockup, BrandMark } from "@/components/brand";
+import { BrandLockup } from "@/components/brand";
 import { JsonLd } from "@/components/json-ld";
+import { LandingCta, LandingHeader } from "@/components/landing-header";
 import { SkipLink } from "@/components/skip-link";
 import { Avatar, PriorityBadge } from "@/components/ui";
-import { INDIVIDUAL_MONTHLY_USD, INDIVIDUAL_YEARLY_PER_MONTH_USD, INDIVIDUAL_YEARLY_SAVINGS_USD, INDIVIDUAL_YEARLY_USD, ORGANIZER_SEAT_USD, TEAM_SEAT_MIN, TEAM_SEAT_MONTHLY_USD, TEAM_SEAT_YEARLY_USD, TEAM_YEARLY_FLOOR_USD, usd } from "@/lib/pricing";
+import {
+  INDIVIDUAL_MONTHLY_USD,
+  INDIVIDUAL_YEARLY_USD,
+  ORGANIZER_SEAT_USD,
+  TEAM_SEAT_MIN,
+  TEAM_SEAT_YEARLY_USD,
+  TEAM_YEARLY_FLOOR_USD,
+  usd,
+} from "@/lib/pricing";
 import { SITE_NAME, SITE_TAGLINE, SITE_URL, pageMeta } from "@/lib/seo";
+
+const START_HREF = "/signup";
+const START_LABEL = "Start with your first event";
+const START_NOTE = "First event includes matching. No payment to start.";
+
+const whoLinks = [
+  { href: "/for-organizers", label: "For groups" },
+  { href: "/for-teams", label: "For teams" },
+  { href: "#pricing", label: "Pricing" },
+  { href: "/contact", label: "Contact" },
+];
 
 export const metadata: Metadata = pageMeta({
   title: "Know who from the room is worth staying connected to",
-  description:
-    "After you network, BilloAI shows who matched why you went, and a note so you can keep the conversation going. You send it. Card photos are read and discarded.",
+  description: "Say why you went. See who matched that. Send the note yourself. First event includes matching. No payment to start.",
   path: "/",
 });
 
 const faqs = [
   {
-    q: "Does BilloAI send follow-ups for me?",
-    a: "No. It writes a note you can copy. You send it yourself.",
-  },
-  {
-    q: "Does a company or host see who I met?",
-    a: "They see that you used a seat and whether you followed through. Who you met stays on your account.",
-  },
-  {
-    q: "Do you store the card photo?",
-    a: "No. The photo is read on the spot and discarded.",
+    q: "Does it send the follow-up for me?",
+    a: "No. It writes a note you copy. You send it.",
   },
   {
     q: "What is included before I pay?",
-    a: "Your first event includes matching people you met to why you went. After that event, matching is Individual, a Team seat, or a Group seat for a later named event. You can still save people without matching.",
+    a: "Matching on your first event. No payment to start. After that: Individual, a Team seat, or a Group seat for another named event.",
   },
   {
     q: "Group or Team?",
-    a: `Group is ${usd(ORGANIZER_SEAT_USD)} once per seat for one named event. Team is year-round for sales — ${usd(TEAM_SEAT_YEARLY_USD)} a seat a year or ${usd(TEAM_SEAT_MONTHLY_USD)} a month, minimum ${TEAM_SEAT_MIN} seats (from ${usd(TEAM_YEARLY_FLOOR_USD)} a year). Unused Group seats do not become Team seats.`,
+    a: `Group is ${usd(ORGANIZER_SEAT_USD)} once per seat for one event — you see who used a seat and whether they followed through. Team is year-round for sales, from ${usd(TEAM_YEARLY_FLOOR_USD)} a year.`,
   },
 ];
 
@@ -43,114 +54,27 @@ const people = [
   { name: "Jon Park", detail: "Recruiter, Apex Talent", level: "low" as const },
 ];
 
-const chapters = [
-  {
-    n: "01",
-    title: "Name the event, and why you went",
-    body: "Customers, partners, a hire, a check. That sentence is how a stranger becomes worth staying connected to — not a guess on the way home.",
-  },
-  {
-    n: "02",
-    title: "Keep the people you met",
-    body: "Save a card, a name, or a LinkedIn, plus one line about the conversation — typed or spoken. The photo is read and discarded.",
-  },
-  {
-    n: "03",
-    title: "See who is worth staying connected to",
-    body: "We look them up in public, match them to your goal, and write a note you can send. Nothing goes out on its own.",
-  },
+const steps = [
+  { n: "1", title: "Why you went", body: "Customers, a hire, a check — that sentence is the filter." },
+  { n: "2", title: "Who you met", body: "Save a card, a name, or a LinkedIn, plus one line from the conversation." },
+  { n: "3", title: "Who fits", body: "We match them to that goal and write a note. You send it." },
 ];
 
 const voices = [
   {
-    quote:
-      "I had seven cards in my coat. In the car I typed the one line I still remembered. Tuesday I only wrote two people. The rest I left in the pile.",
+    quote: "I saved eight people. In the morning I knew the two who matched why I went.",
     name: "Tom",
     detail: "Sells into plants · Cleveland",
   },
   {
-    quote:
-      "It put the recruiter at the bottom. I would have emailed him first because he was nice. That would have been my whole morning.",
+    quote: "I would have written the recruiter first. It put the plant manager at the top.",
     name: "Sana",
     detail: "Automation · Dearborn",
   },
   {
-    quote:
-      "Work bought the seats for that event. I still have who I met. I copied the note and sent it myself.",
-    name: "Ken",
-    detail: "On a company seat",
-  },
-];
-
-const who = [
-  { href: "#plan-individual", label: "I go to events", hint: "Individual" },
-  { href: "#plan-group", label: "I pay for one event", hint: "Group" },
-  { href: "#plan-team", label: "We sell all year", hint: "Team" },
-];
-
-const plans = [
-  {
-    id: "plan-individual",
-    audience: "You go to events",
-    name: "Individual",
-    featured: true,
-    badge: "Most people",
-    price: usd(INDIVIDUAL_MONTHLY_USD),
-    unit: "a month after your first event",
-    note: `First event matching is included. Or ${usd(INDIVIDUAL_YEARLY_USD)} a year — ${usd(INDIVIDUAL_YEARLY_PER_MONTH_USD)} / mo, save ${usd(INDIVIDUAL_YEARLY_SAVINGS_USD)}.`,
-    points: ["Who from the room matched why you went", "Matching on every event after the first", "You send the note yourself"],
-    href: "/signup",
-    action: "Start with your first event",
-    order: "lg:order-2",
-  },
-  {
-    id: "plan-group",
-    audience: "You pay for people, one event",
-    name: "Group",
-    featured: false,
-    badge: "",
-    price: usd(ORGANIZER_SEAT_USD),
-    unit: "per seat, once",
-    note: "Named event only. Unused seats stay there. Not a Team subscription.",
-    points: ["You see who used a seat", "You see if they captured someone and followed through", "Your matching is still Individual or the first event"],
-    href: "/signup?for=group",
-    action: "Set up a group",
-    order: "lg:order-1",
-  },
-  {
-    id: "plan-team",
-    audience: "Sales or BD, all year",
-    name: "Team",
-    featured: false,
-    badge: "",
-    price: usd(TEAM_SEAT_YEARLY_USD),
-    unit: "per seat / year",
-    note: `Or ${usd(TEAM_SEAT_MONTHLY_USD)} a month. Minimum ${TEAM_SEAT_MIN} seats — from ${usd(TEAM_YEARLY_FLOOR_USD)} a year.`,
-    points: ["One hunt list for the team", "Already-in-play so two reps stay off the same live account", "See coverage and move a seat"],
-    href: "/signup?for=team",
-    action: "Set up a team",
-    order: "lg:order-3",
-  },
-];
-
-const pick = [
-  {
-    href: "#plan-individual",
-    who: "You go to events",
-    plan: "Individual",
-    why: `First event is included. Then ${usd(INDIVIDUAL_MONTHLY_USD)} a month, or ${usd(INDIVIDUAL_YEARLY_USD)} a year.`,
-  },
-  {
-    href: "#plan-group",
-    who: "You pay for other people, one event",
-    plan: "Group",
-    why: `${usd(ORGANIZER_SEAT_USD)} once per seat. See who used a seat and whether they followed through.`,
-  },
-  {
-    href: "#plan-team",
-    who: "A sales team, all year",
-    plan: "Team",
-    why: `${usd(TEAM_SEAT_YEARLY_USD)} a seat / year, or ${usd(TEAM_SEAT_MONTHLY_USD)} a month. From ${usd(TEAM_YEARLY_FLOOR_USD)} a year for ${TEAM_SEAT_MIN} seats.`,
+    quote: "Eight names in my notes. Two were actually why I bought the ticket.",
+    name: "Lena",
+    detail: "OEM sales · Toledo",
   },
 ];
 
@@ -202,7 +126,7 @@ const landingGraph = {
           name: "Team",
           price: String(TEAM_SEAT_YEARLY_USD),
           priceCurrency: "USD",
-          description: `Per seat per year or ${TEAM_SEAT_MONTHLY_USD} a month, minimum ${TEAM_SEAT_MIN} seats, from ${TEAM_YEARLY_FLOOR_USD} a year`,
+          description: `Per seat per year, minimum ${TEAM_SEAT_MIN} seats`,
         },
         {
           "@type": "Offer",
@@ -229,268 +153,137 @@ export default function LandingPage() {
     <div className="landing-shell min-h-full">
       <JsonLd data={landingGraph} />
       <SkipLink />
-      <header className="sticky top-0 z-30 border-b border-line/80 bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl min-w-0 items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-5 sm:py-4">
-          <Link href="/">
-            <BrandLockup />
-          </Link>
-          <nav aria-label="Primary" className="flex items-center gap-2 text-sm font-semibold sm:gap-5">
-            <Link href="/for-organizers" className="hidden text-muted hover:text-foreground sm:inline">
-              For groups
-            </Link>
-            <Link href="/for-teams" className="hidden text-muted hover:text-foreground sm:inline">
-              For teams
-            </Link>
-            <Link href="#pricing" className="hidden text-muted hover:text-foreground sm:inline">
-              Pricing
-            </Link>
-            <Link href="/login" className="text-muted hover:text-foreground">
-              Sign in
-            </Link>
-            <Link href="/signup" className="rounded-full bg-accent px-4 py-2 text-accent-ink shadow-[0_8px_20px_rgb(11_107_79/0.22)]">
-              Start free
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <LandingHeader
+        links={whoLinks}
+        signInHref="/login"
+        ctaHref={START_HREF}
+        ctaLabel={START_LABEL}
+        compactCta
+      />
 
       <main id="main">
-        <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-8 pt-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)] lg:gap-16 lg:pt-20">
+        <section className="mx-auto grid max-w-6xl items-center gap-6 px-5 pb-0 pt-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)] lg:gap-16 lg:pb-8 lg:pt-20">
           <div>
-            <p className="kicker text-accent">After the handshake</p>
-            <h1 className="serif mt-4 max-w-[16ch] text-[2.7rem] leading-[1.05] tracking-tight sm:text-6xl">
+            <p className="text-sm font-semibold text-accent">You went to the room. Not the person who paid for it.</p>
+            <h1 className="serif mt-3 max-w-[16ch] text-[2.15rem] leading-[1.08] tracking-tight sm:text-6xl sm:leading-[1.05]">
               Leave knowing who from the room is worth staying connected to.
             </h1>
-            <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted">
-              You say why you came. BilloAI keeps who you met, marks who fits that, and gives you a note to continue the conversation. You send it.
+            <p className="mt-4 max-w-lg text-lg leading-relaxed text-muted sm:mt-6">
+              Say why you went. See who matched that. Send the note yourself.
             </p>
-            <div className="mt-9 flex flex-wrap items-center gap-3">
-              <Link
-                href="/signup"
-                className="inline-flex rounded-full bg-accent px-7 py-3.5 text-base font-semibold text-accent-ink shadow-[0_10px_28px_rgb(11_107_79/0.28)]"
-              >
-                Set up your next event
-              </Link>
-              <Link href="#how" className="inline-flex rounded-full border border-line bg-card px-6 py-3.5 text-base font-semibold">
-                See how it works
-              </Link>
-            </div>
-            <ul className="mt-8 flex max-w-lg flex-col gap-2 text-sm text-muted sm:flex-row sm:flex-wrap sm:gap-x-6">
-              <li>First event includes AI</li>
-              <li>You send every message</li>
-              <li>Card photos are not stored</li>
-            </ul>
-          </div>
-
-          <div className="relative mx-auto w-full max-w-md lg:mx-0 lg:max-w-none">
-            <div className="absolute -left-5 top-8 hidden w-44 -rotate-6 rounded-2xl border border-line bg-card p-3.5 text-xs shadow-[0_16px_40px_rgb(40_28_12/0.12)] lg:block">
-              <p className="text-[0.65rem] font-bold tracking-[0.14em] text-muted">NORTHLINE</p>
-              <p className="mt-2 font-semibold">Maya Chen</p>
-              <p className="text-muted">Operations director</p>
-              <p className="mt-2 text-muted">maya@northline.co</p>
-            </div>
-            <aside className="landing-frame relative overflow-hidden rounded-[1.6rem] border border-line bg-card" aria-label="Example of a scored event">
-              <div className="bg-foreground px-5 py-4 text-card">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9ddec8]">This event</p>
-                <p className="serif mt-1 text-2xl">Chamber mixer</p>
-                <p className="mt-1 text-sm text-white/70">Find operators who need automation</p>
-              </div>
-              <div className="space-y-1 p-3">
-                {people.map((person) => (
-                  <div
-                    key={person.name}
-                    className={`flex items-center gap-3 rounded-2xl px-3 py-3 ${person.level === "high" ? "bg-[#f7f3ea]" : ""}`}
-                  >
-                    <Avatar name={person.name} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold">{person.name}</span>
-                      <span className="block truncate text-sm text-muted">{person.detail}</span>
-                    </span>
-                    <PriorityBadge level={person.level} />
-                  </div>
-                ))}
-              </div>
-              <div className="border-t border-line px-5 py-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Draft · not sent</p>
-                <p className="mt-2 text-sm leading-relaxed">
-                  Maya — good to meet you at the expo. You mentioned the night shift still logs downtime on paper. I can send the one-page version of how we automate that. Want it this week?
-                </p>
-              </div>
-            </aside>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-6xl px-5 py-8 lg:py-16">
-          <div className="overflow-hidden rounded-[2rem] bg-foreground px-6 py-12 text-card sm:px-10 lg:px-14 lg:py-16">
-            <div className="flex items-center gap-2.5">
-              <BrandMark className="h-8 w-8" />
-              <p className="kicker text-[#9ddec8]">The morning after</p>
-            </div>
-            <h2 className="serif mt-3 max-w-2xl text-4xl leading-[1.1] sm:text-5xl">Forty names. No idea who mattered.</h2>
-            <div className="mt-10 grid gap-8 lg:grid-cols-2 lg:gap-16">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.12em] text-white/45">What people leave with</p>
-                <ul className="mt-4 space-y-3 text-lg text-white/75">
-                  <li>A stack of cards in a jacket</li>
-                  <li>First names in Notes</li>
-                  <li>A LinkedIn request you never finish</li>
-                </ul>
-              </div>
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[#9ddec8]">What you leave with</p>
-                <ul className="mt-4 space-y-3 text-lg">
-                  <li>Who matched the reason you went</li>
-                  <li>Enough context to pick the conversation back up</li>
-                  <li>A note you send when you sit down</li>
-                </ul>
-              </div>
+            <div className="mt-7 sm:mt-9">
+              <LandingCta href={START_HREF} label={START_LABEL} />
+              <p className="mt-3 text-sm text-muted">{START_NOTE}</p>
             </div>
           </div>
-        </section>
 
-        <section id="how" className="mx-auto max-w-6xl scroll-mt-24 px-5 py-8 lg:py-10">
-          <p className="kicker text-accent">The loop</p>
-          <h2 className="serif mt-3 max-w-xl text-4xl leading-tight sm:text-5xl">Meet people. Keep the ones who fit.</h2>
-          <ol className="mt-10">
-            {chapters.map((chapter) => (
-              <li key={chapter.n} className="grid gap-3 border-t border-line py-8 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-10 sm:py-10">
-                <p className="serif text-5xl leading-none text-accent/35">{chapter.n}</p>
-                <div className="max-w-2xl">
-                  <h3 className="serif text-2xl sm:text-3xl">{chapter.title}</h3>
-                  <p className="mt-3 text-muted leading-relaxed">{chapter.body}</p>
+          <aside className="landing-frame overflow-hidden rounded-[1.6rem] border border-line bg-card" aria-label="Example of a scored event">
+            <div className="bg-foreground px-5 py-4 text-card">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9ddec8]">This event</p>
+              <p className="serif mt-1 text-2xl">Chamber mixer</p>
+              <p className="mt-1 text-sm text-white/70">Find operators who need automation</p>
+            </div>
+            <div className="space-y-1 p-3">
+              {people.map((person) => (
+                <div
+                  key={person.name}
+                  className={`flex items-center gap-3 rounded-2xl px-3 py-3 ${person.level === "high" ? "bg-[#f7f3ea]" : ""}`}
+                >
+                  <Avatar name={person.name} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-semibold">{person.name}</span>
+                    <span className="block truncate text-sm text-muted">{person.detail}</span>
+                  </span>
+                  <PriorityBadge level={person.level} />
                 </div>
+              ))}
+            </div>
+            <div className="border-t border-line px-5 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Draft · not sent</p>
+              <p className="mt-2 text-sm leading-relaxed">
+                Maya — good to meet you at the mixer. You mentioned downtime still gets logged on paper. Want the one-pager this week?
+              </p>
+            </div>
+          </aside>
+        </section>
+
+        <section id="how" className="mx-auto max-w-6xl scroll-mt-24 px-5 py-8 lg:py-16">
+          <ol className="grid gap-4 sm:grid-cols-3">
+            {steps.map((step) => (
+              <li key={step.n} className="surface p-6">
+                <p className="serif text-3xl text-accent/40">{step.n}</p>
+                <h2 className="serif mt-2 text-2xl">{step.title}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{step.body}</p>
               </li>
             ))}
           </ol>
         </section>
 
         <section className="mx-auto max-w-6xl px-5 py-8 lg:py-16" aria-labelledby="voices-title">
-          <p className="kicker text-accent">Tuesday</p>
-          <h2 id="voices-title" className="serif mt-3 max-w-2xl text-4xl leading-[1.1] sm:text-5xl">
-            They sat down. They knew who to write.
+          <h2 id="voices-title" className="serif max-w-xl text-4xl leading-[1.1] sm:text-5xl">
+            They knew who to write next.
           </h2>
-          <p className="mt-4 max-w-xl text-muted">
-            Same loop as above. A note they copied. Nothing left the account on its own. These are composites that show
-            the product — not reviews from named customers.
-          </p>
-          <div className="mt-10 grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-            <blockquote className="surface p-6 lg:p-8">
-              <p className="serif text-2xl leading-snug lg:text-3xl">“{voices[0]!.quote}”</p>
-              <footer className="mt-6 flex items-center gap-3">
-                <Avatar name={voices[0]!.name} />
-                <cite className="not-italic">
-                  <span className="block font-semibold">{voices[0]!.name}</span>
-                  <span className="block text-sm text-muted">{voices[0]!.detail}</span>
-                </cite>
-              </footer>
-            </blockquote>
-            <div className="grid gap-4">
-              {voices.slice(1).map((voice) => (
-                <blockquote key={voice.name} className="surface p-6">
-                  <p className="leading-relaxed">“{voice.quote}”</p>
-                  <footer className="mt-5 flex items-center gap-3">
-                    <Avatar name={voice.name} />
-                    <cite className="not-italic">
-                      <span className="block font-semibold">{voice.name}</span>
-                      <span className="block text-sm text-muted">{voice.detail}</span>
-                    </cite>
-                  </footer>
-                </blockquote>
-              ))}
-            </div>
+          <p className="mt-3 text-sm text-muted">Composites that show the product — not named customer reviews.</p>
+          <div className="mt-8 grid gap-4 lg:grid-cols-3">
+            {voices.map((voice) => (
+              <blockquote key={voice.name} className="surface p-6">
+                <p className="leading-relaxed">“{voice.quote}”</p>
+                <footer className="mt-5 flex items-center gap-3">
+                  <Avatar name={voice.name} />
+                  <cite className="not-italic">
+                    <span className="block font-semibold">{voice.name}</span>
+                    <span className="block text-sm text-muted">{voice.detail}</span>
+                  </cite>
+                </footer>
+              </blockquote>
+            ))}
+          </div>
+          <div className="mt-10">
+            <LandingCta href={START_HREF} label={START_LABEL} />
+            <p className="mt-3 text-sm text-muted">{START_NOTE}</p>
           </div>
         </section>
 
-        <section id="pricing" className="mx-auto max-w-6xl scroll-mt-24 px-5 py-8 lg:pb-6">
-          <p className="kicker text-accent">Pricing</p>
-          <h2 className="serif mt-3 text-4xl leading-tight sm:text-5xl">Find the plan that matches how you work.</h2>
-          <p className="mt-4 max-w-2xl text-muted">
-            Matching on your first event is included. After that, pick the one that matches how you work. Same numbers at checkout.
-          </p>
-          <ul className="mt-8 grid gap-3 sm:grid-cols-3">
-            {who.map((item) => (
-              <li key={item.href}>
-                <a
-                  href={item.href}
-                  className="flex min-h-12 items-center justify-between gap-3 rounded-full border border-line bg-card px-5 py-3 text-sm font-semibold transition hover:border-accent"
-                >
-                  <span>{item.label}</span>
-                  <span className="text-muted">{item.hint}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-10 grid items-stretch gap-4 lg:grid-cols-3">
-            {plans.map((plan) => (
-              <article
-                id={plan.id}
-                key={plan.name}
-                className={`scroll-mt-28 ${plan.order} ${
-                  plan.featured
-                    ? "flex flex-col rounded-[1.6rem] bg-foreground p-6 text-card shadow-[0_24px_50px_rgb(40_28_12/0.18)] lg:-translate-y-2 lg:p-7"
-                    : "surface flex flex-col p-6"
-                }`}
-              >
-                <p className={`kicker ${plan.featured ? "text-[#9ddec8]" : "text-accent"}`}>{plan.audience}</p>
-                {plan.badge ? <p className="mt-3 text-sm font-semibold text-[#9ddec8]">{plan.badge}</p> : null}
-                <h3 className={`font-semibold ${plan.badge ? "mt-1" : "mt-2"}`}>{plan.name}</h3>
-                <p className="serif mt-4 text-5xl leading-none">{plan.price}</p>
-                <p className={`mt-2 text-sm ${plan.featured ? "text-white/65" : "text-muted"}`}>{plan.unit}</p>
-                <p className={`mt-5 text-sm leading-relaxed ${plan.featured ? "text-white/80" : "text-muted"}`}>{plan.note}</p>
-                <ul className={`mt-5 flex-1 space-y-2 text-sm ${plan.featured ? "text-white/80" : "text-muted"}`}>
-                  {plan.points.map((point) => (
-                    <li key={point}>{point}</li>
-                  ))}
-                </ul>
-                <Link
-                  href={plan.href}
-                  className={
-                    plan.featured
-                      ? "mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-ink"
-                      : "mt-8 inline-flex min-h-12 items-center justify-center rounded-full border border-line px-5 py-3 text-sm font-semibold"
-                  }
-                >
-                  {plan.action}
-                </Link>
-              </article>
-            ))}
-          </div>
-          <div className="mt-12">
-            <h3 className="font-semibold">Which one?</h3>
-            <ul className="mt-4 grid gap-3 lg:grid-cols-3">
-              {pick.map((item) => (
-                <li key={item.plan}>
-                  <a href={item.href} className="surface block min-h-full p-5 transition hover:border-accent">
-                    <p className="text-sm text-muted">{item.who}</p>
-                    <p className="mt-1 font-semibold">{item.plan}</p>
-                    <p className="mt-2 text-sm leading-relaxed text-muted">{item.why}</p>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
-        <section className="mx-auto max-w-6xl px-5 py-16 lg:py-24">
-          <div className="flex max-w-2xl flex-col items-start">
-            <h2 className="serif text-4xl leading-[1.1] sm:text-5xl">The names fade. The right connections should not.</h2>
-            <p className="mt-5 text-lg leading-relaxed text-muted">
-              Most people leave with a stack of cards and no order. BilloAI is the order: who matched why you went, and how to stay in touch.
+        <section id="pricing" className="mx-auto max-w-6xl scroll-mt-24 px-5 py-8 lg:py-16">
+          <h2 className="serif text-4xl leading-tight sm:text-5xl">First event included.</h2>
+          <p className="mt-3 max-w-xl text-muted">Then Individual if you keep going. Groups and teams have their own pages.</p>
+          <article className="mt-10 max-w-xl rounded-[1.6rem] bg-foreground p-6 text-card shadow-[0_24px_50px_rgb(40_28_12/0.18)] sm:p-7">
+            <p className="kicker text-[#9ddec8]">Most people</p>
+            <h3 className="mt-2 font-semibold">Individual</h3>
+            <p className="serif mt-4 text-5xl leading-none">{usd(INDIVIDUAL_MONTHLY_USD)}</p>
+            <p className="mt-2 text-sm text-white/65">a month after your first event</p>
+            <p className="mt-5 text-sm leading-relaxed text-white/80">
+              First event included. Or {usd(INDIVIDUAL_YEARLY_USD)} a year. No payment to start.
             </p>
+            <ul className="mt-5 space-y-2 text-sm text-white/80">
+              <li>Who matched why you went</li>
+              <li>Matching on every event after</li>
+            </ul>
             <Link
-              href="/signup"
-              className="mt-8 inline-flex rounded-full bg-accent px-7 py-3.5 text-base font-semibold text-accent-ink shadow-[0_10px_28px_rgb(11_107_79/0.28)]"
+              href={START_HREF}
+              className="mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-ink"
             >
-              Set up your next event
+              {START_LABEL}
             </Link>
-          </div>
+          </article>
+          <p className="mt-8 max-w-xl text-sm leading-relaxed text-muted">
+            Paying for one event?{" "}
+            <Link href="/for-organizers" className="font-semibold text-accent">
+              For groups
+            </Link>
+            <span className="text-line"> · </span>
+            Sales or BD all year?{" "}
+            <Link href="/for-teams" className="font-semibold text-accent">
+              For teams
+            </Link>
+          </p>
         </section>
 
         <section className="mx-auto max-w-6xl px-5 pb-16 lg:pb-24" aria-labelledby="faq-heading">
           <h2 id="faq-heading" className="serif text-4xl leading-[1.1] sm:text-5xl">
             Straight answers
           </h2>
-          <dl className="mt-10 grid gap-8 lg:grid-cols-2">
+          <dl className="mt-10 grid gap-8 lg:grid-cols-3">
             {faqs.map((item) => (
               <div key={item.q}>
                 <dt className="font-semibold">{item.q}</dt>
@@ -504,9 +297,7 @@ export default function LandingPage() {
           <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-10 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <BrandLockup />
-              <p className="mt-2 max-w-sm text-sm text-muted">
-                First event included. Individual is {usd(INDIVIDUAL_MONTHLY_USD)} a month or {usd(INDIVIDUAL_YEARLY_USD)} a year. Team starts at {usd(TEAM_YEARLY_FLOOR_USD)} a year. Group seats are {usd(ORGANIZER_SEAT_USD)} once, for one event.
-              </p>
+              <p className="mt-2 max-w-sm text-sm text-muted">First event included. You send every message.</p>
             </div>
             <p className="text-sm">
               <Link href="/for-organizers" className="font-semibold text-accent">

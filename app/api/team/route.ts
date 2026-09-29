@@ -22,6 +22,7 @@ export async function GET(request: Request) {
           const coverage = seat.uid && seat.status === "active" ? await coverageFor(seat.uid) : { captures: 0, high: 0, followUps: 0, followUpsDone: 0, lastCaptureAt: "" };
           return asSeatPerson({
             id: seat.id,
+            uid: seat.uid,
             name: seat.name || profile?.name || "",
             email: seat.email || profile?.email || "",
             joinedAt: seat.activatedAt || seat.createdAt,

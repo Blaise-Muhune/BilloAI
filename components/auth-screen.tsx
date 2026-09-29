@@ -253,7 +253,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
             ? "You are setting up the group. You will see who used a seat and whether they followed through."
             : team
               ? "You are setting up the team. You will see coverage, and you can move a seat."
-              : "Then we set up your card and the event you are walking into."
+              : "No payment to start. Then we set up your card and the event you are walking into."
         : "At least 8 characters. We send a verification link from BilloAI.";
 
   if (!ready) return <AuthSkeleton />;

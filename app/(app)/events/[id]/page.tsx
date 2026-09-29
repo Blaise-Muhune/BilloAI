@@ -7,6 +7,7 @@ import { useAuth } from "@/components/auth-provider";
 import { DetailSkeleton } from "@/components/loading";
 import { Button, Empty, ErrorNote, Field, PageWrap, PersonLink, PriorityBadge, SelectField } from "@/components/ui";
 import { recommendedLabel } from "@/lib/channels";
+import { cardFaceSrc } from "@/lib/profile-links";
 import { formatDay } from "@/lib/dates";
 import { userMessage } from "@/lib/errors";
 import { getEvent, listContactsForEvent, updateEvent } from "@/lib/data";
@@ -216,6 +217,15 @@ export default function EventDetailPage() {
           Add someone you met
         </Link>
       </div>
+      {contacts.length === 0 ? (
+        <Empty
+          title="No one from this event yet"
+          body="Save a person you met. We’ll match them to why you went."
+          href={`/capture?event=${event.id}`}
+          action="Add someone you met"
+        />
+      ) : (
+        <>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {(["high", "medium", "low", "unknown"] as const).map((level) => (
           <div key={level} className="surface px-5 py-6 text-center">
@@ -229,49 +239,45 @@ export default function EventDetailPage() {
       <div className="grid gap-8 lg:grid-cols-2">
         <section className="space-y-3">
           <h2 className="kicker">Top conversations</h2>
-          {top.length === 0 ? (
-            <Empty title="No one from this event yet" body="Save a person you met. We’ll match them to why you went." />
-          ) : (
-            <div className="surface list-stack">
-              {top.map((contact, index) => (
-                <PersonLink
-                  key={contact.id}
-                  href={`/people/${contact.id}`}
-                  name={`${index + 1}. ${contact.name || "Unnamed"}`}
-                  detail={[contact.relevance?.opportunityType, contact.title, contact.company].filter(Boolean).join(" · ")}
-                  action={recommendedLabel(contact.relevance)}
-                  level={contact.relevance?.level ?? null}
-                />
-              ))}
-            </div>
-          )}
+          <div className="surface list-stack">
+            {top.map((contact, index) => (
+              <PersonLink
+                key={contact.id}
+                href={`/people/${contact.id}`}
+                name={`${index + 1}. ${contact.name || "Unnamed"}`}
+                detail={[contact.relevance?.opportunityType, contact.title, contact.company].filter(Boolean).join(" · ")}
+                action={recommendedLabel(contact.relevance)}
+                level={contact.relevance?.level ?? null}
+                photoSrc={cardFaceSrc(contact.cardUid)}
+              />
+            ))}
+          </div>
         </section>
         <section className="space-y-3">
           <h2 className="kicker">Everyone</h2>
-          {contacts.length === 0 ? (
-            <p className="text-muted">People you met at this event land here.</p>
-          ) : (
-            <div className="surface list-stack">
-              <div className="desk-head">
-                <span>Person</span>
-                <span>Company</span>
-                <span>Fit</span>
-              </div>
-              {contacts.map((contact) => (
-                <PersonLink
-                  key={contact.id}
-                  href={`/people/${contact.id}`}
-                  name={contact.name || "Unnamed"}
-                  detail={contact.company}
-                  action={recommendedLabel(contact.relevance)}
-                  level={contact.relevance?.level ?? null}
-                  layout="columns"
-                />
-              ))}
+          <div className="surface list-stack">
+            <div className="desk-head">
+              <span>Person</span>
+              <span>Company</span>
+              <span>Fit</span>
             </div>
-          )}
+            {contacts.map((contact) => (
+              <PersonLink
+                key={contact.id}
+                href={`/people/${contact.id}`}
+                name={contact.name || "Unnamed"}
+                detail={contact.company}
+                action={recommendedLabel(contact.relevance)}
+                level={contact.relevance?.level ?? null}
+                layout="columns"
+                photoSrc={cardFaceSrc(contact.cardUid)}
+              />
+            ))}
+          </div>
         </section>
       </div>
+        </>
+      )}
       {nightForm}
     </PageWrap>
   );

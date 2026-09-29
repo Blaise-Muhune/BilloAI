@@ -1,19 +1,19 @@
 "use client";
 
-import { sendEmailVerification, signOut } from "firebase/auth";
-import { authEmailSettings } from "@/lib/auth-email";
+import { signOut } from "firebase/auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { BrandLockup } from "@/components/brand";
 import { BootScreen, OverlayStatus } from "@/components/loading";
+import { ProfilePhotoField } from "@/components/profile-photo-field";
 import { Button, ErrorNote, Field, LiveCard, SelectField, Steps } from "@/components/ui";
 import { postJson } from "@/lib/api";
 import { userMessage } from "@/lib/errors";
 import { createEvent, getPublicProfile, getUser, markOnboarded, savePublicProfile, saveWorkspace } from "@/lib/data";
 import { todayISO } from "@/lib/dates";
 import { firebaseAuth } from "@/lib/firebase/client";
-import { emptyProfile } from "@/lib/profile-links";
+import { emptyProfile, profilePhotoHref } from "@/lib/profile-links";
 import { GOAL_LABELS, NETWORKING_GOALS, type GroupKind, type NetworkingGoal, type PublicProfile } from "@/lib/types";
 import {
   clearJoinCode,
@@ -28,8 +28,6 @@ import {
   readStoredIntent,
   teamCopy,
 } from "@/lib/workspace";
-
-const steps = ["Welcome", "Your card", "First event", "You're ready", "Email"] as const;
 
 export default function OnboardingPage() {
   return (
@@ -54,10 +52,8 @@ function OnboardingFlow() {
   const [date, setDate] = useState(todayISO());
   const [goal, setGoal] = useState<NetworkingGoal>("customers");
   const [goalDetail, setGoalDetail] = useState("");
-  const [eventId, setEventId] = useState("");
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
-  const [sent, setSent] = useState(false);
   const [cardPart, setCardPart] = useState(0);
   const [eventPart, setEventPart] = useState(0);
 
@@ -100,7 +96,6 @@ function OnboardingFlow() {
         website: card?.website || "",
         links: card?.links || [],
       });
-      if (user.emailVerified) setStep((current) => (current === 4 ? 3 : current));
     })();
   }, [user, router, group, team, invited]);
 
@@ -144,16 +139,14 @@ function OnboardingFlow() {
     try {
       await savePublicProfile(user.uid, profile);
       if (invited) {
-        if (user.emailVerified) await finish("/home");
-        else setStep(4);
+        await finish("/home");
         return;
       }
       if (team) {
-        if (user.emailVerified) await finish("/billing?plan=team");
-        else setStep(4);
+        await finish("/billing?plan=team");
         return;
       }
-      setStep(2);
+      setStep(1);
     } catch (err) {
       setError(userMessage(err, "Could not save your card."));
     } finally {
@@ -188,13 +181,11 @@ function OnboardingFlow() {
         },
         group ? { forSeats: true } : undefined,
       );
-      setEventId(id);
       if (group) {
-        if (user.emailVerified) await finish(`/billing?plan=organizer&event=${id}`);
-        else setStep(4);
+        await finish(`/billing?plan=organizer&event=${id}`);
         return;
       }
-      setStep(3);
+      await finish("/home");
     } catch (err) {
       setError(userMessage(err, "Could not create the event."));
     } finally {
@@ -202,28 +193,8 @@ function OnboardingFlow() {
     }
   }
 
-  const last = user?.emailVerified ? 3 : 4;
   const copy = team ? teamCopy() : groupCopy(kind);
-  const welcomeItems = invited
-    ? [
-        { n: "1", title: "Your card", body: "Name, company, and title. Their camera opens your card." },
-        { n: "2", title: "Join what they paid for", body: copy.joinBody },
-      ]
-    : team
-      ? [
-          { n: "1", title: "Who you are", body: "Your name on the account. Then you buy seats and set the hunt." },
-          { n: "2", title: "Seats for the year", body: "Pay for at least five seats, then invite emails and set the company hunt." },
-        ]
-      : group
-      ? [
-          { n: "1", title: "Who you are", body: "Your name on the account. Then you buy seats and share the join link." },
-          { n: "2", title: "The event", body: "Seats attach to this event. Then you pay once and share the join link." },
-        ]
-      : [
-          { n: "1", title: "Your card", body: "Name, company, and title. Their camera opens your card." },
-          { n: "2", title: "The event and the goal", body: "Say why you went. That sentence is how we tell who is worth your time." },
-          { n: "3", title: "Who was worth it", body: "People you meet are scored against that goal. The rest can wait." },
-        ];
+  const progress = invited || team ? ["Your card"] : ["Your card", group ? "The event" : "First event"];
 
   return (
     <div className="min-h-full lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(24rem,32rem)]">
@@ -233,7 +204,7 @@ function OnboardingFlow() {
           <BrandLockup />
           <div className="flex items-center gap-4">
             <p className="kicker">
-              Step {step + 1} of {last + 1}
+              Step {step + 1} of {progress.length}
             </p>
             <button
               type="button"
@@ -248,7 +219,7 @@ function OnboardingFlow() {
           </div>
         </div>
         <div className="mt-6 flex gap-2" aria-label="Setup progress">
-          {steps.slice(0, last + 1).map((label, index) => (
+          {progress.map((label, index) => (
             <span key={label} className={`h-1.5 flex-1 rounded-full ${index <= step ? "bg-accent" : "bg-line"}`} />
           ))}
         </div>
@@ -256,53 +227,24 @@ function OnboardingFlow() {
 
         <div className="mt-8 flex flex-1 flex-col">
           {step === 0 ? (
-            <section className="flex flex-1 flex-col">
-              <h1 className="serif max-w-3xl text-4xl leading-[1.08] sm:text-5xl xl:text-[3.35rem]">
-                {invited ? copy.joinTitle : team ? "Set up the team you are paying for." : group ? "Set up the group you are paying for." : "Set up BilloAI before the room gets loud."}
-              </h1>
-              <p className="mt-4 max-w-2xl text-lg text-muted">
-                {invited
-                  ? copy.joinBody
-                  : team
-                    ? "Pay for year-round seats, then set the hunt. You see coverage, and teammates see when a company is already in play."
-                    : group
-                    ? "Name the event, then buy seats for that event. You get a join link. You see who used a seat and whether they followed through."
-                    : "Four short steps. After this, people you meet are scored against why you went."}
-              </p>
-              <ol className={`mt-10 grid gap-4 ${group || team || invited ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
-                {welcomeItems.map((item, index) => (
-                  <li
-                    key={item.n}
-                    className={`rounded-[1.6rem] p-5 ${
-                      index === 0 ? "bg-foreground text-card" : "border border-line bg-card"
-                    }`}
-                  >
-                    <span className={`serif text-3xl ${index === 0 ? "text-[#9ddec8]" : "text-accent"}`}>{item.n}</span>
-                    <span className="mt-3 block text-lg font-semibold">{item.title}</span>
-                    <span className={`mt-2 block text-sm leading-relaxed ${index === 0 ? "text-white/70" : "text-muted"}`}>
-                      {item.body}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-              <div className="mt-10">
-                <Button type="button" className="w-full sm:w-auto sm:min-w-48" onClick={() => setStep(1)}>
-                  Start setup
-                </Button>
-              </div>
-            </section>
-          ) : null}
-
-          {step === 1 ? (
             <section className="max-w-3xl space-y-5">
               <div className="lg:hidden">
                 <Steps labels={["Who you are", "Email"]} index={cardPart} />
               </div>
               <h1 className="serif text-4xl xl:text-5xl">{cardPart === 0 ? "Your card" : "How they reach you"}</h1>
-              <p className="text-muted">People who scan your QR see this. Add LinkedIn if you have it. More links later on Your card.</p>
+              <p className="text-muted">People who scan your QR see this. A photo is optional. Add LinkedIn if you have it. More links later on Your card.</p>
               <div className="form-grid">
                 {cardPart === 0 ? (
                   <>
+                    {user ? (
+                      <div className="lg:col-span-2">
+                        <ProfilePhotoField
+                          uid={user.uid}
+                          photoUpdatedAt={profile.photoUpdatedAt}
+                          onChange={(next) => setProfile((current) => ({ ...current, ...next }))}
+                        />
+                      </div>
+                    ) : null}
                     <Field label="Name" value={profile.name} onChange={(event) => setProfile({ ...profile, name: event.target.value })} required />
                     <Field label="Company" value={profile.company} onChange={(event) => setProfile({ ...profile, company: event.target.value })} />
                     <Field label="Title" value={profile.title} onChange={(event) => setProfile({ ...profile, title: event.target.value })} className="lg:col-span-2" />
@@ -345,7 +287,7 @@ function OnboardingFlow() {
             </section>
           ) : null}
 
-          {step === 2 ? (
+          {step === 1 ? (
             <section className="max-w-3xl space-y-5">
               {group ? null : (
                 <div className="lg:hidden">
@@ -414,71 +356,10 @@ function OnboardingFlow() {
                   </Button>
                 )}
                 {group ? null : (
-                  <button type="button" className="text-sm font-semibold text-muted" onClick={() => setStep(3)}>
+                  <button type="button" className="text-sm font-semibold text-muted" onClick={() => void finish("/home")}>
                     Skip for now
                   </button>
                 )}
-              </div>
-            </section>
-          ) : null}
-
-          {step === 3 ? (
-            <section className="max-w-2xl space-y-6">
-              <h1 className="serif text-4xl xl:text-5xl">You’ll know who was worth it</h1>
-              <p className="text-lg leading-relaxed text-muted">
-                After the room, people you meet are scored against why you went. Matches are worth your time. Everyone else can wait.
-              </p>
-              <div className="rounded-[1.6rem] bg-foreground p-6 text-card sm:p-8">
-                <p className="kicker text-[#9ddec8]">Why you went</p>
-                <p className="serif mt-3 text-3xl leading-tight">
-                  {goalDetail.trim() || (eventName.trim() ? GOAL_LABELS[goal] : "You’ll add this when you have an event.")}
-                </p>
-                <p className="mt-3 text-sm leading-relaxed text-white/65">
-                  {eventName.trim()
-                    ? [eventName, location].filter(Boolean).join(" · ")
-                    : "When you have an event, people you meet are scored against why you went. The rest can wait."}
-                </p>
-              </div>
-              <Button
-                type="button"
-                className="min-w-40"
-                busy={pending}
-                onClick={() => {
-                  if (user?.emailVerified) void finish("/home");
-                  else setStep(4);
-                }}
-              >
-                {pending ? "Finishing…" : user?.emailVerified ? "Finish" : "Continue"}
-              </Button>
-            </section>
-          ) : null}
-
-          {step === 4 ? (
-            <section className="max-w-xl space-y-5">
-              <h1 className="serif text-4xl xl:text-5xl">Verify your email</h1>
-              <p className="text-muted">
-                {team
-                  ? `Verify ${user?.email || "your email"} so you can pay for Team seats.`
-                  : group
-                  ? `Verify ${user?.email || "your email"} so you can pay for seats.`
-                  : invited
-                    ? `Verify ${user?.email || "your email"}, then you will join what they set up for you.`
-                    : `Your first event can score people against why you went. Verify ${user?.email || "your email"} before you pay or use that on later events.`}
-              </p>
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  type="button"
-                  tone="ghost"
-                  onClick={() => {
-                    if (!user) return;
-                    void sendEmailVerification(user, authEmailSettings("/onboarding")).then(() => setSent(true));
-                  }}
-                >
-                  {sent ? "Verification email sent" : "Send verification email"}
-                </Button>
-                <Button type="button" busy={pending} onClick={() => void finish(team ? "/billing?plan=team" : group ? (eventId ? `/billing?plan=organizer&event=${eventId}` : "/billing?plan=organizer") : "/home")}>
-                  {pending ? "Finishing…" : team ? "Go pay for Team seats" : group ? "Go pay for seats" : invited ? "Join" : "Finish"}
-                </Button>
               </div>
             </section>
           ) : null}
@@ -486,20 +367,14 @@ function OnboardingFlow() {
       </div>
       <aside className="preview-pane hidden min-h-full flex-col justify-between px-10 py-12 text-card lg:flex">
         <div>
-          <p className="kicker text-[#9ddec8]">{step < 2 ? "What others can scan" : step === 3 ? "Who is worth your time" : "Why this event exists"}</p>
+          <p className="kicker text-[#9ddec8]">{step === 0 ? "What others can scan" : "Why this event exists"}</p>
           <div className="mt-8">
-            {step < 2 ? (
+            {step === 0 ? (
               <LiveCard
                 name={profile.name || "Your name"}
                 line={[profile.title, profile.company].filter(Boolean).join(" · ") || "Title and company"}
                 footer={profile.email || user?.email || "Email on the card"}
-              />
-            ) : step === 3 ? (
-              <LiveCard
-                kicker="Why you went"
-                name={goalDetail.trim() || (eventName.trim() ? GOAL_LABELS[goal] : "Who was worth it")}
-                line={eventName.trim() ? [eventName, location].filter(Boolean).join(" · ") : "People you meet are scored against this."}
-                footer="Matches are worth your time. The rest can wait."
+                photoSrc={user && profile.photoUpdatedAt ? profilePhotoHref(user.uid, profile.photoUpdatedAt) : ""}
               />
             ) : (
               <LiveCard
@@ -518,9 +393,9 @@ function OnboardingFlow() {
               ? "You see who used a seat, who captured someone, and whether they followed through."
               : invited
                 ? copy.neverSee
-                : step === 3
-                  ? "People you meet are scored against why you went. The rest can wait."
-                  : "The card is what another person can scan."}
+                : step === 0
+                  ? "The card is what another person can scan."
+                  : "People you meet are scored against why you went."}
         </p>
       </aside>
     </div>

@@ -5,11 +5,12 @@ import { useAuth } from "@/components/auth-provider";
 import { BrandMark } from "@/components/brand";
 import { Pulse } from "@/components/loading";
 import { ProfileLinksEditor } from "@/components/profile-links-editor";
+import { ProfilePhotoField } from "@/components/profile-photo-field";
 import { Button, ErrorNote, Field, PageHeader, PageWrap } from "@/components/ui";
 import { cardUrl } from "@/lib/card";
 import { getPublicProfile, savePublicProfile } from "@/lib/data";
 import { userMessage } from "@/lib/errors";
-import { emptyProfile, publicLinkRows } from "@/lib/profile-links";
+import { emptyProfile, profilePhotoHref, publicLinkRows } from "@/lib/profile-links";
 import type { PublicProfile } from "@/lib/types";
 
 export default function ProfilePage() {
@@ -105,6 +106,9 @@ export default function ProfilePage() {
             <BrandMark className="h-7 w-7" />
             <p className="kicker">Your card</p>
           </div>
+          {user && profile.photoUpdatedAt ? (
+            <img src={profilePhotoHref(user.uid, profile.photoUpdatedAt)} alt="" className="mx-auto h-20 w-20 rounded-full object-cover" />
+          ) : null}
           {qr ? <img src={qr} alt="Your BilloAI QR code" className="mx-auto w-48 bg-white p-3 lg:w-full" /> : <Pulse className="mx-auto aspect-square w-48 rounded-2xl lg:w-full" />}
           <div>
             <p className="serif text-2xl leading-tight">{profile.name || "Your name"}</p>
@@ -128,6 +132,15 @@ export default function ProfilePage() {
         <div className="surface space-y-6 p-6 lg:p-8">
           <div>
             <p className="kicker text-accent">Who you are</p>
+            {user ? (
+              <div className="mt-4">
+                <ProfilePhotoField
+                  uid={user.uid}
+                  photoUpdatedAt={profile.photoUpdatedAt}
+                  onChange={(next) => setProfile((current) => ({ ...current, ...next }))}
+                />
+              </div>
+            ) : null}
             <div className="form-grid mt-4">
               <Field label="Name" value={profile.name} onChange={(event) => set("name", event.target.value)} required />
               <Field label="Company" value={profile.company} onChange={(event) => set("company", event.target.value)} />

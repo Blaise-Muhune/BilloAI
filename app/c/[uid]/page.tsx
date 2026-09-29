@@ -4,7 +4,7 @@ import { BrandHomeLink } from "@/components/brand";
 import { SkipLink } from "@/components/skip-link";
 import { cardPath } from "@/lib/card";
 import { readPublicCard } from "@/lib/card-server";
-import { displayHref, publicLinkRows } from "@/lib/profile-links";
+import { displayHref, profilePhotoHref, publicLinkRows } from "@/lib/profile-links";
 import { pageMeta } from "@/lib/seo";
 import { CardActions } from "./actions";
 
@@ -37,6 +37,9 @@ export default async function PublicCardPage({ params }: Props) {
         <BrandHomeLink />
         <article className="surface p-6">
           <p className="kicker text-accent">BilloAI card</p>
+          {card.photoUpdatedAt || card.photoPath ? (
+            <img src={profilePhotoHref(uid, card.photoUpdatedAt)} alt="" className="mt-4 h-20 w-20 rounded-full object-cover" />
+          ) : null}
           <h1 className="serif mt-3 text-4xl">{card.name}</h1>
           {line ? <p className="mt-2 text-muted">{line}</p> : null}
           {links.length ? (

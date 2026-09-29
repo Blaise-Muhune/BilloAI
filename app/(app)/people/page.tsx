@@ -8,6 +8,7 @@ import { Empty, ErrorNote, PageHeader, PageWrap, PersonLink } from "@/components
 import { recommendedLabel } from "@/lib/channels";
 import { listContacts, listEvents } from "@/lib/data";
 import { userMessage } from "@/lib/errors";
+import { cardFaceSrc } from "@/lib/profile-links";
 import type { ContactRecord, EventRecord, RelevanceLevel } from "@/lib/types";
 
 const filters: Array<RelevanceLevel | "all"> = ["all", "high", "medium", "low", "unknown"];
@@ -135,6 +136,7 @@ export default function PeoplePage() {
                   action={recommendedLabel(contact.relevance)}
                   level={contact.relevance?.level ?? null}
                   layout="columns"
+                  photoSrc={cardFaceSrc(contact.cardUid)}
                 />
               ))}
             </div>

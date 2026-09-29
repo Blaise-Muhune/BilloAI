@@ -9,7 +9,7 @@ import { breadcrumbJsonLd, pageMeta } from "@/lib/seo";
 export const metadata: Metadata = pageMeta({
   title: "Privacy policy",
   description:
-    "What BilloAI stores, who sees it, which companies process it, and that we never email the people you met. Card photos are not kept.",
+    "What BilloAI stores, who sees it, which companies process it, and that we never email the people you met. Other people’s card photos are not kept.",
   path: "/privacy",
 });
 
@@ -31,12 +31,14 @@ export default function PrivacyPage() {
         <h2 className="serif pt-4 text-2xl">What we store</h2>
         <p>
           We store the account you create (name, email, plan) and the events, contacts, notes, drafts, and tasks you
-          add. Your QR card stores the name, company, title, email, LinkedIn, website, and any other links you put on
-          it. Another person who scans that card sees those fields. They do not see your notes or who else you met.
+          add. Your QR card stores the name, company, title, email, LinkedIn, website, any other links you put on it,
+          and the profile photo you upload. Another person who scans that card sees those fields. They do not see your
+          notes or who else you met.
         </p>
         <p>
-          Card photos are read on the spot and discarded. They are not saved to your account. Voice notes are sent to
-          transcribe the line you spoke, then discarded. We keep the text you confirm.
+          Photos of other people’s cards are read on the spot and discarded. They are not saved to your account. The
+          profile photo you add to your own card is stored. Voice notes are sent to transcribe the line you spoke, then
+          discarded. We keep the text you confirm.
         </p>
 
         <h2 className="serif pt-4 text-2xl">Who we send data to</h2>
@@ -47,10 +49,10 @@ export default function PrivacyPage() {
           lookup is not used to collect private, family, health, or home details.
         </p>
         <p>
-          Google Firebase holds your login and the records above. Stripe handles cards, invoices, and tax when you pay.
-          Resend sends email to you. If you write us from the contact form, we store that message and email it to our
-          support inbox so we can reply. Vercel hosts the site. We do not sell your personal information, and we do not
-          email, text, or message the people you met.
+          Google Firebase holds your login and the records above. Microsoft Azure stores the profile photo you put on
+          your card. Stripe handles cards, invoices, and tax when you pay. Resend sends email to you. If you write us
+          from the contact form, we store that message and email it to our support inbox so we can reply. Vercel hosts
+          the site. We do not sell your personal information, and we do not email, text, or message the people you met.
         </p>
 
         <h2 className="serif pt-4 text-2xl">Email and sign-in</h2>
