@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AuthProvider, useAuth } from "@/components/auth-provider";
 import { IconCalendar, IconGroup, IconHome, IconPeople, IconPlus, IconTasks } from "@/components/icons";
+import { BrandLockup } from "@/components/brand";
 import { BootScreen } from "@/components/loading";
 import { getUser, listEvents, markOnboarded, saveWorkspace } from "@/lib/data";
 import { firebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
@@ -156,11 +157,8 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-full md:grid md:grid-cols-[17.5rem_minmax(0,1fr)]">
       <aside className="sticky top-0 hidden h-screen flex-col border-r border-line bg-card md:flex">
-        <Link href={workspace === "group" ? "/group" : "/home"} className="flex items-center gap-2.5 px-5 pt-6">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-semibold text-accent-ink" aria-hidden>
-            B
-          </span>
-          <span className="serif text-2xl leading-none">BilloAI</span>
+        <Link href={workspace === "group" ? "/group" : "/home"} className="px-5 pt-6">
+          <BrandLockup />
         </Link>
         <div className="mx-4 mt-6 grid grid-cols-2 rounded-full bg-[#f7f3ea] p-1 text-xs font-semibold">
           <button
@@ -254,8 +252,8 @@ function Shell({ children }: { children: React.ReactNode }) {
       </aside>
       <div className="flex min-h-full flex-col pb-28 md:pb-0">
         <header className="flex items-center justify-between gap-3 px-5 pt-5 md:hidden">
-          <Link href={workspace === "group" ? "/group" : "/home"} className="serif text-2xl">
-            BilloAI
+          <Link href={workspace === "group" ? "/group" : "/home"}>
+            <BrandLockup />
           </Link>
           <Link
             href="/account"

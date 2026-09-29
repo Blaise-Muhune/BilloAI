@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BrandLockup } from "@/components/brand";
 import { SupportLink } from "@/components/support";
 import { ORGANIZER_SEAT_USD, usd } from "@/lib/pricing";
 
@@ -37,11 +38,8 @@ export default function ForOrganizersPage() {
     <div className="landing-shell min-h-full">
       <header className="sticky top-0 z-30 border-b border-line/80 bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-semibold text-accent-ink" aria-hidden>
-              B
-            </span>
-            <span className="serif text-2xl leading-none">BilloAI</span>
+          <Link href="/">
+            <BrandLockup />
           </Link>
           <nav className="flex items-center gap-2 text-sm font-semibold sm:gap-5">
             <Link href="/" className="hidden text-muted hover:text-foreground sm:inline">
@@ -173,7 +171,7 @@ export default function ForOrganizersPage() {
         <footer className="border-t border-line">
           <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-10 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="serif text-2xl">BilloAI</p>
+              <BrandLockup />
               <p className="mt-2 max-w-sm text-sm text-muted">
                 Group seats are {usd(ORGANIZER_SEAT_USD)} each, once, for one event. You do not get a list of their contacts.
               </p>

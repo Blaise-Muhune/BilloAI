@@ -18,6 +18,15 @@ export const metadata: Metadata = {
     template: "%s · BilloAI",
   },
   description: "After you network, know who from the room is worth staying connected to.",
+  icons: {
+    icon: "/brand/mark.svg",
+    apple: "/brand/mark.png",
+  },
+  openGraph: {
+    title: "BilloAI",
+    description: "After you network, know who from the room is worth staying connected to.",
+    images: [{ url: "/brand/og.png", width: 1376, height: 768 }],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

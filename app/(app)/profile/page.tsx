@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { BrandMark } from "@/components/brand";
 import { Pulse } from "@/components/loading";
 import { Button, Field, PageHeader, PageWrap, Steps } from "@/components/ui";
 import { getPublicProfile, savePublicProfile } from "@/lib/data";
@@ -99,7 +100,10 @@ export default function ProfilePage() {
           </div>
         </div>
         <aside className="surface hidden h-fit p-6 lg:block">
-          <p className="kicker">Your card</p>
+          <div className="flex items-center gap-2.5">
+            <BrandMark className="h-7 w-7" />
+            <p className="kicker">Your card</p>
+          </div>
           <p className="serif mt-3 text-3xl">{profile.name || "Your name"}</p>
           <p className="mt-2 text-muted">{[profile.title, profile.company].filter(Boolean).join(" · ") || "Title and company"}</p>
           {qr ? <img src={qr} alt="Your BilloAI QR code" className="mt-6 w-full bg-white p-3" /> : <Pulse className="mt-6 aspect-square w-full rounded-2xl" />}

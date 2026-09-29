@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { BrandHomeLink } from "@/components/brand";
 import { SupportLink } from "@/components/support";
 
 export default function PrivacyPage() {
   return (
     <main className="mx-auto max-w-lg space-y-4 px-5 py-12">
-      <h1 className="serif text-4xl">Privacy policy</h1>
+      <BrandHomeLink />
+      <h1 className="serif pt-4 text-4xl">Privacy policy</h1>
       <p>
         BilloAI stores the account you create and the events, contacts, notes, and tasks you add. Card photos are
         used to read the contact fields and are not stored. That contact information belongs to other people. You are

@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { AuthProvider, useAuth } from "@/components/auth-provider";
+import { BrandLockup, BrandMark } from "@/components/brand";
 import { AuthSkeleton, BootScreen } from "@/components/loading";
 import { SupportLink } from "@/components/support";
 import { Avatar, Button, Field, PriorityBadge, SetupNotice, Steps } from "@/components/ui";
@@ -235,11 +236,8 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
       <div className="flex min-h-svh flex-col px-6 py-6 sm:px-10">
-        <Link href="/" className="flex items-center gap-2.5 self-start">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-semibold text-accent-ink" aria-hidden>
-            B
-          </span>
-          <span className="serif text-2xl leading-none">BilloAI</span>
+        <Link href="/" className="self-start">
+          <BrandLockup />
         </Link>
 
         <div className="flex flex-1 items-center py-10">
@@ -372,7 +370,10 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
       <aside className="preview-pane relative hidden min-h-svh flex-col justify-between overflow-hidden px-10 py-10 text-card lg:flex xl:px-14 xl:py-12">
         <div>
-          <p className="kicker text-[#9ddec8]">{group ? copy.kicker : "After the room"}</p>
+          <div className="flex items-center gap-2.5">
+            <BrandMark className="h-8 w-8" />
+            <p className="kicker text-[#9ddec8]">{group ? copy.kicker : "After the room"}</p>
+          </div>
           <p className="serif mt-4 max-w-[14ch] text-5xl leading-[1.05] xl:text-[3.35rem]">
             {group ? copy.overviewTitle : "Leave knowing who was worth the conversation."}
           </p>

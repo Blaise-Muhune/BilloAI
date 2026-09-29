@@ -49,6 +49,15 @@ export function IconPlus({ className }: IconProps) {
   );
 }
 
+export function IconMic({ className }: IconProps) {
+  return (
+    <svg className={base(className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <rect x="9" y="3.5" width="6" height="10" rx="3" />
+      <path d="M6.5 11.5a5.5 5.5 0 0 0 11 0M12 17v3.5M8.5 20.5h7" />
+    </svg>
+  );
+}
+
 export function IconGroup({ className }: IconProps) {
   return (
     <svg className={base(className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>

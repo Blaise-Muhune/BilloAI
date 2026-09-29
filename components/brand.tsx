@@ -1,0 +1,41 @@
+import Link from "next/link";
+
+export function BrandMark({ className = "h-8 w-8" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" className={className} aria-hidden>
+      <rect width="32" height="32" rx="8" fill="#0b6b4f" />
+      <g transform="rotate(-11 13 16)">
+        <rect x="6.2" y="10" width="14.2" height="11.2" rx="2.1" fill="#d7efe4" />
+      </g>
+      <g transform="rotate(8 19 17.2)">
+        <rect x="11.6" y="11.4" width="14.4" height="11.4" rx="2.1" fill="#f4efe6" />
+        <circle cx="16.2" cy="17" r="1.15" fill="#7aa892" />
+        <circle cx="20.6" cy="17" r="1.15" fill="#0b6b4f" />
+        <path d="M17.35 16.25c.85-1.05 2.05-1.05 2.9 0" stroke="#0b6b4f" strokeWidth="0.95" fill="none" strokeLinecap="round" />
+      </g>
+    </svg>
+  );
+}
+
+export function BrandLockup({
+  className = "",
+  markClassName = "h-8 w-8",
+}: {
+  className?: string;
+  markClassName?: string;
+}) {
+  return (
+    <span className={`inline-flex items-center gap-2.5 ${className}`}>
+      <BrandMark className={markClassName} />
+      <span className="serif text-2xl leading-none">BilloAI</span>
+    </span>
+  );
+}
+
+export function BrandHomeLink({ className = "" }: { className?: string }) {
+  return (
+    <Link href="/" className={`inline-flex ${className}`}>
+      <BrandLockup />
+    </Link>
+  );
+}

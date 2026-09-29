@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BrandLockup, BrandMark } from "@/components/brand";
 import { Avatar, PriorityBadge } from "@/components/ui";
 import { SupportLink } from "@/components/support";
 import { INDIVIDUAL_MONTHLY_USD, INDIVIDUAL_YEARLY_USD, ORGANIZER_SEAT_USD, usd } from "@/lib/pricing";
@@ -24,12 +25,33 @@ const chapters = [
   {
     n: "02",
     title: "Keep the people you met",
-    body: "Save a card, a name, or a LinkedIn, plus one line about the conversation. The photo is read and discarded.",
+    body: "Save a card, a name, or a LinkedIn, plus one line about the conversation — typed or spoken. The photo is read and discarded.",
   },
   {
     n: "03",
     title: "See who is worth staying connected to",
     body: "We look them up in public, match them to your goal, and write a note you can send. Nothing goes out on its own.",
+  },
+];
+
+const voices = [
+  {
+    quote:
+      "I had seven cards in my coat. In the car I typed the one line I still remembered. Tuesday I only wrote two people. The rest I left in the pile.",
+    name: "Tom",
+    detail: "Sells into plants · Cleveland",
+  },
+  {
+    quote:
+      "It put the recruiter at the bottom. I would have emailed him first because he was nice. That would have been my whole morning.",
+    name: "Sana",
+    detail: "Automation · Dearborn",
+  },
+  {
+    quote:
+      "Work bought the seats for that event. I still have who I met. They never got the names. I copied the note and sent it myself.",
+    name: "Ken",
+    detail: "On a company seat",
   },
 ];
 
@@ -68,11 +90,8 @@ export default function LandingPage() {
     <div className="landing-shell min-h-full">
       <header className="sticky top-0 z-30 border-b border-line/80 bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-sm font-semibold text-accent-ink" aria-hidden>
-              B
-            </span>
-            <span className="serif text-2xl leading-none">BilloAI</span>
+          <Link href="/">
+            <BrandLockup />
           </Link>
           <nav className="flex items-center gap-2 text-sm font-semibold sm:gap-5">
             <Link href="/for-organizers" className="hidden text-muted hover:text-foreground sm:inline">
@@ -159,7 +178,10 @@ export default function LandingPage() {
 
         <section className="mx-auto max-w-6xl px-5 py-8 lg:py-16">
           <div className="overflow-hidden rounded-[2rem] bg-foreground px-6 py-12 text-card sm:px-10 lg:px-14 lg:py-16">
-            <p className="kicker text-[#9ddec8]">The morning after</p>
+            <div className="flex items-center gap-2.5">
+              <BrandMark className="h-8 w-8" />
+              <p className="kicker text-[#9ddec8]">The morning after</p>
+            </div>
             <h2 className="serif mt-3 max-w-2xl text-4xl leading-[1.1] sm:text-5xl">Forty names. No idea who mattered.</h2>
             <div className="mt-10 grid gap-8 lg:grid-cols-2 lg:gap-16">
               <div>
@@ -196,6 +218,42 @@ export default function LandingPage() {
               </li>
             ))}
           </ol>
+        </section>
+
+        <section className="mx-auto max-w-6xl px-5 py-8 lg:py-16" aria-labelledby="voices-title">
+          <p className="kicker text-accent">Tuesday</p>
+          <h2 id="voices-title" className="serif mt-3 max-w-2xl text-4xl leading-[1.1] sm:text-5xl">
+            They sat down. They knew who to write.
+          </h2>
+          <p className="mt-4 max-w-xl text-muted">
+            Same loop as above. A note they copied. Nothing left the account on its own.
+          </p>
+          <div className="mt-10 grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+            <blockquote className="surface p-6 lg:p-8">
+              <p className="serif text-2xl leading-snug lg:text-3xl">“{voices[0]!.quote}”</p>
+              <footer className="mt-6 flex items-center gap-3">
+                <Avatar name={voices[0]!.name} />
+                <cite className="not-italic">
+                  <span className="block font-semibold">{voices[0]!.name}</span>
+                  <span className="block text-sm text-muted">{voices[0]!.detail}</span>
+                </cite>
+              </footer>
+            </blockquote>
+            <div className="grid gap-4">
+              {voices.slice(1).map((voice) => (
+                <blockquote key={voice.name} className="surface p-6">
+                  <p className="leading-relaxed">“{voice.quote}”</p>
+                  <footer className="mt-5 flex items-center gap-3">
+                    <Avatar name={voice.name} />
+                    <cite className="not-italic">
+                      <span className="block font-semibold">{voice.name}</span>
+                      <span className="block text-sm text-muted">{voice.detail}</span>
+                    </cite>
+                  </footer>
+                </blockquote>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section id="pricing" className="mx-auto max-w-6xl scroll-mt-24 px-5 py-8 lg:pb-6">
@@ -252,7 +310,7 @@ export default function LandingPage() {
         <footer className="border-t border-line">
           <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-10 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="serif text-2xl">BilloAI</p>
+              <BrandLockup />
               <p className="mt-2 max-w-sm text-sm text-muted">
                 First event included. Individual is {usd(INDIVIDUAL_MONTHLY_USD)} a month. Group seats are {usd(ORGANIZER_SEAT_USD)} each for one event.
               </p>

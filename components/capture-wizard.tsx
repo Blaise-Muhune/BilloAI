@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { BusyBar, CaptureBodySkeleton, OverlayStatus, ScreenStatus } from "@/components/loading";
 import { PaywallNotice } from "@/components/paywall";
+import { IconMic } from "@/components/icons";
 import { Area, Button, Field, PageHeader, PageWrap, SelectField } from "@/components/ui";
 import { isPaywalled, postForm, postJson } from "@/lib/api";
 import { addDays, todayISO } from "@/lib/dates";
@@ -266,16 +267,29 @@ export function CaptureWizard() {
       setRecording(false);
       return;
     }
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream);
+    setError("");
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setError("Allow the microphone, then tap Speak the note.");
+      return;
+    }
+    const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((type) => MediaRecorder.isTypeSupported(type));
+    const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
     const chunks: Blob[] = [];
     recorder.ondataavailable = (event) => {
       if (event.data.size) chunks.push(event.data);
     };
     recorder.onstop = async () => {
       stream.getTracks().forEach((track) => track.stop());
+      if (!chunks.length) {
+        setError("Nothing was recorded. Hold Speak for a second, then stop.");
+        return;
+      }
+      const type = recorder.mimeType || "audio/webm";
       const body = new FormData();
-      body.append("audio", new Blob(chunks, { type: recorder.mimeType || "audio/webm" }), "note.webm");
+      body.append("audio", new Blob(chunks, { type }), type.includes("mp4") ? "note.m4a" : "note.webm");
       if (eventId) body.append("eventId", eventId);
       setHearing(true);
       try {
@@ -502,6 +516,7 @@ export function CaptureWizard() {
       ) : null}
 
       {eventsReady && step === "method" ? (
+        <>
         <div className="grid gap-6 lg:grid-cols-2">
           <section className="surface space-y-4 p-6 lg:p-8">
             <h2 className="serif text-3xl">Save a card</h2>
@@ -544,6 +559,8 @@ export function CaptureWizard() {
             <div id="qr-reader" className="overflow-hidden rounded-2xl" />
           </section>
         </div>
+        <p className="text-sm text-muted">On the next screen, type the conversation or tap Speak the note.</p>
+        </>
       ) : null}
 
       {eventsReady && step === "confirm" ? (
@@ -592,16 +609,33 @@ export function CaptureWizard() {
               <Field label="Website" value={fields.website} onChange={(event) => setField("website", event.target.value)} />
               <Field label="City or event location" value={fields.location} onChange={(event) => setField("location", event.target.value)} className="lg:col-span-2" />
             </div>
-            <Area label="One line about what you talked about" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Promised the pricing note. Works the late shift at the plant." />
+            <Area
+              id="capture-note"
+              label="One line about what you talked about"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="Promised the pricing note. Works the late shift at the plant."
+              action={
+                <button
+                  type="button"
+                  onClick={() => void toggleRecording()}
+                  disabled={hearing}
+                  className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-sm font-semibold ${recording ? "text-high" : "text-accent"}`}
+                  aria-pressed={recording}
+                >
+                  <IconMic className={recording ? "animate-pulse" : ""} />
+                  {recording ? "Stop" : hearing ? "Hearing…" : "Speak the note"}
+                </button>
+              }
+            />
             {hearing ? (
               <p className="flex items-center gap-3 text-sm text-muted">
                 <BusyBar className="w-24" />
                 Hearing that note
               </p>
+            ) : recording ? (
+              <p className="text-sm text-high">Recording. Tap Stop when you are done.</p>
             ) : null}
-            <Button type="button" tone="ghost" busy={hearing} onClick={() => void toggleRecording()}>
-              {recording ? "Stop voice note" : hearing ? "Hearing that note" : "Speak it if that is faster"}
-            </Button>
             <div className="flex flex-wrap gap-2">
               {tags.map((tag) => {
                 const on = chosenTags.includes(tag);

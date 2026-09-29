@@ -1,3 +1,4 @@
+import { BrandMark } from "@/components/brand";
 import { PageWrap } from "@/components/ui";
 
 export function Pulse({ className = "", tone = "paper" }: { className?: string; tone?: "paper" | "ink" }) {
@@ -24,7 +25,7 @@ export function BootScreen({ label = "Loading BilloAI" }: { label?: string }) {
   return (
     <div className="landing-shell grid min-h-full place-items-center px-6">
       <div className="flex flex-col items-center gap-5">
-        <span className="grid h-12 w-12 place-items-center rounded-xl bg-accent text-lg font-semibold text-accent-ink">B</span>
+        <BrandMark className="h-12 w-12" />
         <BusyBar className="w-32" />
         <p className="text-sm text-muted">{label}</p>
         <ScreenStatus label={label} />

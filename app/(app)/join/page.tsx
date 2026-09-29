@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { BrandLockup } from "@/components/brand";
 import { BusyBar, JoinBodySkeleton, JoinSkeleton, OverlayStatus } from "@/components/loading";
 import { Button, Field, PageHeader, PageWrap } from "@/components/ui";
 import { getJson, getPublicJson, postJson } from "@/lib/api";
@@ -162,8 +163,8 @@ function JoinForm() {
       return (
         <div className="min-h-full">
           <header className="flex items-center justify-between px-5 py-5">
-            <Link href="/" className="serif text-2xl">
-              BilloAI
+            <Link href="/">
+              <BrandLockup />
             </Link>
           </header>
           <div className="mx-auto max-w-5xl px-5 pb-16">
@@ -183,8 +184,8 @@ function JoinForm() {
     return (
       <div className="min-h-full">
         <header className="flex items-center justify-between px-5 py-5">
-          <Link href="/" className="serif text-2xl">
-            BilloAI
+          <Link href="/">
+            <BrandLockup />
           </Link>
           <Link href={loginHref} className="text-sm font-semibold text-accent">
             Sign in

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 40" fill="none">
+  <rect width="32" height="32" x="0" y="4" rx="8" fill="#0b6b4f"/>
+  <g transform="translate(0 4) rotate(-11 13 16)">
+    <rect x="6.2" y="10" width="14.2" height="11.2" rx="2.1" fill="#d7efe4"/>
+  </g>
+  <g transform="translate(0 4) rotate(8 19 17.2)">
+    <rect x="11.6" y="11.4" width="14.4" height="11.4" rx="2.1" fill="#f4efe6"/>
+    <circle cx="16.2" cy="17" r="1.15" fill="#7aa892"/>
+    <circle cx="20.6" cy="17" r="1.15" fill="#0b6b4f"/>
+    <path d="M17.35 16.25c.85-1.05 2.05-1.05 2.9 0" stroke="#0b6b4f" stroke-width="0.95" fill="none" stroke-linecap="round"/>
+  </g>
+  <text x="44" y="28" fill="#1a1612" font-family="Georgia, 'Times New Roman', serif" font-size="24" font-style="italic">BilloAI</text>
+</svg>

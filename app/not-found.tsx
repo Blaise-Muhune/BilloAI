@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { BrandHomeLink } from "@/components/brand";
 import { SupportLink } from "@/components/support";
 
 export default function NotFound() {
   return (
     <main className="mx-auto flex min-h-full max-w-lg flex-col justify-center px-5 py-16">
-      <p className="kicker text-accent">404</p>
+      <BrandHomeLink />
+      <p className="kicker mt-8 text-accent">404</p>
       <h1 className="serif mt-2 text-4xl">That page is not here.</h1>
       <p className="mt-3 text-muted">The link may be old, or the page was never added. Your contacts were not opened.</p>
       <div className="mt-6 flex flex-wrap gap-3">

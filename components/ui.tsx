@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { BrandMark } from "@/components/brand";
 
 export function PageWrap({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <div className={`page-wrap space-y-8 ${className}`}>{children}</div>;
@@ -71,14 +72,21 @@ export function Field({
 
 export function Area({
   label,
+  action,
   className,
+  id,
   ...props
-}: { label: string } & React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+}: { label: string; action?: ReactNode } & React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
-    <label className={`block ${className ?? ""}`}>
-      <span className="mb-1.5 block text-sm font-medium text-muted">{label}</span>
-      <textarea {...props} className="field-control min-h-28" />
-    </label>
+    <div className={`block ${className ?? ""}`}>
+      <span className="mb-1.5 flex items-center justify-between gap-3">
+        <label htmlFor={id} className="text-sm font-medium text-muted">
+          {label}
+        </label>
+        {action}
+      </span>
+      <textarea id={id} {...props} className="field-control min-h-28" />
+    </div>
   );
 }
 
@@ -220,7 +228,10 @@ export function LiveCard({
 }) {
   return (
     <div className="rounded-[1.75rem] border border-white/10 bg-white/[0.07] p-8">
-      <p className="kicker text-[#9ddec8]">{kicker}</p>
+      <div className="flex items-center gap-2.5">
+        <BrandMark className="h-7 w-7" />
+        <p className="kicker text-[#9ddec8]">{kicker}</p>
+      </div>
       <p className="serif mt-5 text-4xl leading-tight xl:text-5xl">{name}</p>
       <p className="mt-4 text-lg text-white/70">{line}</p>
       {footer ? <p className="mt-8 text-sm text-white/45">{footer}</p> : null}

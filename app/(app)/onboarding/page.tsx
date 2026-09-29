@@ -4,6 +4,7 @@ import { sendEmailVerification, signOut } from "firebase/auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { BrandLockup } from "@/components/brand";
 import { BootScreen, OverlayStatus } from "@/components/loading";
 import { Button, Field, LiveCard, SelectField, Steps } from "@/components/ui";
 import { postJson } from "@/lib/api";
@@ -205,7 +206,7 @@ function OnboardingFlow() {
       {pending ? <OverlayStatus label="Saving your setup" /> : null}
       <div className="flex min-h-full flex-col px-5 py-8 sm:px-10 lg:px-14 lg:py-12">
         <div className="flex items-center justify-between gap-4">
-          <p className="serif text-2xl">BilloAI</p>
+          <BrandLockup />
           <div className="flex items-center gap-4">
             <p className="kicker">
               Step {step + 1} of {last + 1}
