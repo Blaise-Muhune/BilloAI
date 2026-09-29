@@ -10,7 +10,7 @@ import { breadcrumbJsonLd, pageMeta } from "@/lib/seo";
 export const metadata: Metadata = pageMeta({
   title: "Team seats for sales and BD",
   description:
-    "Year-round seats for sales and BD. One hunt list. No two reps on the same live account. The admin sees who has a seat, never who they met.",
+    "Year-round seats for sales and BD. One hunt list. No two reps on the same live account. You see coverage, and you can move a seat.",
   path: "/for-teams",
 });
 
@@ -29,12 +29,12 @@ const chapters = [
   {
     n: "02",
     title: "Set the hunt once",
-    body: "Write the ICP and the companies you want. Scoring uses that next to each rep’s event goal. They still keep their own notes.",
+    body: "Write the ICP and the companies you want. Scoring uses that next to each rep’s event goal.",
   },
   {
     n: "03",
     title: "Stay off the same account",
-    body: "If a teammate already has a High or Medium at that company, the next person sees a badge. No teammate name. No contact name. No note. No draft.",
+    body: "If a teammate already has a High or Medium at that company, the next person sees a badge — so two of you stay off the same live account.",
   },
 ];
 
@@ -78,7 +78,7 @@ export default function ForTeamsPage() {
               One hunt. Seats you can move. No two reps on the same live account.
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted">
-              Team is year-round AI for your people — not a cheaper Individual, and not Group’s one-event seats. You set the companies. They keep their books. You see coverage counts, never names.
+              Team is year-round AI for your people — not a cheaper Individual, and not Group’s one-event seats. You set the companies. You see coverage. Teammates see when a company is already in play.
             </p>
             <div className="mt-9">
               <Link href="/signup?for=team" className="inline-flex rounded-full bg-accent px-7 py-3.5 text-base font-semibold text-accent-ink shadow-[0_10px_28px_rgb(11_107_79/0.28)]">
@@ -105,7 +105,7 @@ export default function ForTeamsPage() {
               ))}
             </dl>
             <p className="mt-6 text-sm leading-relaxed text-white/65">
-              You see who has a seat. No company list from other books. No contact names, notes, or drafts.
+              You see who has a seat, capture rate, and follow-through. Teammates see when a company is already in play.
             </p>
           </aside>
         </section>
@@ -124,7 +124,7 @@ export default function ForTeamsPage() {
 
         <section className="mx-auto max-w-6xl px-5 py-16 lg:py-24">
           <div className="flex max-w-2xl flex-col items-start">
-            <h2 className="serif text-4xl leading-[1.1] sm:text-5xl">Pay for the year. Stay out of their notebooks.</h2>
+            <h2 className="serif text-4xl leading-[1.1] sm:text-5xl">Pay for the year. Keep two reps off the same live account.</h2>
             <p className="mt-5 text-lg leading-relaxed text-muted">
               {usd(TEAM_SEAT_YEARLY_USD)} a seat / year, or {usd(TEAM_SEAT_MONTHLY_USD)} a month. From {usd(TEAM_YEARLY_FLOOR_USD)} a year at {TEAM_SEAT_MIN} seats. Same price here and at checkout. Revoking a seat does not delete their book.
             </p>

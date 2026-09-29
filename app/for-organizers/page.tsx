@@ -9,7 +9,7 @@ import { breadcrumbJsonLd, pageMeta } from "@/lib/seo";
 
 export const metadata: Metadata = pageMeta({
   title: "Group seats for one event",
-  description: "Pay for one named event. You see who used a seat. They keep who they met. You never see their contacts.",
+  description: "Pay for one named event. See who used a seat, who captured someone, and whether they followed through.",
   path: "/for-organizers",
 });
 
@@ -33,12 +33,12 @@ const chapters = [
   {
     n: "02",
     title: "Send one link",
-    body: "They open it, create their own account, and keep who they met. Joining does not put their contacts on your account.",
+    body: "They open it, create their own account, and start capturing. You see who used a seat.",
   },
   {
     n: "03",
     title: "Watch whether it worked",
-    body: "You see who used a seat, how many people captured someone, and whether they followed through. You never see who they met, notes, or drafts.",
+    body: "You see who used a seat, how many people captured someone, and whether they followed through.",
   },
 ];
 
@@ -79,10 +79,10 @@ export default function ForOrganizersPage() {
           <div>
             <p className="kicker text-accent">For one event</p>
             <h1 className="serif mt-4 max-w-[16ch] text-[2.7rem] leading-[1.05] tracking-tight sm:text-6xl">
-              Pay for the seats. Never see who they met.
+              Pay for the seats. See if they used them.
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted">
-              You buy seats for one event. You see who used a seat. Your people leave knowing who from the room mattered. Their conversations stay on their accounts. If they keep going, Individual is their plan.
+              You buy seats for one event. You see who went, who captured someone, and whether they followed through. If they keep going, Individual is their plan.
             </p>
             <div className="mt-9 grid max-w-lg gap-3 sm:grid-cols-2">
               <Link href="/signup?for=company" className="rounded-[1.4rem] bg-accent px-5 py-4 text-accent-ink shadow-[0_10px_28px_rgb(11_107_79/0.28)]">
@@ -128,39 +128,26 @@ export default function ForOrganizersPage() {
                   <span className="text-muted">{person.detail}</span>
                 </div>
               ))}
-              <p className="pt-1 text-sm text-muted">You see who claimed a seat. Never who they met.</p>
+              <p className="pt-1 text-sm text-muted">Who used a seat, and whether they saved someone.</p>
             </div>
           </aside>
         </section>
 
         <section className="mx-auto max-w-6xl px-5 py-8 lg:py-16">
           <div className="overflow-hidden rounded-[2rem] bg-foreground px-6 py-12 text-card sm:px-10 lg:px-14 lg:py-16">
-            <p className="kicker text-[#9ddec8]">The split</p>
-            <h2 className="serif mt-3 max-w-2xl text-4xl leading-[1.1] sm:text-5xl">They keep the people. You keep the proof it worked.</h2>
-            <div className="mt-10 grid gap-8 lg:grid-cols-2 lg:gap-16">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[#9ddec8]">What you see</p>
-                <ul className="mt-4 space-y-3 text-lg">
-                  <li>Who used a seat</li>
-                  <li>How many people captured someone</li>
-                  <li>How many follow-ups got done</li>
-                </ul>
-              </div>
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.12em] text-white/45">What you never see</p>
-                <ul className="mt-4 space-y-3 text-lg text-white/75">
-                  <li>Who they met</li>
-                  <li>Notes from the conversation</li>
-                  <li>The draft they may send</li>
-                </ul>
-              </div>
-            </div>
+            <p className="kicker text-[#9ddec8]">The proof</p>
+            <h2 className="serif mt-3 max-w-2xl text-4xl leading-[1.1] sm:text-5xl">You keep the proof it worked.</h2>
+            <ul className="mt-10 grid gap-3 text-lg sm:grid-cols-3">
+              <li className="rounded-2xl bg-white/10 px-5 py-4">Who used a seat</li>
+              <li className="rounded-2xl bg-white/10 px-5 py-4">How many people captured someone</li>
+              <li className="rounded-2xl bg-white/10 px-5 py-4">How many follow-ups got done</li>
+            </ul>
           </div>
         </section>
 
         <section className="mx-auto max-w-6xl px-5 py-8 lg:py-10">
           <p className="kicker text-accent">How a group works</p>
-          <h2 className="serif mt-3 max-w-xl text-4xl leading-tight sm:text-5xl">One link. Their network. Your counts.</h2>
+          <h2 className="serif mt-3 max-w-xl text-4xl leading-tight sm:text-5xl">One link. Then you see if it worked.</h2>
           <ol className="mt-10">
             {chapters.map((chapter) => (
               <li key={chapter.n} className="grid gap-3 border-t border-line py-8 sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-10 sm:py-10">
@@ -176,7 +163,7 @@ export default function ForOrganizersPage() {
 
         <section className="mx-auto max-w-6xl px-5 py-16 lg:py-24">
           <div className="flex max-w-2xl flex-col items-start">
-            <h2 className="serif text-4xl leading-[1.1] sm:text-5xl">Buy the seats. Stay out of the conversations.</h2>
+            <h2 className="serif text-4xl leading-[1.1] sm:text-5xl">Buy the seats. See if they followed through.</h2>
             <p className="mt-5 text-lg leading-relaxed text-muted">
               {usd(ORGANIZER_SEAT_USD)} a seat, once, for one event. Same price here and at checkout. Unused seats stay with that event.
             </p>
@@ -199,7 +186,7 @@ export default function ForOrganizersPage() {
             <div>
               <BrandLockup />
               <p className="mt-2 max-w-sm text-sm text-muted">
-                Group seats are {usd(ORGANIZER_SEAT_USD)} each, once, for one event. You do not get a list of their contacts. Team is {usd(TEAM_SEAT_YEARLY_USD)} a seat / year.
+                Group seats are {usd(ORGANIZER_SEAT_USD)} each, once, for one event. You see who used a seat and whether they followed through. Team is {usd(TEAM_SEAT_YEARLY_USD)} a seat / year.
               </p>
             </div>
             <p className="text-sm">

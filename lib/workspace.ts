@@ -88,6 +88,38 @@ export function invitePath(code: string, from?: GroupKind | "team" | "" | null) 
   return `/join?code=${encodeURIComponent(code)}${suffix}`;
 }
 
+export function hasGroupWorkspace(account?: {
+  staffAccess?: boolean;
+  groupKind?: GroupKind | "";
+  plan?: string;
+  workspace?: Workspace;
+} | null) {
+  if (!account) return false;
+  return Boolean(account.staffAccess || account.groupKind || account.plan === "organizer" || account.workspace === "group");
+}
+
+export function hasTeamWorkspace(account?: { staffAccess?: boolean; plan?: string; teamId?: string } | null) {
+  if (!account) return false;
+  return Boolean(account.staffAccess || account.plan === "team" || account.teamId);
+}
+
+export function otherWorkspaceLinks(
+  current: Workspace,
+  account?: Parameters<typeof hasGroupWorkspace>[0],
+): { href: string; label: string }[] {
+  const links: { href: string; label: string }[] = [];
+  if (current !== "network") links.push({ href: "/home", label: "My network" });
+  if (hasGroupWorkspace(account) && current !== "group") links.push({ href: "/group", label: "The group" });
+  if (hasTeamWorkspace(account) && current !== "team") links.push({ href: "/team", label: "The team" });
+  return links;
+}
+
+export function workspaceLabel(workspace: Workspace) {
+  if (workspace === "group") return "The group";
+  if (workspace === "team") return "The team";
+  return "My network";
+}
+
 export function groupSeatsHref(eventId?: string) {
   const params = new URLSearchParams({ plan: "organizer" });
   if (eventId) params.set("event", eventId);
@@ -121,10 +153,10 @@ export function teamCopy() {
     switchLabel: "Team",
     overviewTitle: "One hunt. Seats you can move.",
     overviewBody:
-      "Pay by the seat for the year. Every assigned seat gets matching on every event. You see who has a seat. You set the companies you are hunting. Teammates see when someone already has a live conversation at that company — never contact names, notes, or drafts.",
-    neverSee: "Teammates never see who you met.",
+      "Pay by the seat for the year. Every assigned seat gets matching on every event. You set the companies you are hunting. You see who has a seat, coverage, and when a company is already in play. Move a seat when someone leaves.",
+    neverSee: "Who you meet stays on your account.",
     joinTitle: "Your company saved you a seat",
-    joinBody: "This seat is year-round. Who you meet stays on your account. Your admin sees that you used a seat. They never see who you met, your notes, or drafts.",
+    joinBody: "This seat is year-round. Who you meet stays on your account. Scoring uses the hunt they set. Your admin sees that you used a seat.",
     shareLabel: "Send this to invited emails only",
     emptySeats: "Pay for at least five seats, then invite people by email.",
   };
@@ -135,12 +167,12 @@ export function groupCopy(kind: GroupKind | "" | undefined) {
     return {
       kicker: "For a company",
       switchLabel: "Group",
-      overviewTitle: "This event, not their contacts",
+      overviewTitle: "See who used the seat",
       overviewBody:
-        "You buy seats for one named event. You see who used a seat. They keep who they met. Unused seats stay with this event. You never see who they met, notes, or drafts.",
-      neverSee: "Your company never sees who you met.",
+        "You buy seats for one named event. You see who went, who captured someone, and whether they followed through. Unused seats stay with this event.",
+      neverSee: "Who you meet stays on your account.",
       joinTitle: "Your company set this up for you",
-      joinBody: "This seat is for this event. Who you meet stays on your account. They see that you used a seat. They never see who you met. The next event is Individual, or another seat they buy.",
+      joinBody: "This seat is for this event. Who you meet stays on your account. They see that you used a seat. The next event is Individual, or another seat they buy.",
       shareLabel: "Send this to your team",
       emptySeats: "Name the event they are attending, then pay for seats for that event.",
     };
@@ -149,12 +181,12 @@ export function groupCopy(kind: GroupKind | "" | undefined) {
     return {
       kicker: "For a room",
       switchLabel: "Group",
-      overviewTitle: "This event, not their notebooks",
+      overviewTitle: "See if they followed through",
       overviewBody:
-        "You buy seats for one event. You see who used a seat and whether they followed through. Attendees keep their own conversations. Unused seats stay with this event. You never see who they met.",
-      neverSee: "The host never sees who you met.",
+        "You buy seats for one event. You see who used a seat, how many people captured someone, and how many follow-ups got done. Unused seats stay with this event.",
+      neverSee: "Who you meet stays on your account.",
       joinTitle: "You were invited to this event",
-      joinBody: "This seat is for this event. Who you meet stays on your account. The host sees that you used a seat. They never see who you met. The next event is Individual, or another seat from the host.",
+      joinBody: "This seat is for this event. Who you meet stays on your account. The host sees that you used a seat. The next event is Individual, or another seat from the host.",
       shareLabel: "Send this to the room",
       emptySeats: "Name the event, then pay for seats once for that event.",
     };
@@ -162,12 +194,12 @@ export function groupCopy(kind: GroupKind | "" | undefined) {
   return {
     kicker: "For a group",
     switchLabel: "Group",
-    overviewTitle: "Who used a seat. Never their contacts.",
+    overviewTitle: "See who used a seat",
     overviewBody:
-      "Pay for one event: a company sending people, or a host buying for a room. You see who used a seat and the counts. Unused seats stay with that event. You never see who they met, notes, or drafts.",
-    neverSee: "The group that invited you never sees who you met.",
+      "Pay for one event: a company sending people, or a host buying for a room. You see who used a seat, who captured someone, and whether they followed through. Unused seats stay with that event.",
+    neverSee: "Who you meet stays on your account.",
     joinTitle: "You were invited",
-    joinBody: "This seat is for this event. Who you meet stays on your account. They see that you used a seat. They never see who you met. The next event is Individual, or another seat.",
+    joinBody: "This seat is for this event. Who you meet stays on your account. They see that you used a seat. The next event is Individual, or another seat.",
     shareLabel: "Send this to people you are paying for",
     emptySeats: "Name the event, then pay for seats for that event.",
   };

@@ -67,7 +67,7 @@ export function SeatRoster({
         <div>
           <h3 className="serif text-2xl">Who used a seat</h3>
           <p className="mt-1 text-sm text-muted">
-            Names of people you paid for. Never who they met, their notes, or drafts.
+            Names of people you paid for. Who captured someone, and who still needs a nudge.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

@@ -73,10 +73,12 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const params = useSearchParams();
   const { user, ready } = useAuth();
   const forParam = params.get("for");
+  const fromKind = params.get("from");
+  const joinCode = params.get("code");
   const group = isGroupIntent(forParam);
-  const team = isTeamIntent(forParam) || isTeamIntent(readStoredIntent());
+  const team = isTeamIntent(forParam) || fromKind === "team" || isTeamIntent(readStoredIntent());
   const hosted = group || team;
-  const copy = team ? teamCopy() : groupCopy(groupKindFromIntent(forParam || readStoredIntent()));
+  const copy = team ? teamCopy() : groupCopy(groupKindFromIntent(forParam || fromKind || readStoredIntent()));
   const handingOff = useRef(false);
   const signingIn = useRef(false);
   const [name, setName] = useState("");
@@ -229,24 +231,29 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
   const flipQuery = new URLSearchParams();
   if (forParam) flipQuery.set("for", forParam);
-  const joinCode = params.get("code");
-  const fromKind = params.get("from");
   if (joinCode) flipQuery.set("code", joinCode);
   if (fromKind) flipQuery.set("from", fromKind);
   const flipSuffix = flipQuery.toString();
   const flipHref = `${mode === "signup" ? "/login" : "/signup"}${flipSuffix ? `?${flipSuffix}` : ""}`;
 
+  const joining = Boolean(joinCode);
   const title =
     mode === "login" ? "Sign in" : signupStep === 0 ? "Create your account" : "Your email";
   const body =
     mode === "login"
       ? group
         ? "Then switch to Group, or stay here if this account already pays for seats."
-        : "Your network stays on this account."
+        : team
+          ? "Then switch to Team, or stay here if this account already has seats."
+          : "Your network stays on this account."
       : signupStep === 0
-        ? group
-          ? "You are setting up the group. You will not see who they met."
-          : "Then we set up your card and the event you are walking into."
+        ? joining
+          ? "Then you join the seat they paid for."
+          : group
+            ? "You are setting up the group. You will see who used a seat and whether they followed through."
+            : team
+              ? "You are setting up the team. You will see coverage, and you can move a seat."
+              : "Then we set up your card and the event you are walking into."
         : "At least 8 characters. We send a verification link from BilloAI.";
 
   if (!ready) return <AuthSkeleton />;
@@ -430,22 +437,35 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <div>
           <div className="flex items-center gap-2.5">
             <BrandMark className="h-8 w-8" />
-            <p className="kicker text-[#9ddec8]">{hosted ? copy.kicker : "After the room"}</p>
+            <p className="kicker text-[#9ddec8]">{joining ? "Your seat" : hosted ? copy.kicker : "After the room"}</p>
           </div>
           <p className="serif mt-4 max-w-[14ch] text-5xl leading-[1.05] xl:text-[3.35rem]">
-            {hosted ? copy.overviewTitle : "Leave knowing who was worth the conversation."}
+            {joining ? copy.joinTitle : hosted ? copy.overviewTitle : "Leave knowing who was worth the conversation."}
           </p>
           <p className="mt-5 max-w-md text-[0.95rem] leading-relaxed text-white/65">
-            {hosted
-              ? copy.overviewBody
-              : "Say why you went. Keep who you met. Stay connected with the people who fit."}
+            {joining
+              ? copy.joinBody
+              : hosted
+                ? copy.overviewBody
+                : "Say why you went. Keep who you met. Stay connected with the people who fit."}
           </p>
         </div>
 
-        {hosted ? (
+        {joining ? (
           <div className="mt-10 max-w-md rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
             <p className="text-sm leading-relaxed text-white/75">{copy.neverSee}</p>
-            <p className="mt-4 text-sm text-white/45">They see who used a seat. Never who you met, notes, or drafts.</p>
+            <p className="mt-4 text-sm text-white/45">They see that you used a seat. You keep capturing on your account.</p>
+          </div>
+        ) : hosted ? (
+          <div className="mt-10 max-w-md rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9ddec8]">
+              {team ? "Team · what you see" : "Group · what you see"}
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-white/75">
+              {team
+                ? "Who has a seat, coverage, and when a company is already in play."
+                : "Who used a seat, who captured someone, and whether they followed through."}
+            </p>
           </div>
         ) : (
           <div className="landing-frame mt-10 w-full max-w-md overflow-hidden rounded-[1.5rem] border border-white/10 bg-card text-foreground">
@@ -471,10 +491,6 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
             </div>
           </div>
         )}
-
-        <p className="mt-8 max-w-md text-sm text-white/40">
-          The group paying for seats never sees who you met.
-        </p>
       </aside>
     </div>
   );

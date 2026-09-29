@@ -206,21 +206,21 @@ function OnboardingFlow() {
   const copy = team ? teamCopy() : groupCopy(kind);
   const welcomeItems = invited
     ? [
-        { n: "1", title: "Your card", body: "Name, company, and title. Their camera opens your card. Notes stay private." },
+        { n: "1", title: "Your card", body: "Name, company, and title. Their camera opens your card." },
         { n: "2", title: "Join what they paid for", body: copy.joinBody },
       ]
     : team
       ? [
-          { n: "1", title: "Who you are", body: "Your name on the account. People you pay for never see your private notes." },
+          { n: "1", title: "Who you are", body: "Your name on the account. Then you buy seats and set the hunt." },
           { n: "2", title: "Seats for the year", body: "Pay for at least five seats, then invite emails and set the company hunt." },
         ]
       : group
       ? [
-          { n: "1", title: "Who you are", body: "Your name on the account. People you pay for never see your private notes." },
+          { n: "1", title: "Who you are", body: "Your name on the account. Then you buy seats and share the join link." },
           { n: "2", title: "The event", body: "Seats attach to this event. Then you pay once and share the join link." },
         ]
       : [
-          { n: "1", title: "Your card", body: "Name, company, and title. Their camera opens your card. Notes stay private." },
+          { n: "1", title: "Your card", body: "Name, company, and title. Their camera opens your card." },
           { n: "2", title: "The event and the goal", body: "Say why you went. That sentence is how we tell who is worth your time." },
           { n: "3", title: "Who was worth it", body: "People you meet are scored against that goal. The rest can wait." },
         ];
@@ -264,9 +264,9 @@ function OnboardingFlow() {
                 {invited
                   ? copy.joinBody
                   : team
-                    ? "Pay for year-round seats, then set the hunt. You will not see who they meet — only coverage counts and a company-level already-in-play signal."
+                    ? "Pay for year-round seats, then set the hunt. You see coverage, and teammates see when a company is already in play."
                     : group
-                    ? "Name the event, then buy seats for that event. You get a join link. You will not see who they meet."
+                    ? "Name the event, then buy seats for that event. You get a join link. You see who used a seat and whether they followed through."
                     : "Four short steps. After this, people you meet are scored against why you went."}
               </p>
               <ol className={`mt-10 grid gap-4 ${group || team || invited ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
@@ -299,7 +299,7 @@ function OnboardingFlow() {
                 <Steps labels={["Who you are", "Email"]} index={cardPart} />
               </div>
               <h1 className="serif text-4xl xl:text-5xl">{cardPart === 0 ? "Your card" : "How they reach you"}</h1>
-              <p className="text-muted">People who scan your QR see this. Add LinkedIn if you have it. More links later on Your card. Notes stay private.</p>
+              <p className="text-muted">People who scan your QR see this. Add LinkedIn if you have it. More links later on Your card.</p>
               <div className="form-grid">
                 {cardPart === 0 ? (
                   <>
@@ -362,7 +362,7 @@ function OnboardingFlow() {
               <p className="text-muted">
                 {eventPart === 0
                   ? group
-                    ? "Name the event. People you pay for set their own goal. You never see it."
+                    ? "Name the event they are attending. They set why they went. You see who used a seat."
                     : "Skip this if you are not heading to one yet."
                   : "This sentence is how we tell who is worth your time."}
               </p>
@@ -513,14 +513,14 @@ function OnboardingFlow() {
         </div>
         <p className="max-w-sm text-sm leading-relaxed text-white/55">
           {team
-            ? "You will see who has a seat. You will not see their contacts, notes, or drafts."
+            ? "You see who has a seat, coverage, and when a company is already in play."
             : group
-              ? "You will see who used a seat. You will not see their contacts, notes, or drafts."
+              ? "You see who used a seat, who captured someone, and whether they followed through."
               : invited
                 ? copy.neverSee
                 : step === 3
                   ? "People you meet are scored against why you went. The rest can wait."
-                  : "Notes stay private. The card is the only thing another BilloAI user can scan."}
+                  : "The card is what another person can scan."}
         </p>
       </aside>
     </div>

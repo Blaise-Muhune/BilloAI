@@ -12,8 +12,8 @@ import { postJson } from "@/lib/api";
 import { getUser, listEvents, markOnboarded, saveWorkspace } from "@/lib/data";
 import { firebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import { isInboxOwner } from "@/lib/support";
-import type { GroupKind, UserDoc, Workspace } from "@/lib/types";
-import { groupSeatsHref, readWorkspace, teamBillingHref } from "@/lib/workspace";
+import type { UserDoc, Workspace } from "@/lib/types";
+import { groupSeatsHref, otherWorkspaceLinks, readWorkspace, teamBillingHref, workspaceLabel } from "@/lib/workspace";
 
 const networkLinks = [
   { href: "/home", label: "Home", icon: IconHome },
@@ -131,13 +131,6 @@ function Shell({ children }: { children: React.ReactNode }) {
     void postJson("/api/email/seen", {}).catch(() => undefined);
   }, [user, allowed]);
 
-  async function switchWorkspace(next: Workspace, kind?: GroupKind | "") {
-    if (!user) return;
-    await saveWorkspace(user.uid, next, kind);
-    setAccount((current) => (current ? { ...current, workspace: next, groupKind: kind ?? current.groupKind } : current));
-    router.push(next === "group" ? "/group" : next === "team" ? "/team" : "/home");
-  }
-
   useEffect(() => {
     if (!user || !account || !fromPath) return;
     if (readWorkspace(account.workspace) === fromPath) return;
@@ -173,6 +166,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   const accountLinks = workspace === "group" ? groupAccount : workspace === "team" ? teamAccount : networkAccount;
   const homeHref = workspace === "group" ? "/group" : workspace === "team" ? "/team" : "/home";
   const ops = isInboxOwner(user?.email);
+  const extras = otherWorkspaceLinks(workspace, account);
 
   return (
     <div className="min-h-dvh min-w-0 md:grid md:h-dvh md:grid-cols-[17.5rem_minmax(0,1fr)] md:overflow-hidden">
@@ -180,29 +174,18 @@ function Shell({ children }: { children: React.ReactNode }) {
         <Link href={homeHref} className="shrink-0 px-5 pt-6">
           <BrandLockup />
         </Link>
-        <div className="mx-4 mt-6 grid shrink-0 grid-cols-3 rounded-full bg-[#f7f3ea] p-1 text-[11px] font-semibold">
-          <button
-            type="button"
-            onClick={() => void switchWorkspace("network")}
-            className={`rounded-full px-1 py-1.5 ${workspace === "network" ? "bg-card text-foreground shadow-sm" : "text-muted"}`}
-          >
-            Network
-          </button>
-          <button
-            type="button"
-            onClick={() => void switchWorkspace("group")}
-            className={`rounded-full px-1 py-1.5 ${workspace === "group" ? "bg-card text-foreground shadow-sm" : "text-muted"}`}
-          >
-            Group
-          </button>
-          <button
-            type="button"
-            onClick={() => void switchWorkspace("team")}
-            className={`rounded-full px-1 py-1.5 ${workspace === "team" ? "bg-card text-foreground shadow-sm" : "text-muted"}`}
-          >
-            Team
-          </button>
-        </div>
+        {extras.length > 0 ? (
+          <div className="shrink-0 px-5 pt-4">
+            <p className="text-sm font-semibold">{workspaceLabel(workspace)}</p>
+            <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-sm">
+              {extras.map((link) => (
+                <Link key={link.href} href={link.href} className="font-semibold text-muted hover:text-foreground">
+                  {link.label}
+                </Link>
+              ))}
+            </p>
+          </div>
+        ) : null}
         {workspace === "network" ? (
           <div className="mt-5 shrink-0 px-4">
             <Link
@@ -262,6 +245,15 @@ function Shell({ children }: { children: React.ReactNode }) {
                   {link.label}
                 </Link>
               ))}
+              {extras.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="block rounded-xl px-3 py-2 text-sm font-semibold text-muted hover:bg-[#f7f3ea] hover:text-foreground"
+                >
+                  {link.label}
+                </Link>
+              ))}
             </nav>
           </>
         ) : null}
@@ -309,15 +301,11 @@ function Shell({ children }: { children: React.ReactNode }) {
           </Link>
         </header>
         <div className="flex min-w-0 max-w-full gap-2 overflow-x-auto px-[max(1rem,var(--safe-left))] pr-[max(1rem,var(--safe-right))] pt-3 sm:px-[max(1.25rem,var(--safe-left))] sm:pr-[max(1.25rem,var(--safe-right))] md:hidden">
-          <button type="button" onClick={() => void switchWorkspace("network")} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${workspace === "network" ? "bg-foreground text-card" : "border border-line bg-card"}`}>
-            My network
-          </button>
-          <button type="button" onClick={() => void switchWorkspace("group")} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${workspace === "group" ? "bg-foreground text-card" : "border border-line bg-card"}`}>
-            Group
-          </button>
-          <button type="button" onClick={() => void switchWorkspace("team")} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${workspace === "team" ? "bg-foreground text-card" : "border border-line bg-card"}`}>
-            Team
-          </button>
+          {extras.map((link) => (
+            <Link key={link.href} href={link.href} className="shrink-0 rounded-full border border-line bg-card px-3 py-1.5 text-sm font-semibold">
+              {link.label}
+            </Link>
+          ))}
           {accountLinks.map((link) => (
             <Link key={link.href} href={link.href} className="shrink-0 rounded-full border border-line bg-card px-3 py-1.5 text-sm font-semibold">
               {link.label}

@@ -130,7 +130,7 @@ function BillingForm() {
         }
         body={
           planStep === "organizer"
-            ? `Group seats are ${usd(ORGANIZER_SEAT_USD)} each, once, for one named event. People you pay for keep who they met. Unused seats stay with this event. Your own matching is Individual, or your first event.`
+            ? `Group seats are ${usd(ORGANIZER_SEAT_USD)} each, once, for one named event. You see who used a seat and whether they followed through. Unused seats stay with this event. Your own matching is Individual, or your first event.`
             : planStep === "team"
               ? `Team is ${usd(TEAM_SEAT_YEARLY_USD)} per seat per year, or ${usd(TEAM_SEAT_MONTHLY_USD)} a month. Minimum ${TEAM_SEAT_MIN} seats — from ${usd(TEAM_YEARLY_FLOOR_USD)} a year. This is not Group’s ${usd(ORGANIZER_SEAT_USD)} one-event seat.`
               : `Your first event includes matching. After that, Individual is ${usd(INDIVIDUAL_MONTHLY_USD)} a month or ${usd(INDIVIDUAL_YEARLY_USD)} a year. Team starts at ${usd(TEAM_YEARLY_FLOOR_USD)} a year. Group seats are ${usd(ORGANIZER_SEAT_USD)} each for one event.`
@@ -180,7 +180,7 @@ function BillingForm() {
             <span className="kicker">Pay for people, one event</span>
             <span className="mt-3 block font-semibold">Group seats</span>
             <span className="serif mt-3 block text-5xl">{usd(ORGANIZER_SEAT_USD)}</span>
-            <span className="mt-2 block text-sm text-muted">per seat, once, for that event. They keep who they met. You see who used a seat. Not Team.</span>
+            <span className="mt-2 block text-sm text-muted">per seat, once, for that event. See who used a seat and whether they followed through. Not Team.</span>
             <span className="mt-6 block text-sm font-semibold text-accent">Choose group seats</span>
           </button>
           <button type="button" className="surface p-7 text-left transition hover:bg-[#f7f3ea]" onClick={() => setPlanStep("team")}>
@@ -225,7 +225,7 @@ function BillingForm() {
         <section className="surface mx-auto max-w-2xl space-y-5 p-6 lg:p-8">
           <h2 className="serif text-3xl">Team</h2>
           <p className="text-muted">
-            Year-round matching for every assigned seat. You set the hunt. Teammates see a company-level “already in play” badge — never names.
+            Year-round matching for every assigned seat. You set the hunt. Teammates see when a company is already in play.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <button
@@ -262,7 +262,7 @@ function BillingForm() {
           </p>
           <ul className="space-y-2 text-sm text-muted">
             <li>Minimum {TEAM_SEAT_MIN} seats — from {usd(TEAM_YEARLY_FLOOR_USD)} a year. Move a seat when someone leaves.</li>
-            <li>You see who has a seat. You never see who they met, notes, or drafts.</li>
+            <li>You see who has a seat, coverage, and when a company is already in play.</li>
             <li>Group $6 seats stay a separate checkout for one named event.</li>
           </ul>
           <div className="flex flex-wrap gap-3">
@@ -336,8 +336,8 @@ function BillingForm() {
                 </span>
               </p>
               <ul className="space-y-2 text-sm text-muted">
-                <li>They keep who they met and set their own goal.</li>
-                <li>You see who used a seat. You never see who they met, notes, or drafts.</li>
+                <li>You see who used a seat, who captured someone, and whether they followed through.</li>
+                <li>They set their own goal.</li>
                 <li>Buying seats does not cover your own matching.</li>
                 <li>The next event is Individual for them, or another seat purchase for that event.</li>
               </ul>

@@ -141,7 +141,7 @@ async function adminSections(uid: string, user: UserDoc, today: string): Promise
     if (date === addDays(today, 1) && used < limit) {
       sections.push({
         heading: `${limit - used} unused seats for ${name}`,
-        intro: "Share the join link. You never see who they meet.",
+        intro: "Share the join link so unused seats get used.",
         lines: [],
         href: "/group",
         action: "Open the group",
@@ -158,7 +158,7 @@ async function adminSections(uid: string, user: UserDoc, today: string): Promise
       if (quiet > 0) {
         sections.push({
           heading: `${quiet} ${quiet === 1 ? "person" : "people"} joined ${name} and have not saved anyone`,
-          intro: "Counts only. Not who they met, notes, or drafts.",
+          intro: "Open the roster. See who still needs a nudge to capture someone.",
           lines: [],
           href: "/group",
           action: "Open the roster",
@@ -178,7 +178,7 @@ async function adminSections(uid: string, user: UserDoc, today: string): Promise
     if (waiting > 0 && !recentAdmin) {
       sections.push({
         heading: `${waiting} Team ${waiting === 1 ? "invite has" : "invites have"} not been claimed`,
-        intro: "They need the email that was invited. Their book stays theirs.",
+        intro: "They need the email that was invited.",
         lines: [],
         href: "/team",
         action: "Open Team",
@@ -287,8 +287,8 @@ export async function sendTeamInvite(input: {
     origin: input.origin,
     heading,
     intro: input.reminder
-      ? "Use the invited email to join. Your book stays yours. Nobody sees who you meet. This is a seat invite, not a marketing list."
-      : "Use this email to join. Your book stays yours. Nobody sees who you meet. This is a seat invite, not a marketing list.",
+      ? "Use the invited email to join. Who you meet stays on your account. This is a seat invite."
+      : "Use this email to join. Who you meet stays on your account. This is a seat invite.",
     lines: [],
     href,
     action: "Join the seat",

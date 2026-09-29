@@ -162,7 +162,7 @@ function TeamOverview() {
       {ready && data?.team && !data.admin ? (
         <section className="surface space-y-4 p-6">
           <h2 className="serif text-3xl">{data.team.name}</h2>
-          <p className="text-muted">You have a year-round seat. Your book stays yours.</p>
+          <p className="text-muted">You have a year-round seat. Scoring uses the hunt they set.</p>
           {data.team.icp ? <p className="text-sm">Hunt: {data.team.icp}</p> : null}
           {data.team.targetCompanies.length > 0 ? (
             <p className="text-sm text-muted">Target companies are set. Scoring uses them with your event goal.</p>
@@ -174,7 +174,7 @@ function TeamOverview() {
           <section className="surface space-y-5 p-6">
             <h2 className="serif text-3xl">Company hunt</h2>
             <p className="text-sm text-muted">
-              This is injected into scoring next to each rep’s event goal. They still write their own note.
+              This is injected into scoring next to each rep’s event goal.
             </p>
             <Field label="Team name" value={name} onChange={(event) => setName(event.target.value)} />
             <Area
@@ -254,14 +254,14 @@ function TeamOverview() {
         <section className="surface space-y-5 p-6">
           <h2 className="serif text-3xl">Coverage</h2>
           <p className="text-sm text-muted">
-            Team-wide counts. The roster above is who has a seat. It is never who they met, their notes, or drafts.
+            Team-wide counts. Who has a seat, who captured someone, and companies already in play.
           </p>
           {metrics ? (
             <>
               <p className="rounded-2xl bg-[#fff8e8] px-4 py-3 text-sm">
                 {metrics.companiesInPlayThisWeek === 0
-                  ? "No companies in play this week. The book stays closed — this is a count only."
-                  : `${metrics.companiesInPlayThisWeek} ${metrics.companiesInPlayThisWeek === 1 ? "company" : "companies"} in play this week. Names stay in each rep’s book.`}
+                  ? "No companies in play this week."
+                  : `${metrics.companiesInPlayThisWeek} ${metrics.companiesInPlayThisWeek === 1 ? "company" : "companies"} in play this week.`}
               </p>
               <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <Stat label="Companies in play this week" value={metrics.companiesInPlayThisWeek} />

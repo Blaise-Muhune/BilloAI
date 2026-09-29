@@ -77,7 +77,7 @@ export default function ProfilePage() {
 
   return (
     <PageWrap>
-      <PageHeader kicker="Your card" title="What they see when they scan you" body="Show the QR. Their camera opens your card. LinkedIn and any other link you add sit on it. Notes stay private." />
+      <PageHeader kicker="Your card" title="What they see when they scan you" body="Show the QR. Their camera opens your card. LinkedIn and any other link you add sit on it." />
       <form
         className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]"
         onSubmit={async (event) => {

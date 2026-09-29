@@ -12,6 +12,8 @@ import { getJson, patchJson, postJson } from "@/lib/api";
 import { getPublicProfile, getUser, listContacts, listEvents, listTasks } from "@/lib/data";
 import { userMessage } from "@/lib/errors";
 import { firebaseAuth } from "@/lib/firebase/client";
+import type { UserDoc } from "@/lib/types";
+import { hasGroupWorkspace, hasTeamWorkspace } from "@/lib/workspace";
 
 export default function AccountPage() {
   const { user } = useAuth();
@@ -21,11 +23,15 @@ export default function AccountPage() {
   const [exporting, setExporting] = useState(false);
   const [unsubscribed, setUnsubscribed] = useState(false);
   const [savingMail, setSavingMail] = useState(false);
+  const [account, setAccount] = useState<UserDoc | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    void getJson<{ unsubscribed: boolean }>("/api/email/prefs")
-      .then((next) => setUnsubscribed(next.unsubscribed))
+    void Promise.all([getJson<{ unsubscribed: boolean }>("/api/email/prefs").catch(() => null), getUser(user.uid)])
+      .then(([prefs, next]) => {
+        if (prefs) setUnsubscribed(prefs.unsubscribed);
+        setAccount(next);
+      })
       .catch(() => undefined);
   }, [user]);
 
@@ -116,13 +122,17 @@ export default function AccountPage() {
         }
       />
       <div className="grid gap-4 sm:grid-cols-2">
-        {[
-          ["/profile", "Your card", "The QR their phone camera can scan. Also linked from Account."],
-          ["/billing", "Plan", "Individual, Team seats, or Group seats for one event"],
-          ["/team", "Team", "Year-round seats, the hunt list, and coverage counts"],
-          ["/group", "Group", "Seats and counts for the people you pay for"],
-          ["/join", "Join", "Enter a code a company or host sent you"],
-        ].map(([href, title, body]) => (
+        {(
+          [
+            ["/profile", "Your card", "The QR their phone camera can scan. Also linked from Account."],
+            ["/billing", "Plan", "Individual, Team seats, or Group seats for one event"],
+            hasTeamWorkspace(account) ? ["/team", "The team", "Year-round seats, the hunt list, and coverage counts"] : null,
+            hasGroupWorkspace(account) ? ["/group", "The group", "Seats and counts for the people you pay for"] : null,
+            ["/join", "Join", "Enter a code a company or host sent you"],
+          ] as ([string, string, string] | null)[]
+        )
+          .filter((item): item is [string, string, string] => Boolean(item))
+          .map(([href, title, body]) => (
           <Link key={href} href={href} className="surface block p-6 transition hover:bg-[#f7f3ea]">
             <span className="block font-semibold">{title}</span>
             <span className="mt-1 block text-sm text-muted">{body}</span>

@@ -183,7 +183,7 @@ export function EventForm({
           <p className="mt-3 text-white/70">{[input.location, input.date].filter(Boolean).join(" · ") || "Place and date"}</p>
           <p className="mt-6 text-sm leading-relaxed text-white/65">
             {seats
-              ? "Seats attach to this. Each person sets why they went. You never see that."
+              ? "Seats attach to this. You will see who used a seat and whether they followed through."
               : input.goalDetail || GOAL_LABELS[input.goal]}
           </p>
         </aside>

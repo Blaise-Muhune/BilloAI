@@ -14,7 +14,7 @@ export default function NotFound() {
       <BrandHomeLink />
       <p className="kicker mt-8 text-accent">404</p>
       <h1 className="serif mt-2 text-4xl">That page is not here.</h1>
-      <p className="mt-3 text-muted">The link may be old, or the page was never added. Your contacts were not opened.</p>
+      <p className="mt-3 text-muted">The link may be old, or the page was never added.</p>
       <div className="mt-6 flex flex-wrap gap-3">
         <Link href="/" className="rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-ink">
           Back home

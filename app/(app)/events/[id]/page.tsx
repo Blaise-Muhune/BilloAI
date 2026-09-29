@@ -120,7 +120,7 @@ export default function EventDetailPage() {
         </p>
         <h1 className="serif mt-2 text-4xl leading-tight xl:text-5xl">{event.name}</h1>
         <p className="mt-4 max-w-2xl text-muted">
-          Seats attach to this event. People you pay for set why they went. On Group you see who used a seat. You never see who they met.
+          Seats attach to this event. People you pay for set why they went. You see who used a seat, who captured someone, and whether they followed through.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link href="/group" className="inline-flex rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-ink">

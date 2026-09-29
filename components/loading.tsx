@@ -23,10 +23,10 @@ export function ScreenStatus({ label }: { label: string }) {
 
 export function BootScreen({ label = "Loading BilloAI" }: { label?: string }) {
   return (
-    <div className="landing-shell grid min-h-full place-items-center px-6">
+    <div className="landing-shell fixed inset-0 z-50 grid min-h-dvh place-items-center px-6">
       <div className="flex flex-col items-center gap-5">
         <BrandMark className="h-12 w-12" />
-        <BusyBar className="w-32" />
+        <BusyBar className="w-40" />
         <p className="text-sm text-muted">{label}</p>
         <ScreenStatus label={label} />
       </div>

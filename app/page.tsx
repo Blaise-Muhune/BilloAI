@@ -21,7 +21,7 @@ const faqs = [
   },
   {
     q: "Does a company or host see who I met?",
-    a: "No. They can see that you used a seat. They never see contacts, notes, or drafts.",
+    a: "They see that you used a seat and whether you followed through. Who you met stays on your account.",
   },
   {
     q: "Do you store the card photo?",
@@ -76,7 +76,7 @@ const voices = [
   },
   {
     quote:
-      "Work bought the seats for that event. I still have who I met. They never got the names. I copied the note and sent it myself.",
+      "Work bought the seats for that event. I still have who I met. I copied the note and sent it myself.",
     name: "Ken",
     detail: "On a company seat",
   },
@@ -98,7 +98,7 @@ const plans = [
     price: usd(INDIVIDUAL_MONTHLY_USD),
     unit: "a month after your first event",
     note: `First event matching is included. Or ${usd(INDIVIDUAL_YEARLY_USD)} a year — ${usd(INDIVIDUAL_YEARLY_PER_MONTH_USD)} / mo, save ${usd(INDIVIDUAL_YEARLY_SAVINGS_USD)}.`,
-    points: ["Your book and drafts stay yours", "Matching on every event after the first", "Nothing sends itself"],
+    points: ["Who from the room matched why you went", "Matching on every event after the first", "You send the note yourself"],
     href: "/signup",
     action: "Start with your first event",
     order: "lg:order-2",
@@ -112,7 +112,7 @@ const plans = [
     price: usd(ORGANIZER_SEAT_USD),
     unit: "per seat, once",
     note: "Named event only. Unused seats stay there. Not a Team subscription.",
-    points: ["You see who used a seat", "They keep who they met", "Your matching is still Individual or the first event"],
+    points: ["You see who used a seat", "You see if they captured someone and followed through", "Your matching is still Individual or the first event"],
     href: "/signup?for=group",
     action: "Set up a group",
     order: "lg:order-1",
@@ -126,7 +126,7 @@ const plans = [
     price: usd(TEAM_SEAT_YEARLY_USD),
     unit: "per seat / year",
     note: `Or ${usd(TEAM_SEAT_MONTHLY_USD)} a month. Minimum ${TEAM_SEAT_MIN} seats — from ${usd(TEAM_YEARLY_FLOOR_USD)} a year.`,
-    points: ["One hunt list for the team", "Nameless already-in-play badge", "Admin sees seats, never contact names"],
+    points: ["One hunt list for the team", "Already-in-play so two reps stay off the same live account", "See coverage and move a seat"],
     href: "/signup?for=team",
     action: "Set up a team",
     order: "lg:order-3",
@@ -144,7 +144,7 @@ const pick = [
     href: "#plan-group",
     who: "You pay for other people, one event",
     plan: "Group",
-    why: `${usd(ORGANIZER_SEAT_USD)} once per seat. You see who used a seat. You never see who they met.`,
+    why: `${usd(ORGANIZER_SEAT_USD)} once per seat. See who used a seat and whether they followed through.`,
   },
   {
     href: "#plan-team",

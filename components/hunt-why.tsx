@@ -33,7 +33,7 @@ export function HuntWhy({
       ) : null}
       {companies.length ? (
         <p className="mt-1 text-muted">
-          Scoring against {companies.length} {companies.length === 1 ? "named company" : "named companies"} the team set. Not anyone else’s book.
+          Scoring against {companies.length} {companies.length === 1 ? "named company" : "named companies"} the team set.
         </p>
       ) : hunt?.targetRoles ? (
         <p className="mt-1 text-muted">Hunt roles: {hunt.targetRoles}</p>

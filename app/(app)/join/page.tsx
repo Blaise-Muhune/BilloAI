@@ -161,12 +161,12 @@ function JoinForm() {
         )}
       </form>
       <aside className="rounded-[1.6rem] bg-foreground p-6 text-card">
-        <p className="kicker text-[#9ddec8]">Private to you</p>
+        <p className="kicker text-[#9ddec8]">Your account</p>
         <p className="serif mt-3 text-3xl leading-tight">{copy.neverSee}</p>
         <p className="mt-4 text-sm leading-relaxed text-white/65">
           {isTeam
-            ? "They see that you used a seat. The only shared fact about the book is whether a company already has a High or Medium. Notes, drafts, and who you met stay on your account."
-            : "They see that you used a seat. Notes, drafts, and who you met stay on your account. This seat is only for this event."}
+            ? "They see that you used a seat. Scoring uses the hunt they set. You keep capturing on your account."
+            : "They see that you used a seat. You keep capturing and following up on your account. This seat is only for this event."}
         </p>
       </aside>
     </div>

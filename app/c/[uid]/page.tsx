@@ -51,7 +51,7 @@ export default async function PublicCardPage({ params }: Props) {
               ))}
             </ul>
           ) : null}
-          <p className="mt-6 text-sm text-muted">Notes stay private. This is all the card shows.</p>
+          <p className="mt-6 text-sm text-muted">This is all the card shows.</p>
         </article>
         <CardActions uid={uid} />
       </main>

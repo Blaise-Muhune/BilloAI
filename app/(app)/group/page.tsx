@@ -82,14 +82,14 @@ function GroupOverview() {
             <span className="kicker">Paying for people</span>
             <span className="serif mt-3 block text-3xl">A company sending people</span>
             <span className="mt-3 block text-sm leading-relaxed text-muted">
-              You buy seats for one event they are attending. You see who used a seat. They keep who they met. You see whether they followed through.
+              You buy seats for one event they are attending. You see who used a seat, who captured someone, and whether they followed through.
             </span>
           </button>
           <button type="button" className="surface p-7 text-left transition hover:bg-[#f7f3ea]" onClick={() => void chooseKind("event")}>
             <span className="kicker">Hosting an event</span>
             <span className="serif mt-3 block text-3xl">A room or event</span>
             <span className="mt-3 block text-sm leading-relaxed text-muted">
-              You buy seats for attendees of this event. They leave with their own network. You see who used a seat. You never see who they met.
+              You buy seats for attendees of this event. You see who used a seat, who captured someone, and whether they followed through.
             </span>
           </button>
         </div>
