@@ -18,7 +18,7 @@ const chapters = [
   {
     n: "01",
     title: "Pay for the seats",
-    body: `${usd(ORGANIZER_SEAT_USD)} each, once, for one named event. A company sending people that night, or a host buying for a room. Unused seats stay with that event.`,
+    body: `${usd(ORGANIZER_SEAT_USD)} each, once, for one named event. A company sending people to that event, or a host buying for a room. Unused seats stay with that event.`,
   },
   {
     n: "02",
@@ -65,7 +65,7 @@ export default function ForOrganizersPage() {
               Pay for the seats. Never see who they met.
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted">
-              You buy seats for one night. Your people leave knowing who from the room mattered. Their conversations stay on their accounts. You get counts that show the night worked. If they keep going, Individual is their plan.
+              You buy seats for one event. Your people leave knowing who from the room mattered. Their conversations stay on their accounts. You get counts that show the event worked. If they keep going, Individual is their plan.
             </p>
             <div className="mt-9 grid max-w-lg gap-3 sm:grid-cols-2">
               <Link href="/signup?for=company" className="rounded-[1.4rem] bg-accent px-5 py-4 text-accent-ink shadow-[0_10px_28px_rgb(11_107_79/0.28)]">
@@ -73,7 +73,7 @@ export default function ForOrganizersPage() {
                 <span className="mt-2 block font-semibold">Company, this event</span>
               </Link>
               <Link href="/signup?for=event" className="rounded-[1.4rem] border border-line bg-card px-5 py-4">
-                <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-muted">Hosting a night</span>
+                <span className="block text-xs font-semibold uppercase tracking-[0.12em] text-muted">Hosting an event</span>
                 <span className="mt-2 block font-semibold">Room or event</span>
               </Link>
             </div>
@@ -154,7 +154,7 @@ export default function ForOrganizersPage() {
           <div className="flex max-w-2xl flex-col items-start">
             <h2 className="serif text-4xl leading-[1.1] sm:text-5xl">Buy the seats. Stay out of the conversations.</h2>
             <p className="mt-5 text-lg leading-relaxed text-muted">
-              {usd(ORGANIZER_SEAT_USD)} a seat, once, for one event. Same price here and at checkout. Unused seats stay with that night.
+              {usd(ORGANIZER_SEAT_USD)} a seat, once, for one event. Same price here and at checkout. Unused seats stay with that event.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link

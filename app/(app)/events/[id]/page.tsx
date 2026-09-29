@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
+import { DetailSkeleton } from "@/components/loading";
 import { Button, Empty, Field, PageWrap, PersonLink, PriorityBadge, SelectField } from "@/components/ui";
 import { formatDay } from "@/lib/dates";
 import { getEvent, listContactsForEvent, updateEvent } from "@/lib/data";
@@ -17,7 +18,7 @@ import {
   type RelevanceLevel,
 } from "@/lib/types";
 
-const rank: Record<RelevanceLevel, number> = { high: 0, medium: 1, low: 2 };
+const rank: Record<RelevanceLevel, number> = { high: 0, medium: 1, low: 2, unknown: 3 };
 
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,20 +30,35 @@ export default function EventDetailPage() {
   const [goalDetail, setGoalDetail] = useState("");
   const [savingGoal, setSavingGoal] = useState(false);
   const [goalError, setGoalError] = useState("");
+  const [ready, setReady] = useState(false);
+  const [name, setName] = useState("");
+  const [type, setType] = useState("");
+  const [location, setLocation] = useState("");
+  const [date, setDate] = useState("");
+  const [savingNight, setSavingNight] = useState(false);
+  const [nightError, setNightError] = useState("");
+  const [nightSaved, setNightSaved] = useState(false);
 
   useEffect(() => {
     if (!user || !id) return;
-    void Promise.all([getEvent(user.uid, id), listContactsForEvent(user.uid, id)]).then(([nextEvent, nextContacts]) => {
-      setEvent(nextEvent);
-      setContacts(nextContacts);
-      setMissing(!nextEvent);
-      if (nextEvent) {
-        setGoal(nextEvent.goal);
-        setGoalDetail(nextEvent.goalDetail);
-      }
-    });
+    void Promise.all([getEvent(user.uid, id), listContactsForEvent(user.uid, id)])
+      .then(([nextEvent, nextContacts]) => {
+        setEvent(nextEvent);
+        setContacts(nextContacts);
+        setMissing(!nextEvent);
+        if (nextEvent) {
+          setGoal(nextEvent.goal);
+          setGoalDetail(nextEvent.goalDetail);
+          setName(nextEvent.name);
+          setType(nextEvent.type);
+          setLocation(nextEvent.location);
+          setDate(nextEvent.date);
+        }
+      })
+      .finally(() => setReady(true));
   }, [user, id]);
 
+  if (!ready) return <DetailSkeleton />;
   if (missing) {
     return (
       <PageWrap>
@@ -54,7 +70,45 @@ export default function EventDetailPage() {
       </PageWrap>
     );
   }
-  if (!event) return <p className="text-muted">Loading…</p>;
+  if (!event) return <DetailSkeleton />;
+
+  async function saveNight(form: React.FormEvent) {
+    form.preventDefault();
+    if (!user || !event) return;
+    if (!name.trim() || !location.trim() || !date) {
+      setNightError("Add the name, place, and date.");
+      return;
+    }
+    setSavingNight(true);
+    setNightError("");
+    try {
+      await updateEvent(user.uid, event.id, { name, type, location, date });
+      setEvent({ ...event, name, type, location, date });
+      setNightSaved(true);
+      window.setTimeout(() => setNightSaved(false), 1600);
+    } catch (err) {
+      setNightError(err instanceof Error ? err.message : "Could not save this event.");
+    } finally {
+      setSavingNight(false);
+    }
+  }
+
+  const nightForm = (
+    <form onSubmit={(form) => void saveNight(form)} className="surface max-w-2xl space-y-4 p-6">
+      <h2 className="kicker">This event</h2>
+      <div className="form-grid">
+        <Field label="Event name" value={name} onChange={(item) => setName(item.target.value)} />
+        <Field label="Event type" value={type} onChange={(item) => setType(item.target.value)} placeholder="Conference, chamber, meetup" />
+        <Field label="Location" value={location} onChange={(item) => setLocation(item.target.value)} />
+        <Field label="Date" type="date" value={date} onChange={(item) => setDate(item.target.value)} />
+      </div>
+      {nightError ? <p className="text-sm text-high">{nightError}</p> : null}
+      {nightSaved ? <p className="text-sm text-accent">Saved</p> : null}
+      <Button type="submit" busy={savingNight} className="min-w-40">
+        {savingNight ? "Saving…" : "Save event"}
+      </Button>
+    </form>
+  );
 
   if (event.forSeats) {
     return (
@@ -64,7 +118,7 @@ export default function EventDetailPage() {
         </p>
         <h1 className="serif mt-2 text-4xl leading-tight xl:text-5xl">{event.name}</h1>
         <p className="mt-4 max-w-2xl text-muted">
-          Seats attach to this night. People you pay for set why they went. You see counts on Group, not who joined or who they met.
+          Seats attach to this event. People you pay for set why they went. You see counts on Group, not who joined or who they met.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link href="/group" className="inline-flex rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-ink">
@@ -74,6 +128,7 @@ export default function EventDetailPage() {
             Buy seats
           </Link>
         </div>
+        <div className="mt-8">{nightForm}</div>
       </PageWrap>
     );
   }
@@ -121,10 +176,11 @@ export default function EventDetailPage() {
             placeholder="Find operators who need automation"
           />
           {goalError ? <p className="text-sm text-high">{goalError}</p> : null}
-          <Button type="submit" disabled={savingGoal} className="min-w-40">
+          <Button type="submit" busy={savingGoal} className="min-w-40">
             {savingGoal ? "Saving…" : "Save my goal"}
           </Button>
         </form>
+        <div className="mt-8">{nightForm}</div>
       </PageWrap>
     );
   }
@@ -133,6 +189,7 @@ export default function EventDetailPage() {
     high: contacts.filter((contact) => contact.relevance?.level === "high").length,
     medium: contacts.filter((contact) => contact.relevance?.level === "medium").length,
     low: contacts.filter((contact) => contact.relevance?.level === "low").length,
+    unknown: contacts.filter((contact) => contact.relevance?.level === "unknown").length,
   };
   const top = [...contacts]
     .filter((contact) => contact.relevance)
@@ -157,8 +214,8 @@ export default function EventDetailPage() {
           Add someone you met
         </Link>
       </div>
-      <div className="grid grid-cols-3 gap-4">
-        {(["high", "medium", "low"] as const).map((level) => (
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {(["high", "medium", "low", "unknown"] as const).map((level) => (
           <div key={level} className="surface px-5 py-6 text-center">
             <p className="serif text-4xl xl:text-5xl">{counts[level]}</p>
             <div className="mt-3 flex justify-center">
@@ -171,7 +228,7 @@ export default function EventDetailPage() {
         <section className="space-y-3">
           <h2 className="kicker">Top conversations</h2>
           {top.length === 0 ? (
-            <Empty title="No one from this night yet" body="Save a person you met. We’ll match them to why you went." />
+            <Empty title="No one from this event yet" body="Save a person you met. We’ll match them to why you went." />
           ) : (
             <div className="surface list-stack">
               {top.map((contact, index) => (
@@ -211,6 +268,7 @@ export default function EventDetailPage() {
           )}
         </section>
       </div>
+      {nightForm}
     </PageWrap>
   );
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { TaskListSkeleton } from "@/components/loading";
 import { Empty, PageHeader, PageWrap } from "@/components/ui";
 import { dueBucket, type DueBucket } from "@/lib/dates";
 import { listTasks, updateTask } from "@/lib/data";
@@ -19,13 +20,15 @@ export default function TasksPage() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [error, setError] = useState("");
+  const [ready, setReady] = useState(false);
 
   function load() {
     if (!user) return;
     setError("");
     listTasks(user.uid)
       .then(setTasks)
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load tasks."));
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load tasks."))
+      .finally(() => setReady(true));
   }
 
   useEffect(() => {
@@ -51,7 +54,9 @@ export default function TasksPage() {
           </button>
         </p>
       ) : null}
-      {open.length === 0 ? (
+      {!ready ? (
+        <TaskListSkeleton />
+      ) : open.length === 0 ? (
         <Empty title="No open conversations" body="When someone is worth staying connected to, the next step lands here." href="/capture" action="Add someone you met" />
       ) : (
         groups.map((group) => {

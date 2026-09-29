@@ -192,6 +192,16 @@ export async function listTasks(uid: string) {
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 }
 
+export async function deleteContact(uid: string, id: string) {
+  const current = await getContact(uid, id);
+  if (!current) throw new Error("Contact not found.");
+  const tasks = await listTasks(uid);
+  await Promise.all(
+    tasks.filter((task) => task.contactId === id).map((task) => deleteDoc(doc(firebaseDb(), "tasks", task.id))),
+  );
+  await deleteDoc(doc(firebaseDb(), "contacts", id));
+}
+
 export async function openTaskForContact(uid: string, contactId: string) {
   const tasks = await listTasks(uid);
   return tasks.find((task) => task.contactId === contactId && task.status === "open") ?? null;

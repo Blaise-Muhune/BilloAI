@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { HomeBodySkeleton } from "@/components/loading";
 import { Empty, PageHeader, PageWrap, PersonLink } from "@/components/ui";
 import { dueBucket, formatDay, todayISO } from "@/lib/dates";
 import { listContacts, listEvents, listTasks } from "@/lib/data";
@@ -14,6 +15,7 @@ export default function HomePage() {
   const [contacts, setContacts] = useState<ContactRecord[]>([]);
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [error, setError] = useState("");
+  const [ready, setReady] = useState(false);
 
   function load() {
     if (!user) return;
@@ -24,7 +26,8 @@ export default function HomePage() {
         setContacts(nextContacts);
         setEvents(nextEvents);
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load home."));
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load home."))
+      .finally(() => setReady(true));
   }
 
   useEffect(() => {
@@ -62,6 +65,8 @@ export default function HomePage() {
         </p>
       ) : null}
 
+      {!ready ? <HomeBodySkeleton /> : (
+        <>
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat label="Reconnect today" value={due.length} href="/tasks" />
         <Stat label="Worth keeping" value={high.length} href="/people" />
@@ -129,7 +134,7 @@ export default function HomePage() {
           <div className="rounded-[1.6rem] bg-foreground p-6 text-card">
             <p className="kicker text-[#9ddec8]">After the room</p>
             <h2 className="serif mt-3 text-3xl leading-tight">Keep the people you just met.</h2>
-            <p className="mt-3 text-sm leading-relaxed text-white/65">Save them before the night blurs. We’ll show who is worth staying connected to. Nothing sends itself.</p>
+            <p className="mt-3 text-sm leading-relaxed text-white/65">Save them before the details fade. We’ll show who is worth staying connected to. Nothing sends itself.</p>
             <Link href="/capture" className="mt-6 inline-flex rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink">
               Add someone you met
             </Link>
@@ -156,6 +161,8 @@ export default function HomePage() {
           )}
         </aside>
       </div>
+        </>
+      )}
     </PageWrap>
   );
 }

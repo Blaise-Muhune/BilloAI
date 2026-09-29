@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { AuthProvider, useAuth } from "@/components/auth-provider";
+import { AuthSkeleton, BootScreen } from "@/components/loading";
 import { SupportLink } from "@/components/support";
 import { Avatar, Button, Field, PriorityBadge, SetupNotice, Steps } from "@/components/ui";
 import { ensureUser, getUser, saveConsent, saveWorkspace } from "@/lib/data";
@@ -225,8 +226,11 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
       : signupStep === 0
         ? group
           ? "You are setting up the group. You will not see who they met."
-          : "Then we set up your card and the night you are walking into."
+          : "Then we set up your card and the event you are walking into."
         : "At least 8 characters. We send a verification link.";
+
+  if (!ready) return <AuthSkeleton />;
+  if (user && !error) return <BootScreen label="Opening your account" />;
 
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
@@ -253,7 +257,8 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
                     type="button"
                     tone="ghost"
                     className="flex w-full items-center justify-center gap-2.5 py-3"
-                    disabled={!configured || pending}
+                    busy={pending}
+                    disabled={!configured}
                     onClick={() => void google()}
                   >
                     <GoogleMark />
@@ -315,7 +320,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
                       Back
                     </Button>
                   ) : null}
-                  <Button type="submit" disabled={!configured || pending} className="flex-1">
+                  <Button type="submit" busy={pending} disabled={!configured} className="flex-1">
                     {pending
                       ? "Please wait…"
                       : mode === "signup" && signupStep === 0
@@ -386,7 +391,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
         ) : (
           <div className="landing-frame mt-10 w-full max-w-md overflow-hidden rounded-[1.5rem] border border-white/10 bg-card text-foreground">
             <div className="bg-foreground px-5 py-4 text-card">
-              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#9ddec8]">Tonight</p>
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.14em] text-[#9ddec8]">This event</p>
               <p className="serif mt-1 text-2xl">Chamber mixer</p>
               <p className="mt-1 text-sm text-white/65">Find operators who need automation</p>
             </div>
@@ -419,7 +424,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
 export function AuthScreen({ mode }: { mode: "login" | "signup" }) {
   return (
     <AuthProvider>
-      <Suspense fallback={<p className="px-5 py-10 text-muted">Loading…</p>}>
+      <Suspense fallback={<AuthSkeleton />}>
         <AuthForm mode={mode} />
       </Suspense>
     </AuthProvider>

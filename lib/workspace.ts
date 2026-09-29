@@ -85,21 +85,21 @@ export function groupCopy(kind: GroupKind | "" | undefined) {
       joinTitle: "Your company set this up for you",
       joinBody: "This seat is for this event. Who you meet stays on your account. The next event is Individual, or another seat they buy.",
       shareLabel: "Send this to your team",
-      emptySeats: "Name the event they are attending, then pay for seats for that night.",
+      emptySeats: "Name the event they are attending, then pay for seats for that event.",
     };
   }
   if (kind === "event") {
     return {
       kicker: "For a room",
       switchLabel: "Group",
-      overviewTitle: "This night, not the people",
+      overviewTitle: "This event, not the people",
       overviewBody:
-        "You buy seats for one event. Attendees keep their own conversations. Unused seats stay with this event. You see whether the night worked, not who was in the room.",
+        "You buy seats for one event. Attendees keep their own conversations. Unused seats stay with this event. You see whether the event worked, not who was in the room.",
       neverSee: "The host never sees who you met.",
       joinTitle: "You were invited to this event",
       joinBody: "This seat is for this event. Who you meet stays on your account. The next event is Individual, or another seat from the host.",
       shareLabel: "Send this to the room",
-      emptySeats: "Name the event, then pay for seats once for that night.",
+      emptySeats: "Name the event, then pay for seats once for that event.",
     };
   }
   return {
@@ -112,6 +112,6 @@ export function groupCopy(kind: GroupKind | "" | undefined) {
     joinTitle: "You were invited",
     joinBody: "This seat is for this event. Who you meet stays on your account. They see counts, not names. The next event is Individual, or another seat.",
     shareLabel: "Send this to people you are paying for",
-    emptySeats: "Name the event, then pay for seats for that night.",
+    emptySeats: "Name the event, then pay for seats for that event.",
   };
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { OverlayStatus } from "@/components/loading";
 import { SupportLink } from "@/components/support";
 import { Button, PageHeader, PageWrap } from "@/components/ui";
 import { postJson } from "@/lib/api";
@@ -16,10 +17,12 @@ export default function AccountPage() {
   const router = useRouter();
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   async function exportData() {
     if (!user) return;
     setError("");
+    setExporting(true);
     try {
       const [events, contacts, tasks] = await Promise.all([
         listEvents(user.uid, { all: true }),
@@ -35,6 +38,8 @@ export default function AccountPage() {
       URL.revokeObjectURL(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not export.");
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -64,6 +69,8 @@ export default function AccountPage() {
 
   return (
     <PageWrap>
+      {pending ? <OverlayStatus label="Deleting your account" /> : null}
+      {exporting ? <OverlayStatus label="Preparing your export" /> : null}
       <PageHeader
         kicker="Account"
         title="You and your data"
@@ -77,7 +84,7 @@ export default function AccountPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         {[
           ["/profile", "Your card", "The QR other BilloAI users can scan"],
-          ["/billing", "Plan", "Individual every event, or seats for one night"],
+          ["/billing", "Plan", "Individual every event, or seats for one event"],
           ["/group", "Group", "Seats and counts for the people you pay for"],
           ["/join", "Join", "Enter a code a company or host sent you"],
         ].map(([href, title, body]) => (
@@ -106,10 +113,10 @@ export default function AccountPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Button type="button" tone="ghost" onClick={() => void exportData()}>
-              Export my data
+            <Button type="button" tone="ghost" busy={exporting} onClick={() => void exportData()}>
+              {exporting ? "Exporting…" : "Export my data"}
             </Button>
-            <Button type="button" tone="ghost" disabled={pending} onClick={() => void removeAccount()}>
+            <Button type="button" tone="ghost" busy={pending} onClick={() => void removeAccount()}>
               {pending ? "Deleting…" : "Delete account"}
             </Button>
           </div>

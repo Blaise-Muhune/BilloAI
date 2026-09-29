@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { Pulse } from "@/components/loading";
 import { Button, Field, PageHeader, PageWrap, Steps } from "@/components/ui";
 import { getPublicProfile, savePublicProfile } from "@/lib/data";
 import type { PublicProfile } from "@/lib/types";
@@ -15,12 +16,16 @@ export default function ProfilePage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [step, setStep] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [cardReady, setCardReady] = useState(false);
 
   useEffect(() => {
     if (!user) return;
-    void getPublicProfile(user.uid).then((next) => {
-      if (next) setProfile(next);
-    });
+    void getPublicProfile(user.uid)
+      .then((next) => {
+        if (next) setProfile(next);
+      })
+      .finally(() => setCardReady(true));
   }, [user]);
 
   useEffect(() => {
@@ -53,11 +58,14 @@ export default function ProfilePage() {
           if (!user) return;
           setError("");
           setMessage("");
+          setSaving(true);
           try {
             await savePublicProfile(user.uid, profile);
             setMessage("Saved.");
           } catch (err) {
             setError(err instanceof Error ? err.message : "Could not save your card.");
+          } finally {
+            setSaving(false);
           }
         }}
       >
@@ -71,7 +79,7 @@ export default function ProfilePage() {
             </div>
           ) : (
             <div className="form-grid">
-              {qr ? <img src={qr} alt="Your BilloAI QR code" className="surface w-40 bg-white p-3 lg:hidden" /> : null}
+              {qr ? <img src={qr} alt="Your BilloAI QR code" className="surface w-40 bg-white p-3 lg:hidden" /> : <Pulse className="h-40 w-40 rounded-2xl lg:hidden" />}
               <Field label="Email" type="email" value={profile.email} onChange={(event) => set("email", event.target.value)} />
               <Field label="LinkedIn" value={profile.linkedin} onChange={(event) => set("linkedin", event.target.value)} />
               <Field label="Website" value={profile.website} onChange={(event) => set("website", event.target.value)} className="lg:col-span-2" />
@@ -85,8 +93,8 @@ export default function ProfilePage() {
                 Back
               </Button>
             ) : null}
-            <Button type="submit" className="min-w-40">
-              {step === 0 ? "Continue" : "Save card"}
+            <Button type="submit" busy={saving} disabled={!cardReady} className="min-w-40">
+              {step === 0 ? "Continue" : saving ? "Saving…" : "Save card"}
             </Button>
           </div>
         </div>
@@ -94,7 +102,7 @@ export default function ProfilePage() {
           <p className="kicker">Your card</p>
           <p className="serif mt-3 text-3xl">{profile.name || "Your name"}</p>
           <p className="mt-2 text-muted">{[profile.title, profile.company].filter(Boolean).join(" · ") || "Title and company"}</p>
-          {qr ? <img src={qr} alt="Your BilloAI QR code" className="mt-6 w-full bg-white p-3" /> : null}
+          {qr ? <img src={qr} alt="Your BilloAI QR code" className="mt-6 w-full bg-white p-3" /> : <Pulse className="mt-6 aspect-square w-full rounded-2xl" />}
           <p className="mt-4 text-sm text-muted">Only this is public if someone scans you.</p>
         </aside>
       </form>

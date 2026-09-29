@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { EventCardsSkeleton } from "@/components/loading";
 import { Empty, PageHeader, PageWrap } from "@/components/ui";
 import { formatDay } from "@/lib/dates";
 import { listEvents } from "@/lib/data";
@@ -12,13 +13,15 @@ export default function EventsPage() {
   const { user } = useAuth();
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [error, setError] = useState("");
+  const [ready, setReady] = useState(false);
 
   function load() {
     if (!user) return;
     setError("");
     listEvents(user.uid)
       .then(setEvents)
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load events."));
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load events."))
+      .finally(() => setReady(true));
   }
 
   useEffect(() => {
@@ -29,7 +32,7 @@ export default function EventsPage() {
     <PageWrap>
       <PageHeader
         kicker="Events"
-        title="Nights you showed up for"
+        title="Events you showed up for"
         body="Each event has a goal. That’s how we know who from the room is worth staying connected to."
         action={
           <Link href="/events/new" className="inline-flex rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink">
@@ -45,7 +48,9 @@ export default function EventsPage() {
           </button>
         </p>
       ) : null}
-      {events.length === 0 ? (
+      {!ready ? (
+        <EventCardsSkeleton />
+      ) : events.length === 0 ? (
         <Empty title="Name the next room" body="Say why you’re going. That’s how we pick who to stay connected to." href="/events/new" action="Create an event" />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

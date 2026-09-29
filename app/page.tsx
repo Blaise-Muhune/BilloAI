@@ -18,7 +18,7 @@ const people = [
 const chapters = [
   {
     n: "01",
-    title: "Name the night, and why you went",
+    title: "Name the event, and why you went",
     body: "Customers, partners, a hire, a check. That sentence is how a stranger becomes worth staying connected to — not a guess on the way home.",
   },
   {
@@ -56,7 +56,7 @@ const plans = [
     name: "Group",
     price: usd(ORGANIZER_SEAT_USD),
     unit: "per seat, once, for one event",
-    body: "Pay for one named night. People you pay for keep who they met. Unused seats stay with that event. You see counts.",
+    body: "Pay for one named event. People you pay for keep who they met. Unused seats stay with that event. You see counts.",
     href: "/signup?for=group",
     action: "Set up a group",
     featured: false,
@@ -126,9 +126,9 @@ export default function LandingPage() {
               <p className="text-muted">Operations director</p>
               <p className="mt-2 text-muted">maya@northline.co</p>
             </div>
-            <aside className="landing-frame relative overflow-hidden rounded-[1.6rem] border border-line bg-card" aria-label="Example of a scored night">
+            <aside className="landing-frame relative overflow-hidden rounded-[1.6rem] border border-line bg-card" aria-label="Example of a scored event">
               <div className="bg-foreground px-5 py-4 text-card">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9ddec8]">Tonight</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9ddec8]">This event</p>
                 <p className="serif mt-1 text-2xl">Chamber mixer</p>
                 <p className="mt-1 text-sm text-white/70">Find operators who need automation</p>
               </div>

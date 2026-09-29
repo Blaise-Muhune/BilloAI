@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AuthProvider, useAuth } from "@/components/auth-provider";
 import { IconCalendar, IconGroup, IconHome, IconPeople, IconPlus, IconTasks } from "@/components/icons";
+import { BootScreen } from "@/components/loading";
 import { getUser, listEvents, markOnboarded, saveWorkspace } from "@/lib/data";
 import { firebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import type { GroupKind, UserDoc, Workspace } from "@/lib/types";
@@ -127,11 +128,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   }, [user, account, fromPath]);
 
   if (!ready) {
-    return (
-      <div className="grid min-h-full place-items-center">
-        <p className="text-muted">Loading…</p>
-      </div>
-    );
+    return <BootScreen />;
   }
 
   if (joining && !user) {
@@ -139,11 +136,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   }
 
   if ((isFirebaseConfigured() && !user) || (user && !allowed && !setup && !joining)) {
-    return (
-      <div className="grid min-h-full place-items-center">
-        <p className="text-muted">Loading…</p>
-      </div>
-    );
+    return <BootScreen label={user ? "Opening your workspace" : "Signing you in"} />;
   }
 
   const initial = (user?.displayName || user?.email || "You").slice(0, 1).toUpperCase();
@@ -204,7 +197,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             </Link>
           </div>
         )}
-        <p className="kicker mt-7 px-7">{workspace === "group" ? "The group" : "Tonight"}</p>
+        <p className="kicker mt-7 px-7">{workspace === "group" ? "The group" : "My network"}</p>
         <nav className="mt-2 space-y-1 px-3">
           {links.map((link) => {
             const hrefPath = link.href.split("?")[0] ?? link.href;

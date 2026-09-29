@@ -35,7 +35,7 @@ export const CONTACT_SOURCES = [
 
 export type ContactSource = (typeof CONTACT_SOURCES)[number];
 
-export type RelevanceLevel = "high" | "medium" | "low";
+export type RelevanceLevel = "high" | "medium" | "low" | "unknown";
 
 export const TASK_CHANNELS = ["email", "linkedin", "text", "call", "intro"] as const;
 
@@ -140,6 +140,7 @@ export interface Relevance {
   reasons: string[];
   suggestedAction: string;
   opportunityType: string;
+  skipFollowUp?: boolean;
 }
 
 export interface ContactFields {

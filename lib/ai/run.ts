@@ -2,6 +2,7 @@ import { generateText, Output, stepCountIs, transcribe } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { addDays, todayISO } from "@/lib/dates";
+import { clampRelevance, hasConversationEvidence, hasVerifiedPublic, shouldLookupPublic } from "@/lib/relevance";
 import type {
   ContactFields,
   Enrichment,
@@ -47,10 +48,11 @@ const enrichmentSchema = z.object({
 });
 
 const relevanceSchema = z.object({
-  level: z.enum(["high", "medium", "low"]),
+  level: z.enum(["high", "medium", "low", "unknown"]),
   reasons: z.array(z.string()).min(1).max(4),
   suggestedAction: z.string(),
   opportunityType: z.string(),
+  skipFollowUp: z.boolean(),
 });
 
 const draftSchema = z.object({
@@ -141,7 +143,7 @@ function withFields(contact: ContactFields): ContactFields {
 
 async function enrich(contact: ContactFields): Promise<Enrichment> {
   const person = withFields(contact);
-  if (!person.company && !person.linkedin && !person.name && !person.website && !person.email) return emptyEnrichment();
+  if (!shouldLookupPublic(person)) return emptyEnrichment();
   try {
     const search = await generateText({
       model: openai.responses("gpt-4.1"),
@@ -183,7 +185,7 @@ export async function understand(input: {
   const contact = withFields(input.contact);
   const [structuredNote, enrichment] = await Promise.all([
     structureNote(input.rawNote),
-    input.allowPublicLookup === false ? Promise.resolve(emptyEnrichment()) : enrich(contact),
+    input.allowPublicLookup === false || !shouldLookupPublic(contact) ? Promise.resolve(emptyEnrichment()) : enrich(contact),
   ]);
 
   const scored = await generateText({
@@ -191,15 +193,19 @@ export async function understand(input: {
     output: Output.object({
       schema: z.object({ relevance: relevanceSchema, draft: draftSchema }),
     }),
-    prompt: `You help a person decide who deserves follow-up time after a networking event.
-Compare the contact AND their public professional context with the user's goal. The score exists so the user can see who matches what they need.
-High means a direct fit (they buy, fund, partner, hire, or introduce toward that goal) and a reason to act within a day. Medium means useful but not the decision maker or not an immediate fit. Low means little overlap with the goal.
-opportunityType should name the match in plain words, such as "Buyer for plant automation" or "Not a fit — recruiter, not an operator".
-Reasons must cite the goal plus a conversation fact or a public fact. Do not invent private facts.
-Suggested action should say what to do, including when.
-Draft a follow-up the user will review. Never claim it was already sent. Use the conversation, the goal, and only public facts that were found. If enrichment was unavailable, do not invent company facts.
-If the note contains a date, set dueDate to YYYY-MM-DD. Otherwise use ${todayISO()} for high priority and ${addDays(todayISO(), 7)} for low priority.
-Primary channel should be email when an email exists, intro when the person is not the decision maker, otherwise linkedin.
+    prompt: `You help a person decide who deserves follow-up time after a networking event. Do not give false hope.
+Compare the contact and any verified public context with the user's goal.
+High only if they clearly buy, fund, partner, hire, or introduce toward that goal AND you can cite a conversation fact or a verified public page. A title on a card is not enough for High.
+Medium if there is a real but weaker overlap and at least one cited fact.
+Low if the overlap is thin. Low may say do not follow up.
+unknown if there is no conversation note and no verified public page, or the identity is uncertain. Never upgrade unknown to High.
+skipFollowUp is true for unknown, and for Low when a message is not worth sending.
+opportunityType in plain words. Examples: "Buyer for plant automation" or "Not a fit — recruiter, not an operator" or "Not enough to say".
+Reasons must cite the goal plus a conversation fact or a public source URL that was found. Do not invent private facts. Do not invent company facts when enrichment is unavailable.
+Suggested action must be honest. If skipFollowUp, say do not follow up and why.
+If skipFollowUp or level is unknown, set draft.body to an empty string. Otherwise draft a follow-up the user will review. Never claim it was already sent.
+If the note contains a date, set dueDate to YYYY-MM-DD. Otherwise use ${todayISO()} for high and ${addDays(todayISO(), 7)} otherwise.
+Primary channel should be email when an email exists, intro when they are not the decision maker, otherwise linkedin.
 
 User goal:
 ${goalText(input.event)}
@@ -217,11 +223,17 @@ Public enrichment unavailable: ${enrichment.unavailable}
 ${JSON.stringify(enrichment)}`,
   });
 
+  const relevance = clampRelevance(scored.output.relevance, input.rawNote, structuredNote, enrichment);
+  const draft =
+    relevance.skipFollowUp || relevance.level === "unknown"
+      ? { ...scored.output.draft, body: "", title: relevance.suggestedAction }
+      : scored.output.draft;
+
   return {
     structuredNote,
     enrichment,
-    relevance: scored.output.relevance,
-    draft: scored.output.draft,
+    relevance,
+    draft,
   };
 }
 
@@ -233,10 +245,15 @@ export async function draftChannel(input: {
   enrichment: Enrichment | null;
   channel: TaskChannel;
 }): Promise<FollowUpDraft> {
+  if (!hasConversationEvidence(input.rawNote, input.structuredNote) && !hasVerifiedPublic(input.enrichment)) {
+    return { channel: input.channel, title: "No follow-up yet", body: "", dueDate: todayISO() };
+  }
+
   const result = await generateText({
     model,
     output: Output.object({ schema: draftSchema }),
     prompt: `Write one ${input.channel} follow-up the user will copy and send themselves. Do not say the message was already sent.
+If there is no conversation and no verified public fact, return an empty body. Do not invent a relationship.
 Channel guidance: email is a short email, linkedin is a short connection note, text is one or two sentences, call is a reminder of what to say, intro asks this person to introduce the user to the right colleague.
 Use the conversation and only public facts that exist. If a fact is missing, leave it out.
 

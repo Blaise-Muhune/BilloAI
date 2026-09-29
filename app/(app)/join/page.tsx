@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { BusyBar, JoinBodySkeleton, JoinSkeleton, OverlayStatus } from "@/components/loading";
 import { Button, Field, PageHeader, PageWrap } from "@/components/ui";
 import { getJson, getPublicJson, postJson } from "@/lib/api";
 import { persistAuthContext, clearJoinCode, groupCopy, readJoinFrom } from "@/lib/workspace";
@@ -20,6 +21,7 @@ function JoinForm() {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const [looking, setLooking] = useState(false);
   const fromParam = params.get("from");
   const kind: GroupKind | "" =
     preview?.kind || (fromParam === "company" || fromParam === "event" ? fromParam : readJoinFrom());
@@ -33,26 +35,34 @@ function JoinForm() {
     const next = code.trim().toLowerCase();
     if (!next || next.length < 4) {
       setPreview(null);
+      setLooking(false);
       return;
     }
     let cancel = false;
-    const path = `/api/join?code=${encodeURIComponent(next)}`;
-    const request = user ? getJson<Preview>(path) : getPublicJson<Preview>(path);
-    void request
-      .then((result) => {
-        if (!cancel) {
-          setPreview(result);
-          setError("");
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancel) {
-          setPreview(null);
-          setError(err instanceof Error ? err.message : "That invite was not found.");
-        }
-      });
+    setLooking(true);
+    const timer = window.setTimeout(() => {
+      const path = `/api/join?code=${encodeURIComponent(next)}`;
+      const request = user ? getJson<Preview>(path) : getPublicJson<Preview>(path);
+      void request
+        .then((result) => {
+          if (!cancel) {
+            setPreview(result);
+            setError("");
+          }
+        })
+        .catch((err: unknown) => {
+          if (!cancel) {
+            setPreview(null);
+            setError(err instanceof Error ? err.message : "That invite was not found.");
+          }
+        })
+        .finally(() => {
+          if (!cancel) setLooking(false);
+        });
+    }, 280);
     return () => {
       cancel = true;
+      window.clearTimeout(timer);
     };
   }, [code, user]);
 
@@ -103,6 +113,12 @@ function JoinForm() {
           }
         />
         <Field label="Join code" value={code} onChange={(event) => setCode(event.target.value)} required />
+        {looking ? (
+          <p className="flex items-center gap-3 text-sm text-muted">
+            <BusyBar className="w-24" />
+            Checking that code
+          </p>
+        ) : null}
         {preview && !preview.own ? (
           <p className="text-sm text-muted">
             {preview.name}
@@ -117,7 +133,7 @@ function JoinForm() {
             Open group overview
           </Link>
         ) : user ? (
-          <Button type="submit" disabled={pending || (preview ? !preview.open : false)} className="min-w-40">
+          <Button type="submit" busy={pending} disabled={preview ? !preview.open : false} className="min-w-40">
             {pending ? "Joining…" : preview ? `Join ${preview.name}` : "Join"}
           </Button>
         ) : (
@@ -141,6 +157,28 @@ function JoinForm() {
     </div>
   );
 
+  if (!ready) {
+    if (!user) {
+      return (
+        <div className="min-h-full">
+          <header className="flex items-center justify-between px-5 py-5">
+            <Link href="/" className="serif text-2xl">
+              BilloAI
+            </Link>
+          </header>
+          <div className="mx-auto max-w-5xl px-5 pb-16">
+            <JoinBodySkeleton />
+          </div>
+        </div>
+      );
+    }
+    return (
+      <PageWrap>
+        <JoinBodySkeleton />
+      </PageWrap>
+    );
+  }
+
   if (!user) {
     return (
       <div className="min-h-full">
@@ -157,14 +195,17 @@ function JoinForm() {
     );
   }
 
-  if (!ready) return <p className="text-muted">Loading…</p>;
-
-  return <PageWrap>{form}</PageWrap>;
+  return (
+    <PageWrap>
+      {pending ? <OverlayStatus label="Joining this event" /> : null}
+      {form}
+    </PageWrap>
+  );
 }
 
 export default function JoinPage() {
   return (
-    <Suspense fallback={<p className="text-muted">Loading…</p>}>
+    <Suspense fallback={<JoinSkeleton />}>
       <JoinForm />
     </Suspense>
   );

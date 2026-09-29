@@ -2,8 +2,9 @@
 
 import { sendEmailVerification, signOut } from "firebase/auth";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { BootScreen, OverlayStatus } from "@/components/loading";
 import { Button, Field, LiveCard, SelectField, Steps } from "@/components/ui";
 import { postJson } from "@/lib/api";
 import { createEvent, getPublicProfile, getUser, markOnboarded, savePublicProfile, saveWorkspace } from "@/lib/data";
@@ -24,6 +25,14 @@ import {
 const steps = ["Welcome", "Your card", "First event", "Stay connected", "Email"] as const;
 
 export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<BootScreen label="Setting up" />}>
+      <OnboardingFlow />
+    </Suspense>
+  );
+}
+
+function OnboardingFlow() {
   const { user } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
@@ -183,7 +192,7 @@ export default function OnboardingPage() {
     : group
       ? [
           { n: "1", title: "Who you are", body: "Your name on the account. People you pay for never see your private notes." },
-          { n: "2", title: "The event", body: "Seats attach to this night. Then you pay once and share the join link." },
+          { n: "2", title: "The event", body: "Seats attach to this event. Then you pay once and share the join link." },
         ]
       : [
           { n: "1", title: "Your card", body: "Name, company, and title. This is the only thing another user can scan." },
@@ -193,6 +202,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-full lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(24rem,32rem)]">
+      {pending ? <OverlayStatus label="Saving your setup" /> : null}
       <div className="flex min-h-full flex-col px-5 py-8 sm:px-10 lg:px-14 lg:py-12">
         <div className="flex items-center justify-between gap-4">
           <p className="serif text-2xl">BilloAI</p>
@@ -229,8 +239,8 @@ export default function OnboardingPage() {
                 {invited
                   ? copy.joinBody
                   : group
-                    ? "Name the event, then buy seats for that night. You get a join link. You will not see who they meet."
-                    : "Four short steps. After this you’ll know who from the night is worth staying connected to."}
+                    ? "Name the event, then buy seats for that event. You get a join link. You will not see who they meet."
+                    : "Four short steps. After this you’ll know who from the event is worth staying connected to."}
               </p>
               <ol className={`mt-10 grid gap-4 ${group || invited ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
                 {welcomeItems.map((item, index) => (
@@ -296,7 +306,7 @@ export default function OnboardingPage() {
                     Continue
                   </Button>
                 ) : (
-                  <Button type="button" className="min-w-40" disabled={pending} onClick={() => void saveCard()}>
+                  <Button type="button" className="min-w-40" busy={pending} onClick={() => void saveCard()}>
                     {pending ? "Saving…" : "Save card"}
                   </Button>
                 )}
@@ -321,7 +331,7 @@ export default function OnboardingPage() {
               <p className="text-muted">
                 {eventPart === 0
                   ? group
-                    ? "Name the night. People you pay for set their own goal. You never see it."
+                    ? "Name the event. People you pay for set their own goal. You never see it."
                     : "Skip this if you are not heading to one yet."
                   : "This sentence is how we know who is worth staying connected to."}
               </p>
@@ -358,7 +368,7 @@ export default function OnboardingPage() {
                   <Button
                     type="button"
                     className="min-w-40"
-                    disabled={pending && group}
+                    busy={Boolean(pending && group)}
                     onClick={() => {
                       setError("");
                       if (group) void saveEvent();
@@ -368,7 +378,7 @@ export default function OnboardingPage() {
                     {group ? (pending ? "Saving…" : "Create event") : "Continue"}
                   </Button>
                 ) : (
-                  <Button type="button" className="min-w-40" disabled={pending} onClick={() => void saveEvent()}>
+                  <Button type="button" className="min-w-40" busy={pending} onClick={() => void saveEvent()}>
                     {pending ? "Saving…" : "Create event"}
                   </Button>
                 )}
@@ -404,7 +414,7 @@ export default function OnboardingPage() {
               <Button
                 type="button"
                 className="min-w-52"
-                disabled={pending}
+                busy={pending}
                 onClick={() => {
                   if (user?.emailVerified) void finish(eventId ? `/capture?event=${eventId}` : "/home");
                   else setStep(4);
@@ -436,7 +446,7 @@ export default function OnboardingPage() {
                 >
                   {sent ? "Verification email sent" : "Send verification email"}
                 </Button>
-                <Button type="button" disabled={pending} onClick={() => void finish(group ? (eventId ? `/billing?plan=organizer&event=${eventId}` : "/billing?plan=organizer") : eventId ? `/capture?event=${eventId}` : "/capture")}>
+                <Button type="button" busy={pending} onClick={() => void finish(group ? (eventId ? `/billing?plan=organizer&event=${eventId}` : "/billing?plan=organizer") : eventId ? `/capture?event=${eventId}` : "/capture")}>
                   {pending ? "Finishing…" : group ? "Go pay for seats" : invited ? "Join" : "Add someone you met"}
                 </Button>
               </div>
@@ -456,7 +466,7 @@ export default function OnboardingPage() {
               />
             ) : (
               <LiveCard
-                kicker="Tonight"
+                kicker="This event"
                 name={eventName || "Your next event"}
                 line={`${location || "Place"}${date ? ` · ${date}` : ""}`}
                 footer={group ? "Seats attach here. They set the goal." : goalDetail || GOAL_LABELS[goal]}

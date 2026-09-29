@@ -87,7 +87,7 @@ export function EventForm({
           <Steps labels={seats ? ["The event", "When and where"] : labels} index={step} />
           {step === 0 ? (
             <>
-              <h1 className="serif text-4xl">{seats ? "What night are these seats for?" : "What is the event?"}</h1>
+              <h1 className="serif text-4xl">{seats ? "Which event are these seats for?" : "What is the event?"}</h1>
               <div className="form-grid">
                 <Field label="Event name" value={input.name} onChange={(event) => set("name", event.target.value)} required />
                 <Field label="Event type" value={input.type} onChange={(event) => set("type", event.target.value)} placeholder="Conference, chamber, meetup" required />
@@ -146,7 +146,7 @@ export function EventForm({
                 Back
               </Button>
             ) : null}
-            <Button type="submit" disabled={pending} className="min-w-40">
+            <Button type="submit" busy={pending} className="min-w-40">
               {step < last ? "Continue" : pending ? "Saving…" : seats ? "Use this for seats" : "Create event"}
             </Button>
           </div>

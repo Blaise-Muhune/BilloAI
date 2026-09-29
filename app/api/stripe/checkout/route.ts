@@ -43,7 +43,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "That event was not found." }, { status: 404 });
       }
       if (!event.data()?.forSeats) {
-        return NextResponse.json({ error: "Choose the event those seats attach to, not a night you captured for yourself." }, { status: 400 });
+        return NextResponse.json({ error: "Choose the event those seats attach to, not one you captured for yourself." }, { status: 400 });
       }
       const existing = await adminDb()
         .collection("organizedEvents")

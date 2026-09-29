@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { FormSplitSkeleton } from "@/components/loading";
 import { EventForm } from "@/components/event-form";
 import { createEvent, getUser } from "@/lib/data";
 
@@ -34,7 +35,7 @@ function NewEventForm() {
 
 export default function NewEventPage() {
   return (
-    <Suspense fallback={<p className="text-muted">Loading…</p>}>
+    <Suspense fallback={<FormSplitSkeleton />}>
       <NewEventForm />
     </Suspense>
   );

@@ -1,5 +1,23 @@
 import { firebaseAuth } from "@/lib/firebase/client";
 
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export function isPaywalled(error: unknown) {
+  return error instanceof ApiError && error.status === 402;
+}
+
+async function readError(response: Response) {
+  const payload = (await response.json().catch(() => ({}))) as { error?: string };
+  throw new ApiError(payload.error || "Request failed.", response.status);
+}
+
 async function authHeaders(json = true) {
   const user = firebaseAuth().currentUser;
   if (!user) throw new Error("Sign in required.");
@@ -11,20 +29,14 @@ async function authHeaders(json = true) {
 
 export async function getPublicJson<T>(path: string): Promise<T> {
   const response = await fetch(path);
-  const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) {
-    throw new Error(payload.error || "Request failed.");
-  }
-  return payload;
+  if (!response.ok) await readError(response);
+  return (await response.json()) as T;
 }
 
 export async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(path, { headers: await authHeaders(false) });
-  const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) {
-    throw new Error(payload.error || "Request failed.");
-  }
-  return payload;
+  if (!response.ok) await readError(response);
+  return (await response.json()) as T;
 }
 
 export async function postJson<T>(path: string, body: unknown): Promise<T> {
@@ -33,11 +45,8 @@ export async function postJson<T>(path: string, body: unknown): Promise<T> {
     headers: await authHeaders(true),
     body: JSON.stringify(body),
   });
-  const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) {
-    throw new Error(payload.error || "Request failed.");
-  }
-  return payload;
+  if (!response.ok) await readError(response);
+  return (await response.json()) as T;
 }
 
 export async function postForm<T>(path: string, body: FormData): Promise<T> {
@@ -46,9 +55,6 @@ export async function postForm<T>(path: string, body: FormData): Promise<T> {
     headers: await authHeaders(false),
     body,
   });
-  const payload = (await response.json().catch(() => ({}))) as T & { error?: string };
-  if (!response.ok) {
-    throw new Error(payload.error || "Request failed.");
-  }
-  return payload;
+  if (!response.ok) await readError(response);
+  return (await response.json()) as T;
 }

@@ -6,6 +6,17 @@ export function stripeClient() {
   return new Stripe(key);
 }
 
+const openStatuses = new Set(["active", "trialing", "past_due", "unpaid", "paused", "incomplete"]);
+
+export async function cancelCustomerSubscriptions(customerId: string) {
+  if (!customerId) return;
+  const stripe = stripeClient();
+  const listed = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 100 });
+  await Promise.all(
+    listed.data.filter((item) => openStatuses.has(item.status)).map((item) => stripe.subscriptions.cancel(item.id)),
+  );
+}
+
 export function integrationId(label: string) {
   const alphabet = "abcdefghijklmnopqrstuvwxyz";
   let suffix = "";

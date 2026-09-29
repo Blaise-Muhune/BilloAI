@@ -3,10 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
+import { BusyBar, CaptureBodySkeleton, OverlayStatus, ScreenStatus } from "@/components/loading";
+import { PaywallNotice } from "@/components/paywall";
 import { Area, Button, Field, PageHeader, PageWrap, SelectField } from "@/components/ui";
-import { postForm, postJson } from "@/lib/api";
+import { isPaywalled, postForm, postJson } from "@/lib/api";
 import { addDays, todayISO } from "@/lib/dates";
 import { createContact, createEvent, createTask, getEvent, getPublicProfile, listEvents, updateEvent } from "@/lib/data";
+import { skipFollowUp } from "@/lib/relevance";
 import { compressImage } from "@/lib/images";
 import { GOAL_LABELS, NETWORKING_GOALS, type ContactFields, type ContactSource, type EventRecord, type NetworkingGoal, type UnderstandResult } from "@/lib/types";
 
@@ -71,22 +74,28 @@ export function CaptureWizard() {
   const [goal, setGoal] = useState<NetworkingGoal>("customers");
   const [goalDetail, setGoalDetail] = useState("");
   const [savingEvent, setSavingEvent] = useState(false);
+  const [eventsReady, setEventsReady] = useState(false);
+  const [hearing, setHearing] = useState(false);
+  const [paywalled, setPaywalled] = useState(false);
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    void listEvents(user.uid).then((next) => {
-      setEvents(next);
-      const chosen = preset ? next.find((item) => item.id === preset) : next.length === 1 ? next[0] : null;
-      if (chosen) {
-        setEventId(chosen.id);
-        setStep(chosen.goalDetail.trim() ? "method" : "goal");
-      } else if (preset) {
-        setEventId("");
-        setStep("event");
-      }
-    });
+    void listEvents(user.uid)
+      .then((next) => {
+        setEvents(next);
+        const chosen = preset ? next.find((item) => item.id === preset) : next.length === 1 ? next[0] : null;
+        if (chosen) {
+          setEventId(chosen.id);
+          setStep(chosen.goalDetail.trim() ? "method" : "goal");
+        } else if (preset) {
+          setEventId("");
+          setStep("event");
+        }
+      })
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load events."))
+      .finally(() => setEventsReady(true));
   }, [user, preset]);
 
   useEffect(() => {
@@ -117,6 +126,7 @@ export function CaptureWizard() {
     const people: Queued[] = mergeIntoCurrent ? [] : [];
     let failed = 0;
     let lastError = "";
+    let blocked = false;
     try {
       for (let index = 0; index < chosen.length; index += 1) {
         setReading(mergeIntoCurrent ? "Reading the other side…" : `Reading ${index + 1} of ${chosen.length}`);
@@ -133,6 +143,11 @@ export function CaptureWizard() {
             people.push(next);
           }
         } catch (err) {
+          if (isPaywalled(err)) {
+            setPaywalled(true);
+            blocked = true;
+            break;
+          }
           failed += 1;
           lastError = err instanceof Error ? err.message : "Could not read that photo.";
         }
@@ -141,6 +156,7 @@ export function CaptureWizard() {
         if (failed && lastError) setError(lastError);
         return;
       }
+      if (blocked) return;
       if (!people.length) {
         setError(lastError || "Could not read those photos.");
         return;
@@ -223,20 +239,25 @@ export function CaptureWizard() {
       setError("That QR is not a BilloAI card.");
       return;
     }
-    const profile = await getPublicProfile(uid);
-    if (!profile) {
-      setError("No BilloAI card was found for that code.");
-      return;
+    setReading("Opening that card…");
+    try {
+      const profile = await getPublicProfile(uid);
+      if (!profile) {
+        setError("No BilloAI card was found for that code.");
+        return;
+      }
+      openConfirm({
+        ...emptyFields,
+        name: profile.name,
+        company: profile.company,
+        title: profile.title,
+        email: profile.email,
+        linkedin: profile.linkedin,
+        website: profile.website,
+      });
+    } finally {
+      setReading("");
     }
-    openConfirm({
-      ...emptyFields,
-      name: profile.name,
-      company: profile.company,
-      title: profile.title,
-      email: profile.email,
-      linkedin: profile.linkedin,
-      website: profile.website,
-    });
   }
 
   async function toggleRecording() {
@@ -256,11 +277,15 @@ export function CaptureWizard() {
       const body = new FormData();
       body.append("audio", new Blob(chunks, { type: recorder.mimeType || "audio/webm" }), "note.webm");
       if (eventId) body.append("eventId", eventId);
+      setHearing(true);
       try {
         const result = await postForm<{ text: string }>("/api/ai/transcribe", body);
         setNote((current) => [current, result.text].filter(Boolean).join(" "));
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not transcribe that note.");
+        if (isPaywalled(err)) setPaywalled(true);
+        else setError(err instanceof Error ? err.message : "Could not transcribe that note.");
+      } finally {
+        setHearing(false);
       }
     };
     recorderRef.current = recorder;
@@ -332,6 +357,7 @@ export function CaptureWizard() {
     const rawNote = [note, ...chosenTags].filter(Boolean).join("\n");
     const event = events.find((item) => item.id === eventId) ?? (await getEvent(user.uid, eventId));
     let understood: UnderstandResult | null = null;
+    let blocked = paywalled;
     if (event) {
       try {
         understood = await postJson<UnderstandResult>("/api/ai/understand", {
@@ -341,7 +367,12 @@ export function CaptureWizard() {
           allowPublicLookup,
         });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Scoring is unavailable. The contact was still saved.");
+        if (isPaywalled(err)) {
+          setPaywalled(true);
+          blocked = true;
+        } else {
+          setError(err instanceof Error ? err.message : "Scoring is unavailable. The contact was still saved.");
+        }
       }
     }
     const contactId = await createContact(user.uid, {
@@ -354,7 +385,7 @@ export function CaptureWizard() {
       enrichment: understood?.enrichment ?? null,
       relevance: understood?.relevance ?? null,
     });
-    if (understood) {
+    if (understood && !skipFollowUp(understood.relevance) && understood.draft.body.trim()) {
       const promise = understood.structuredNote.followUpPromise;
       await createTask(user.uid, {
         contactId,
@@ -367,6 +398,11 @@ export function CaptureWizard() {
       });
     }
     const nextIndex = queueIndex + 1;
+    if (blocked) {
+      setStep("confirm");
+      setError("We saved them. Matching needs a plan after your first event.");
+      return;
+    }
     if (nextIndex < queue.length) {
       setQueueIndex(nextIndex);
       beginPerson(queue[nextIndex]!);
@@ -377,6 +413,8 @@ export function CaptureWizard() {
 
   return (
     <PageWrap>
+      {reading ? <OverlayStatus label={reading} /> : null}
+      {hearing ? <OverlayStatus label="Hearing that note" /> : null}
       {step !== "confirm" ? (
         <PageHeader
           kicker="Add someone"
@@ -389,11 +427,16 @@ export function CaptureWizard() {
         />
       ) : null}
       {error ? <p className="text-sm text-high">{error}</p> : null}
+      {paywalled ? (
+        <PaywallNotice body="Card reading, scoring, and drafts after your first event need Individual, or a seat paid for that event. Anyone you already saved stays on your account." />
+      ) : null}
 
-      {step === "event" ? (
+      {!eventsReady ? <CaptureBodySkeleton /> : null}
+
+      {eventsReady && step === "event" ? (
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
           <div className="space-y-3">
-            <p className="text-muted">If the night already happened, name it now and say why you went. That’s how we know if this person is worth staying connected to.</p>
+            <p className="text-muted">If the event already happened, name it now and say why you went. That’s how we know if this person is worth staying connected to.</p>
             {events.length ? (
               <div className="surface list-stack">
                 {events.map((event) => (
@@ -419,7 +462,7 @@ export function CaptureWizard() {
           </div>
           <form onSubmit={(event) => void makeEvent(event)} className="surface space-y-4 p-6 lg:p-8">
             <h2 className="serif text-2xl">New event</h2>
-            <Field label="Event name" value={eventName} onChange={(event) => setEventName(event.target.value)} placeholder="Chamber mixer, last night" />
+            <Field label="Event name" value={eventName} onChange={(event) => setEventName(event.target.value)} placeholder="Chamber mixer last week" />
             <SelectField label="Why were you there?" value={goal} onChange={(event) => setGoal(event.target.value as NetworkingGoal)}>
               {NETWORKING_GOALS.map((item) => (
                 <option key={item} value={item}>
@@ -428,14 +471,14 @@ export function CaptureWizard() {
               ))}
             </SelectField>
             <Field label="In your own words" value={goalDetail} onChange={(event) => setGoalDetail(event.target.value)} placeholder="Find operators who need automation" />
-            <Button type="submit" disabled={savingEvent} className="w-full">
+            <Button type="submit" busy={savingEvent} className="w-full">
               {savingEvent ? "Saving…" : "Use this event"}
             </Button>
           </form>
         </div>
       ) : null}
 
-      {step === "goal" ? (
+      {eventsReady && step === "goal" ? (
         <form onSubmit={(event) => void saveGoal(event)} className="surface mx-auto max-w-xl space-y-5 p-6 lg:p-8">
           <h2 className="serif text-3xl">Why are you at this event?</h2>
           <p className="text-muted">The company or host does not set this. Matching who you meet to why you went stays on your account.</p>
@@ -452,21 +495,25 @@ export function CaptureWizard() {
             onChange={(event) => setGoalDetail(event.target.value)}
             placeholder="Find operators who need automation"
           />
-          <Button type="submit" disabled={savingEvent} className="min-w-40">
+          <Button type="submit" busy={savingEvent} className="min-w-40">
             {savingEvent ? "Saving…" : "Use this goal"}
           </Button>
         </form>
       ) : null}
 
-      {step === "method" ? (
+      {eventsReady && step === "method" ? (
         <div className="grid gap-6 lg:grid-cols-2">
           <section className="surface space-y-4 p-6 lg:p-8">
             <h2 className="serif text-3xl">Save a card</h2>
             <p className="text-muted">Each photo is a different person. If two shots are the same card, add the other side on the next screen.</p>
-            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-5 shadow-sm">
+            <label
+              className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-5 shadow-sm"
+              aria-busy={Boolean(reading)}
+            >
               <span>
                 <span className="block font-semibold">{reading || "Choose photos"}</span>
-                <span className="text-sm text-muted">Up to 12 cards or screenshots</span>
+                <span className="text-sm text-muted">{reading ? "Stay on this screen while we read them." : "Up to 12 cards or screenshots"}</span>
+                {reading ? <BusyBar className="mt-3 w-32" /> : null}
               </span>
               <span className="rounded-full bg-accent px-3 py-2 text-sm font-semibold text-accent-ink">Add</span>
               <input
@@ -499,7 +546,7 @@ export function CaptureWizard() {
         </div>
       ) : null}
 
-      {step === "confirm" ? (
+      {eventsReady && step === "confirm" ? (
         <div className="grid gap-8 lg:grid-cols-[minmax(18rem,0.85fr)_minmax(0,1.15fr)]">
           <div className="space-y-4">
             {queue.length > 1 ? (
@@ -514,8 +561,11 @@ export function CaptureWizard() {
               <div className="surface grid min-h-56 place-items-center text-sm text-muted">No photo on this one</div>
             )}
             <p className="text-sm text-muted">The photo stays on this screen only. We look up public professional context unless you turn that off.</p>
-            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-dashed border-line px-4 py-3">
-              <span className="text-sm font-semibold">{reading || "Add the other side of this card"}</span>
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-dashed border-line px-4 py-3" aria-busy={Boolean(reading)}>
+              <span>
+                <span className="block text-sm font-semibold">{reading || "Add the other side of this card"}</span>
+                {reading ? <BusyBar className="mt-2 w-28" /> : null}
+              </span>
               <input
                 type="file"
                 accept="image/*"
@@ -542,9 +592,15 @@ export function CaptureWizard() {
               <Field label="Website" value={fields.website} onChange={(event) => setField("website", event.target.value)} />
               <Field label="City or event location" value={fields.location} onChange={(event) => setField("location", event.target.value)} className="lg:col-span-2" />
             </div>
-            <Area label="One line about what you talked about" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Promised the pricing note. Works nights at the plant." />
-            <Button type="button" tone="ghost" onClick={() => void toggleRecording()}>
-              {recording ? "Stop voice note" : "Speak it if that is faster"}
+            <Area label="One line about what you talked about" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Promised the pricing note. Works the late shift at the plant." />
+            {hearing ? (
+              <p className="flex items-center gap-3 text-sm text-muted">
+                <BusyBar className="w-24" />
+                Hearing that note
+              </p>
+            ) : null}
+            <Button type="button" tone="ghost" busy={hearing} onClick={() => void toggleRecording()}>
+              {recording ? "Stop voice note" : hearing ? "Hearing that note" : "Speak it if that is faster"}
             </Button>
             <div className="flex flex-wrap gap-2">
               {tags.map((tag) => {
@@ -572,11 +628,13 @@ export function CaptureWizard() {
         </div>
       ) : null}
 
-      {step === "working" ? (
-        <div className="surface grid min-h-[22rem] place-items-center p-10 text-center">
-          <div>
+      {eventsReady && step === "working" ? (
+        <div className="surface grid min-h-[22rem] place-items-center p-10 text-center" aria-busy="true">
+          <div className="mx-auto max-w-md">
+            <BusyBar className="mx-auto mb-6 w-40" />
             <p className="serif text-3xl">Seeing if this connection is a fit.</p>
             <p className="mt-3 text-muted">This uses the conversation, public context, and why you went.</p>
+            <ScreenStatus label="Matching this person to why you went" />
           </div>
         </div>
       ) : null}

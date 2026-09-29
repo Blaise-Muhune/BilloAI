@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { GroupBodySkeleton, GroupSkeleton, Pulse } from "@/components/loading";
 import { Button, Empty, PageHeader, PageWrap } from "@/components/ui";
 import { getJson } from "@/lib/api";
 import { getUser, listOrganizedEvents, saveWorkspace } from "@/lib/data";
@@ -33,6 +34,7 @@ function GroupOverview() {
   const [metrics, setMetrics] = useState<Metrics[]>([]);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState("");
+  const [ready, setReady] = useState(false);
   const copy = groupCopy(kind);
   const paid = params.get("status") === "success";
 
@@ -45,7 +47,8 @@ function GroupOverview() {
         setEvents(nextEvents);
         setMetrics(nextMetrics.metrics);
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load the group."));
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load the group."))
+      .finally(() => setReady(true));
   }
 
   useEffect(() => {
@@ -76,17 +79,18 @@ function GroupOverview() {
           </button>
         </p>
       ) : null}
-      {!kind ? (
+      {!ready ? <GroupBodySkeleton /> : null}
+      {ready && !kind ? (
         <div className="grid gap-4 lg:grid-cols-2">
           <button type="button" className="surface p-7 text-left transition hover:bg-[#f7f3ea]" onClick={() => void chooseKind("company")}>
             <span className="kicker">Paying for people</span>
             <span className="serif mt-3 block text-3xl">A company sending people</span>
             <span className="mt-3 block text-sm leading-relaxed text-muted">
-              You buy seats for one event they are attending. They keep who they met. You see whether they followed through that night.
+              You buy seats for one event they are attending. They keep who they met. You see whether they followed through at that event.
             </span>
           </button>
           <button type="button" className="surface p-7 text-left transition hover:bg-[#f7f3ea]" onClick={() => void chooseKind("event")}>
-            <span className="kicker">Hosting a night</span>
+            <span className="kicker">Hosting an event</span>
             <span className="serif mt-3 block text-3xl">A room or event</span>
             <span className="mt-3 block text-sm leading-relaxed text-muted">
               You buy seats for attendees of this event. They leave with their own network. You see counts for the room.
@@ -94,10 +98,10 @@ function GroupOverview() {
           </button>
         </div>
       ) : null}
-      {kind && events.length === 0 ? (
+      {ready && kind && events.length === 0 ? (
         <Empty title="No seats yet" body={copy.emptySeats} href="/events/new?for=group" action="Create the event" />
       ) : null}
-      {kind && events.length > 0 ? (
+      {ready && kind && events.length > 0 ? (
         <div className="grid gap-4 xl:grid-cols-2">
           {events.map((event) => {
             const stats = metrics.find((item) => item.organizedEventId === event.id);
@@ -147,14 +151,22 @@ function GroupOverview() {
                     <Stat label="Follow-ups finished" value={stats.followUpsDone} />
                   </dl>
                 ) : event.seatLimit > 0 ? (
-                  <p className="text-sm text-muted">Loading counts…</p>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" aria-busy="true">
+                    {Array.from({ length: 6 }).map((_, index) => (
+                      <div key={index} className="rounded-2xl bg-[#f7f3ea] px-3 py-3">
+                        <Pulse className="h-3 w-16" />
+                        <Pulse className="mt-2 h-8 w-10" />
+                      </div>
+                    ))}
+                    <span className="sr-only">Loading counts</span>
+                  </div>
                 ) : null}
               </article>
             );
           })}
         </div>
       ) : null}
-      {kind ? (
+      {ready && kind ? (
         <p className="text-sm text-muted">
           If this is every month,{" "}
           <Link href="/billing" className="font-semibold text-accent">
@@ -163,7 +175,7 @@ function GroupOverview() {
           . Unused seats do not move to the next event.
         </p>
       ) : null}
-      {kind ? (
+      {ready && kind ? (
         <p className="text-sm text-muted">
           Paying for a different kind of group?{" "}
           <button
@@ -193,7 +205,7 @@ function Stat({ label, value }: { label: string; value: number }) {
 
 export default function GroupPage() {
   return (
-    <Suspense fallback={<p className="text-muted">Loading…</p>}>
+    <Suspense fallback={<GroupSkeleton />}>
       <GroupOverview />
     </Suspense>
   );

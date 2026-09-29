@@ -100,8 +100,11 @@ export function SelectField({
 export function Button({
   children,
   tone = "solid",
+  busy = false,
+  className,
+  disabled,
   ...props
-}: { tone?: "solid" | "ghost" } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+}: { tone?: "solid" | "ghost"; busy?: boolean } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const styles =
     tone === "solid"
       ? "bg-accent text-accent-ink shadow-[0_8px_20px_rgb(11_107_79/0.25)] hover:brightness-110"
@@ -109,22 +112,33 @@ export function Button({
   return (
     <button
       {...props}
-      className={`rounded-full px-5 py-3 text-sm font-semibold transition disabled:opacity-50 ${styles} ${props.className ?? ""}`}
+      disabled={disabled || busy}
+      aria-busy={busy || undefined}
+      className={`rounded-full px-5 py-3 text-sm font-semibold transition disabled:opacity-50 ${styles} ${className ?? ""}`}
     >
-      {children}
+      {busy ? (
+        <span className="inline-flex items-center justify-center gap-2">
+          <span className="busy-dot" aria-hidden />
+          {children}
+        </span>
+      ) : (
+        children
+      )}
     </button>
   );
 }
 
-export function PriorityBadge({ level }: { level: "high" | "medium" | "low" | null }) {
+export function PriorityBadge({ level }: { level: "high" | "medium" | "low" | "unknown" | null }) {
   if (!level) return <span className="rounded-full bg-line/70 px-2.5 py-1 text-xs font-semibold text-muted">Not scored</span>;
-  const label = level === "high" ? "High" : level === "medium" ? "Medium" : "Low";
+  const label = level === "high" ? "High" : level === "medium" ? "Medium" : level === "low" ? "Low" : "Not enough";
   const color =
     level === "high"
       ? "bg-orange-100 text-high"
       : level === "medium"
         ? "bg-amber-100 text-medium"
-        : "bg-stone-200 text-low";
+        : level === "low"
+          ? "bg-stone-200 text-low"
+          : "bg-[#efe8d8] text-muted";
   return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${color}`}>{label}</span>;
 }
 
@@ -154,7 +168,7 @@ export function PersonLink({
   href: string;
   name: string;
   detail?: string;
-  level: "high" | "medium" | "low" | null;
+  level: "high" | "medium" | "low" | "unknown" | null;
   layout?: "stack" | "columns";
 }) {
   const row =

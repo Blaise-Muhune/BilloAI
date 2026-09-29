@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { BillingBodySkeleton, BillingSkeleton, OverlayStatus } from "@/components/loading";
 import { Button, Field, PageHeader, PageWrap, SelectField, Steps } from "@/components/ui";
 import { postJson } from "@/lib/api";
 import { getUser, listEvents, listOrganizedEvents } from "@/lib/data";
@@ -38,14 +39,15 @@ function BillingForm() {
   const [planStep, setPlanStep] = useState<"choose" | "individual" | "organizer">("choose");
   const [interval, setInterval] = useState<"month" | "year">("month");
   const [seatStep, setSeatStep] = useState(0);
+  const [ready, setReady] = useState(false);
   const status = params.get("status");
   const requestedEvent = params.get("event");
   const wantSeats = params.get("plan") === "organizer";
 
   useEffect(() => {
     if (!user) return;
-    void Promise.all([getUser(user.uid), listEvents(user.uid, { seats: true }), listOrganizedEvents(user.uid)]).then(
-      ([nextUser, nextEvents, nextOrganized]) => {
+    void Promise.all([getUser(user.uid), listEvents(user.uid, { seats: true }), listOrganizedEvents(user.uid)])
+      .then(([nextUser, nextEvents, nextOrganized]) => {
         setAccount(nextUser);
         setEvents(nextEvents);
         setOrganized(nextOrganized);
@@ -57,8 +59,8 @@ function BillingForm() {
           setPlanStep("organizer");
           if (chosen && (requestedEvent || nextEvents.length <= 1)) setSeatStep(1);
         }
-      },
-    );
+      })
+      .finally(() => setReady(true));
   }, [user, params, requestedEvent, wantSeats]);
 
   const selected = events.find((item) => item.id === eventId);
@@ -109,23 +111,23 @@ function BillingForm() {
             : `Your first event includes matching. After that, Individual is ${usd(INDIVIDUAL_MONTHLY_USD)} a month, or ${usd(INDIVIDUAL_YEARLY_USD)} a year. Group seats are ${usd(ORGANIZER_SEAT_USD)} each for one event. You always send the message yourself.`
         }
       />
+      {pending ? <OverlayStatus label="Taking you to checkout" /> : null}
       {status === "success" ? <p className="text-sm text-accent">Checkout finished. Your plan updates after Stripe confirms it.</p> : null}
       {status === "cancel" ? <p className="text-sm text-muted">Checkout was canceled.</p> : null}
-      {account ? (
+      {!ready ? <BillingBodySkeleton /> : null}
+      {ready && account ? (
         <p className="text-sm">
           Current plan: {planLabel(account.plan)}. Status: {statusLabel(account.subscriptionStatus)}.
           {user && !user.emailVerified ? " Verify your email before you can subscribe." : ""}
         </p>
-      ) : (
-        <p className="text-muted">Loading plan…</p>
-      )}
+      ) : null}
       {user && !user.emailVerified ? (
         <Button type="button" tone="ghost" onClick={() => void sendEmailVerification(user)}>
           Send verification email
         </Button>
       ) : null}
       {error ? <p className="text-sm text-high">{error}</p> : null}
-      {planStep === "choose" ? (
+      {ready && planStep === "choose" ? (
         <div className="grid gap-4 lg:grid-cols-2">
           <button type="button" className="surface p-7 text-left transition hover:bg-[#f7f3ea]" onClick={() => setPlanStep("individual")}>
             <span className="kicker">For you, every event</span>
@@ -147,16 +149,16 @@ function BillingForm() {
             <span className="kicker">For one event</span>
             <span className="mt-3 block font-semibold">Group seats</span>
             <span className="serif mt-3 block text-5xl">{usd(ORGANIZER_SEAT_USD)}</span>
-            <span className="mt-2 block text-sm text-muted">per seat, once, for that night. They keep who they met. You see counts.</span>
+            <span className="mt-2 block text-sm text-muted">per seat, once, for that event. They keep who they met. You see counts.</span>
             <span className="mt-6 block text-sm font-semibold text-accent">Choose group seats</span>
           </button>
         </div>
       ) : null}
-      {planStep === "individual" ? (
+      {ready && planStep === "individual" ? (
         <section className="surface mx-auto max-w-2xl space-y-5 p-6 lg:p-8">
           <h2 className="serif text-3xl">Individual</h2>
           <p className="text-muted">
-            Use your first event first. Then this covers every event after that, including nights after a company or host paid for one seat.
+            Use your first event first. Then this covers every event after that, including events after a company or host paid for one seat.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <button type="button" className={`rounded-2xl border px-4 py-4 text-left ${interval === "month" ? "border-accent bg-white" : "border-line"}`} onClick={() => setInterval("month")}>
@@ -171,19 +173,19 @@ function BillingForm() {
             <Button type="button" tone="ghost" onClick={() => setPlanStep("choose")}>
               Back
             </Button>
-            <Button type="button" disabled={pending} onClick={() => void checkout("individual")}>
+            <Button type="button" busy={pending} onClick={() => void checkout("individual")}>
               {interval === "year" ? `Pay ${usd(INDIVIDUAL_YEARLY_USD)} for the year` : `Subscribe for ${usd(INDIVIDUAL_MONTHLY_USD)} a month`}
             </Button>
           </div>
         </section>
       ) : null}
-      {planStep === "organizer" ? (
+      {ready && planStep === "organizer" ? (
         <section className="surface mx-auto max-w-2xl space-y-5 p-6 lg:p-8">
           <Steps labels={["Event", "Seats"]} index={Math.min(seatStep, events.length === 0 ? 0 : seatStep)} />
           {seatStep === 0 || events.length === 0 ? (
             <>
               <h2 className="serif text-3xl">Which event?</h2>
-              <p className="text-muted">Seats attach to one named night. Not a month, and not every event after this.</p>
+              <p className="text-muted">Seats attach to one named event. Not a month, and not every event after this.</p>
               {events.length === 0 ? (
                 <p className="text-sm text-muted">
                   Create that first.{" "}
@@ -239,7 +241,7 @@ function BillingForm() {
                 <li>They keep who they met and set their own goal.</li>
                 <li>You see counts. You never see names, notes, or drafts.</li>
                 <li>Buying seats does not cover your own matching.</li>
-                <li>The next event is Individual for them, or another seat purchase for that night.</li>
+                <li>The next event is Individual for them, or another seat purchase for that event.</li>
               </ul>
               <div className="flex flex-wrap gap-3">
                 <Button
@@ -252,7 +254,7 @@ function BillingForm() {
                 >
                   Back
                 </Button>
-                <Button type="button" disabled={pending || !eventId} onClick={() => void checkout("organizer")}>
+                <Button type="button" busy={pending} disabled={!eventId} onClick={() => void checkout("organizer")}>
                   Pay {usd(seatsPrice(count))} for {paidSeats > 0 ? "more seats" : "these seats"}
                 </Button>
               </div>
@@ -260,7 +262,7 @@ function BillingForm() {
           )}
         </section>
       ) : null}
-      {planStep === "organizer" ? (
+      {ready && planStep === "organizer" ? (
         <p className="text-sm text-muted">
           Going to events all year?{" "}
           <button type="button" className="font-semibold text-accent" onClick={() => setPlanStep("individual")}>
@@ -269,16 +271,18 @@ function BillingForm() {
           .
         </p>
       ) : null}
-      <Button type="button" tone="ghost" onClick={() => void portal()}>
-        Manage billing
-      </Button>
+      {ready ? (
+        <Button type="button" tone="ghost" onClick={() => void portal()}>
+          Manage billing
+        </Button>
+      ) : null}
     </PageWrap>
   );
 }
 
 export default function BillingPage() {
   return (
-    <Suspense fallback={<p className="text-muted">Loading…</p>}>
+    <Suspense fallback={<BillingSkeleton />}>
       <BillingForm />
     </Suspense>
   );

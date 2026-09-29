@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminAuth, adminBucket, adminDb, sessionFromRequest } from "@/lib/firebase/admin";
+import { cancelCustomerSubscriptions } from "@/lib/stripe";
 
 export const runtime = "nodejs";
 
@@ -13,6 +14,12 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   const uid = session.uid;
   try {
+    const account = await adminDb().collection("users").doc(uid).get();
+    try {
+      await cancelCustomerSubscriptions(String(account.data()?.stripeCustomerId ?? ""));
+    } catch {
+      throw new Error("Could not cancel the subscription. Open Plan, manage billing, then try again.");
+    }
     await deleteQuery("events", "ownerId", uid);
     await deleteQuery("contacts", "ownerId", uid);
     await deleteQuery("tasks", "ownerId", uid);
