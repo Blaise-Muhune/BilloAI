@@ -6,8 +6,9 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { BrandLockup } from "@/components/brand";
 import { BusyBar, JoinBodySkeleton, JoinSkeleton, OverlayStatus } from "@/components/loading";
-import { Button, Field, PageHeader, PageWrap } from "@/components/ui";
+import { Button, ErrorNote, Field, PageHeader, PageWrap } from "@/components/ui";
 import { getJson, getPublicJson, postJson } from "@/lib/api";
+import { userMessage } from "@/lib/errors";
 import { persistAuthContext, clearJoinCode, groupCopy, readJoinFrom, teamCopy } from "@/lib/workspace";
 import { formatDay } from "@/lib/dates";
 import type { GroupKind } from "@/lib/types";
@@ -55,7 +56,7 @@ function JoinForm() {
         .catch((err: unknown) => {
           if (!cancel) {
             setPreview(null);
-            setError(err instanceof Error ? err.message : "That invite was not found.");
+            setError(userMessage(err, "That invite was not found."));
           }
         })
         .finally(() => {
@@ -99,7 +100,7 @@ function JoinForm() {
       clearJoinCode();
       router.push(result.team ? "/home" : `/events/${result.eventId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not join.");
+      setError(userMessage(err, "Could not join."));
       setPending(false);
     }
   }
@@ -139,7 +140,7 @@ function JoinForm() {
                 : " · no seats left for this event"}
           </p>
         ) : null}
-        {error ? <p className="text-sm text-high">{error}</p> : null}
+        {error ? <ErrorNote>{error}</ErrorNote> : null}
         {preview?.own ? (
           <Link href={isTeam ? "/team" : "/group"} className="inline-flex rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink">
             {isTeam ? "Open team overview" : "Open group overview"}

@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { PeopleListSkeleton } from "@/components/loading";
-import { Empty, PageHeader, PageWrap, PersonLink } from "@/components/ui";
+import { Empty, ErrorNote, PageHeader, PageWrap, PersonLink } from "@/components/ui";
 import { recommendedLabel } from "@/lib/channels";
 import { listContacts, listEvents } from "@/lib/data";
+import { userMessage } from "@/lib/errors";
 import type { ContactRecord, EventRecord, RelevanceLevel } from "@/lib/types";
 
 const filters: Array<RelevanceLevel | "all"> = ["all", "high", "medium", "low", "unknown"];
@@ -35,7 +36,7 @@ export default function PeoplePage() {
         setContacts(nextContacts);
         setEvents(nextEvents);
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load people."))
+      .catch((err: unknown) => setError(userMessage(err, "Could not load people.")))
       .finally(() => setReady(true));
   }
 
@@ -87,14 +88,7 @@ export default function PeoplePage() {
           </Link>
         }
       />
-      {error ? (
-        <p className="text-sm text-high">
-          {error}{" "}
-          <button type="button" className="font-semibold text-accent" onClick={load}>
-            Retry
-          </button>
-        </p>
-      ) : null}
+      {error ? <ErrorNote retry={load}>{error}</ErrorNote> : null}
       {!ready ? (
         <PeopleListSkeleton />
       ) : (

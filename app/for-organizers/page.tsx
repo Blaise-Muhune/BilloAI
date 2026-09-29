@@ -207,6 +207,10 @@ export default function ForOrganizersPage() {
                 For teams
               </Link>
               {" · "}
+              <Link href="/contact" className="font-semibold text-accent">
+                Contact
+              </Link>
+              {" · "}
               <Link href="/privacy" className="font-semibold text-accent">
                 Privacy
               </Link>

@@ -154,6 +154,10 @@ export default function ForTeamsPage() {
                 For groups
               </Link>
               {" · "}
+              <Link href="/contact" className="font-semibold text-accent">
+                Contact
+              </Link>
+              {" · "}
               <Link href="/privacy" className="font-semibold text-accent">
                 Privacy
               </Link>

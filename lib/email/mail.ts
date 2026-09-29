@@ -42,6 +42,7 @@ export type MailPayload = {
   subject: string;
   text: string;
   html: string;
+  replyTo?: string;
   unsubscribeUrl?: string;
 };
 
@@ -61,9 +62,14 @@ export async function sendMail(payload: MailPayload) {
     subject: payload.subject,
     text: payload.text,
     html: payload.html,
+    replyTo: payload.replyTo,
     headers,
   });
-  return !result.error;
+  if (result.error) {
+    console.error("Resend did not send:", result.error.message);
+    return false;
+  }
+  return true;
 }
 
 export function esc(value: string) {

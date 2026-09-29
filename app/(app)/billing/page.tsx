@@ -7,8 +7,9 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { BillingBodySkeleton, BillingSkeleton, OverlayStatus } from "@/components/loading";
-import { Button, Field, PageHeader, PageWrap, SelectField, Steps } from "@/components/ui";
+import { Button, ErrorNote, Field, PageHeader, PageWrap, SelectField, Steps } from "@/components/ui";
 import { postJson } from "@/lib/api";
+import { userMessage } from "@/lib/errors";
 import { getUser, listEvents, listOrganizedEvents } from "@/lib/data";
 import {
   INDIVIDUAL_MONTHLY_USD,
@@ -99,7 +100,7 @@ function BillingForm() {
       });
       window.location.href = result.url;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Checkout failed.");
+      setError(userMessage(err, "Checkout failed."));
       setPending(false);
     }
   }
@@ -110,7 +111,7 @@ function BillingForm() {
       const result = await postJson<{ url: string }>("/api/stripe/portal", {});
       window.location.href = result.url;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not open billing.");
+      setError(userMessage(err, "Could not open billing."));
     }
   }
 
@@ -148,7 +149,7 @@ function BillingForm() {
           Send verification email
         </Button>
       ) : null}
-      {error ? <p className="text-sm text-high">{error}</p> : null}
+      {error ? <ErrorNote>{error}</ErrorNote> : null}
       {ready && planStep === "choose" ? (
         <div className="grid gap-4 lg:grid-cols-3">
           <button type="button" className="surface p-7 text-left transition hover:bg-[#f7f3ea]" onClick={() => setPlanStep("individual")}>
@@ -369,9 +370,18 @@ function BillingForm() {
         </p>
       ) : null}
       {ready ? (
-        <Button type="button" tone="ghost" onClick={() => void portal()}>
-          Manage billing
-        </Button>
+        <>
+          <Button type="button" tone="ghost" onClick={() => void portal()}>
+            Manage billing
+          </Button>
+          <p className="text-sm text-muted">
+            Billing question?{" "}
+            <Link href="/contact" className="font-semibold text-accent">
+              Contact
+            </Link>
+            .
+          </p>
+        </>
       ) : null}
     </PageWrap>
   );

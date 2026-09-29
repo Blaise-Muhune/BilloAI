@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { TaskListSkeleton } from "@/components/loading";
-import { Empty, PageHeader, PageWrap } from "@/components/ui";
+import { Empty, ErrorNote, PageHeader, PageWrap } from "@/components/ui";
 import { dueBucket, type DueBucket } from "@/lib/dates";
 import { CHANNEL_LABELS } from "@/lib/channels";
 import { listTasks, updateTask } from "@/lib/data";
+import { userMessage } from "@/lib/errors";
 import type { TaskRecord } from "@/lib/types";
 
 const groups: Array<{ id: DueBucket; label: string }> = [
@@ -28,7 +29,7 @@ export default function TasksPage() {
     setError("");
     listTasks(user.uid)
       .then(setTasks)
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load tasks."))
+      .catch((err: unknown) => setError(userMessage(err, "Could not load tasks.")))
       .finally(() => setReady(true));
   }
 
@@ -47,14 +48,7 @@ export default function TasksPage() {
   return (
     <PageWrap>
       <PageHeader kicker="Tasks" title="Stay in touch" body="Open conversations with people who fit why you went. You send the message." />
-      {error ? (
-        <p className="text-sm text-high">
-          {error}{" "}
-          <button type="button" className="font-semibold text-accent" onClick={load}>
-            Retry
-          </button>
-        </p>
-      ) : null}
+      {error ? <ErrorNote retry={load}>{error}</ErrorNote> : null}
       {!ready ? (
         <TaskListSkeleton />
       ) : open.length === 0 ? (

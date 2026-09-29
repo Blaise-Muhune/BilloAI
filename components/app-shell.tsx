@@ -11,6 +11,7 @@ import { BootScreen } from "@/components/loading";
 import { postJson } from "@/lib/api";
 import { getUser, listEvents, markOnboarded, saveWorkspace } from "@/lib/data";
 import { firebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
+import { isInboxOwner } from "@/lib/support";
 import type { GroupKind, UserDoc, Workspace } from "@/lib/types";
 import { groupSeatsHref, readWorkspace, teamBillingHref } from "@/lib/workspace";
 
@@ -56,6 +57,7 @@ function pageLabel(pathname: string, workspace: Workspace) {
   if (pathname.startsWith("/group") || pathname.startsWith("/organizer")) return "Overview";
   if (pathname.startsWith("/join")) return "Join";
   if (pathname.startsWith("/account")) return "Account";
+  if (pathname.startsWith("/admin")) return "Ops";
   return "BilloAI";
 }
 
@@ -98,7 +100,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     void (async () => {
       const next = await getUser(user.uid);
       if (!cancel) setAccount(next);
-      if (joining) {
+      if (joining || pathname.startsWith("/admin")) {
         if (!cancel) setAllowed(true);
         return;
       }
@@ -168,6 +170,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   const links = workspace === "group" ? groupLinks : workspace === "team" ? teamLinks : networkLinks;
   const accountLinks = workspace === "group" ? groupAccount : workspace === "team" ? teamAccount : networkAccount;
   const homeHref = workspace === "group" ? "/group" : workspace === "team" ? "/team" : "/home";
+  const ops = isInboxOwner(user?.email);
 
   return (
     <div className="min-h-full min-w-0 md:grid md:grid-cols-[17.5rem_minmax(0,1fr)]">
@@ -259,6 +262,22 @@ function Shell({ children }: { children: React.ReactNode }) {
             </nav>
           </>
         ) : null}
+        {ops ? (
+          <>
+            {accountLinks.length === 0 ? <p className="kicker mt-8 px-7">Ops</p> : null}
+            <nav className="mt-2 space-y-0.5 px-3">
+              <Link
+                href="/admin"
+                aria-current={pathname.startsWith("/admin") ? "page" : undefined}
+                className={`block rounded-xl px-3 py-2 text-sm font-semibold ${
+                  pathname.startsWith("/admin") ? "bg-[#f7f3ea] text-foreground" : "text-muted hover:bg-[#f7f3ea] hover:text-foreground"
+                }`}
+              >
+                Ops
+              </Link>
+            </nav>
+          </>
+        ) : null}
         <div className="mx-3 mb-4 mt-auto space-y-1">
           <Link href="/account" className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold hover:bg-[#f7f3ea]">
             <span className="grid h-9 w-9 place-items-center rounded-full bg-foreground text-xs text-card">{initial}</span>
@@ -300,6 +319,11 @@ function Shell({ children }: { children: React.ReactNode }) {
               {link.label}
             </Link>
           ))}
+          {ops ? (
+            <Link href="/admin" className="shrink-0 rounded-full border border-line bg-card px-3 py-1.5 text-sm font-semibold">
+              Ops
+            </Link>
+          ) : null}
           <button type="button" onClick={() => void leave()} className="shrink-0 rounded-full border border-line bg-card px-3 py-1.5 text-sm font-semibold">
             Sign out
           </button>
@@ -311,17 +335,17 @@ function Shell({ children }: { children: React.ReactNode }) {
               {workspace === "group" ? "Group · who used a seat" : workspace === "team" ? "Team · who has a seat" : user?.email}
             </p>
           </div>
-          {workspace === "network" && !pathname.startsWith("/capture") ? (
+          {workspace === "network" && !pathname.startsWith("/capture") && !pathname.startsWith("/admin") ? (
             <Link href="/capture" className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
               Add someone you met
             </Link>
           ) : null}
-          {workspace === "group" ? (
+          {workspace === "group" && !pathname.startsWith("/admin") ? (
             <Link href={groupSeatsHref()} className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
               Add seats
             </Link>
           ) : null}
-          {workspace === "team" ? (
+          {workspace === "team" && !pathname.startsWith("/admin") ? (
             <Link href={teamBillingHref()} className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
               Add Team seats
             </Link>

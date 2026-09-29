@@ -19,6 +19,7 @@ BilloAI is a web app for people who just left a conference, mixer, or trade show
 - [Home](https://billoai.com/): What it is, how it works, pricing
 - [For groups](https://billoai.com/for-organizers): One-event seats for a company or host
 - [For teams](https://billoai.com/for-teams): Year-round seats for sales and BD
+- [Contact](https://billoai.com/contact)
 - [Privacy](https://billoai.com/privacy)
 - [Terms](https://billoai.com/terms)
 - [Full brief](https://billoai.com/llms-full.txt): Same facts, longer, for models
@@ -29,4 +30,5 @@ Signed-in books, capture, billing, join codes, and APIs. Those pages are private
 
 ## Contact
 
-https://billoai.com
+https://billoai.com/contact
+mailto:blaisemu007@gmail.com

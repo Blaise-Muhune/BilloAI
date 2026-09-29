@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { transcribeNote } from "@/lib/ai/run";
 import { guardAi } from "@/lib/ai/guard";
+import { reportServerError } from "@/lib/errors";
 
 export const runtime = "nodejs";
 
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
     const text = await transcribeNote(bytes, audio.type);
     return NextResponse.json({ text });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not transcribe that note.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    reportServerError("transcribe", error);
+    return NextResponse.json({ error: "Could not transcribe that note." }, { status: 500 });
   }
 }

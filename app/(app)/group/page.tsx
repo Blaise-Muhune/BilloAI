@@ -6,9 +6,10 @@ import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { GroupBodySkeleton, GroupSkeleton, Pulse } from "@/components/loading";
 import { SeatRoster } from "@/components/seat-roster";
-import { Button, Empty, PageHeader, PageWrap } from "@/components/ui";
+import { Button, Empty, ErrorNote, PageHeader, PageWrap } from "@/components/ui";
 import { getJson } from "@/lib/api";
 import { getUser, listOrganizedEvents, saveWorkspace } from "@/lib/data";
+import { userMessage } from "@/lib/errors";
 import { formatDay } from "@/lib/dates";
 import type { GroupKind, OrganizedEventDoc, SeatPerson } from "@/lib/types";
 import { groupCopy, groupSeatsHref, invitePath } from "@/lib/workspace";
@@ -49,7 +50,7 @@ function GroupOverview() {
         setEvents(nextEvents);
         setMetrics(nextMetrics.metrics);
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load the group."))
+      .catch((err: unknown) => setError(userMessage(err, "Could not load the group.")))
       .finally(() => setReady(true));
   }
 
@@ -73,14 +74,7 @@ function GroupOverview() {
     <PageWrap>
       <PageHeader kicker={copy.kicker} title={copy.overviewTitle} body={copy.overviewBody} />
       {paid ? <p className="text-sm text-accent">Seats are on the way. Share the join link as soon as the code appears.</p> : null}
-      {error ? (
-        <p className="text-sm text-high">
-          {error}{" "}
-          <button type="button" className="font-semibold text-accent" onClick={load}>
-            Retry
-          </button>
-        </p>
-      ) : null}
+      {error ? <ErrorNote retry={load}>{error}</ErrorNote> : null}
       {!ready ? <GroupBodySkeleton /> : null}
       {ready && !kind ? (
         <div className="grid gap-4 lg:grid-cols-2">

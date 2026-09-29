@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, Area, PageWrap, SelectField, Steps } from "@/components/ui";
+import { Button, ErrorNote, Field, Area, PageWrap, SelectField, Steps } from "@/components/ui";
+import { userMessage } from "@/lib/errors";
 import { clampSeats, ORGANIZER_SEAT_USD, SEAT_MAX, SEAT_MIN, seatsPrice, usd } from "@/lib/pricing";
 import { GOAL_LABELS, NETWORKING_GOALS, type EventInput, type NetworkingGoal } from "@/lib/types";
 
@@ -83,7 +84,7 @@ export function EventForm({
         seats ? { seats: paying } : undefined,
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save the event.");
+      setError(userMessage(err, "Could not save the event."));
       setPending(false);
     }
   }
@@ -164,7 +165,7 @@ export function EventForm({
               />
             </>
           ) : null}
-          {error ? <p className="text-sm text-high">{error}</p> : null}
+          {error ? <ErrorNote>{error}</ErrorNote> : null}
           <div className="flex gap-3">
             {step > 0 ? (
               <Button type="button" tone="ghost" onClick={() => setStep((current) => current - 1)}>

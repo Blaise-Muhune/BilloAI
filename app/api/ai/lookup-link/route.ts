@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { guardAi } from "@/lib/ai/guard";
 import { lookupFromLink } from "@/lib/ai/run";
+import { reportServerError } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
     const fields = await lookupFromLink(body.input);
     return NextResponse.json({ fields });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not read that page.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    reportServerError("lookup-link", error);
+    return NextResponse.json({ error: "Could not read that page." }, { status: 500 });
   }
 }

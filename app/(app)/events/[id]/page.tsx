@@ -5,9 +5,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { DetailSkeleton } from "@/components/loading";
-import { Button, Empty, Field, PageWrap, PersonLink, PriorityBadge, SelectField } from "@/components/ui";
+import { Button, Empty, ErrorNote, Field, PageWrap, PersonLink, PriorityBadge, SelectField } from "@/components/ui";
 import { recommendedLabel } from "@/lib/channels";
 import { formatDay } from "@/lib/dates";
+import { userMessage } from "@/lib/errors";
 import { getEvent, listContactsForEvent, updateEvent } from "@/lib/data";
 import { groupSeatsHref } from "@/lib/workspace";
 import {
@@ -88,7 +89,7 @@ export default function EventDetailPage() {
       setNightSaved(true);
       window.setTimeout(() => setNightSaved(false), 1600);
     } catch (err) {
-      setNightError(err instanceof Error ? err.message : "Could not save this event.");
+      setNightError(userMessage(err, "Could not save this event."));
     } finally {
       setSavingNight(false);
     }
@@ -103,7 +104,7 @@ export default function EventDetailPage() {
         <Field label="Location" value={location} onChange={(item) => setLocation(item.target.value)} />
         <Field label="Date" type="date" value={date} onChange={(item) => setDate(item.target.value)} />
       </div>
-      {nightError ? <p className="text-sm text-high">{nightError}</p> : null}
+      {nightError ? <ErrorNote>{nightError}</ErrorNote> : null}
       {nightSaved ? <p className="text-sm text-accent">Saved</p> : null}
       <Button type="submit" busy={savingNight} className="min-w-40">
         {savingNight ? "Saving…" : "Save event"}
@@ -147,7 +148,7 @@ export default function EventDetailPage() {
       await updateEvent(user.uid, event.id, { goal, goalDetail });
       setEvent({ ...event, goal, goalDetail });
     } catch (err) {
-      setGoalError(err instanceof Error ? err.message : "Could not save why you went.");
+      setGoalError(userMessage(err, "Could not save why you went."));
     } finally {
       setSavingGoal(false);
     }
@@ -176,7 +177,7 @@ export default function EventDetailPage() {
             onChange={(item) => setGoalDetail(item.target.value)}
             placeholder="Find operators who need automation"
           />
-          {goalError ? <p className="text-sm text-high">{goalError}</p> : null}
+          {goalError ? <ErrorNote>{goalError}</ErrorNote> : null}
           <Button type="submit" busy={savingGoal} className="min-w-40">
             {savingGoal ? "Saving…" : "Save my goal"}
           </Button>

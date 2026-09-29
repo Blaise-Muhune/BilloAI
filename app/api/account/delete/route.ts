@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { publicErrorMessage, reportServerError } from "@/lib/errors";
 import { adminAuth, adminBucket, adminDb, sessionFromRequest } from "@/lib/firebase/admin";
 import { cancelCustomerSubscriptions } from "@/lib/stripe";
 
@@ -73,7 +74,8 @@ export async function POST(request: Request) {
     await (await adminAuth()).deleteUser(uid);
     return NextResponse.json({ deleted: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not delete the account.";
+    reportServerError("account-delete", error);
+    const message = publicErrorMessage(error, "Could not delete the account.");
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

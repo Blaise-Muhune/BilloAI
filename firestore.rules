@@ -75,7 +75,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    match /rateLimits/{uid} {
+    match /contactMessages/{id} {
+      allow read, write: if false;
+    }
+
+    match /rateLimits/{id} {
       allow read, write: if false;
     }
 

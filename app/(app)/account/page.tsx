@@ -7,9 +7,10 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { OverlayStatus } from "@/components/loading";
 import { SupportLink } from "@/components/support";
-import { Button, PageHeader, PageWrap } from "@/components/ui";
+import { Button, ErrorNote, PageHeader, PageWrap } from "@/components/ui";
 import { getJson, patchJson, postJson } from "@/lib/api";
 import { getPublicProfile, getUser, listContacts, listEvents, listTasks } from "@/lib/data";
+import { userMessage } from "@/lib/errors";
 import { firebaseAuth } from "@/lib/firebase/client";
 
 export default function AccountPage() {
@@ -36,7 +37,7 @@ export default function AccountPage() {
       await patchJson("/api/email/prefs", { unsubscribed: next });
       setUnsubscribed(next);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not update email settings.");
+      setError(userMessage(err, "Could not update email settings."));
     } finally {
       setSavingMail(false);
     }
@@ -65,7 +66,7 @@ export default function AccountPage() {
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not export.");
+      setError(userMessage(err, "Could not export."));
     } finally {
       setExporting(false);
     }
@@ -77,7 +78,7 @@ export default function AccountPage() {
       await signOut(firebaseAuth());
       router.replace("/login");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not sign out.");
+      setError(userMessage(err, "Could not sign out."));
     }
   }
 
@@ -95,7 +96,7 @@ export default function AccountPage() {
       await signOut(firebaseAuth());
       router.replace("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete the account.");
+      setError(userMessage(err, "Could not delete the account."));
       setPending(false);
     }
   }
@@ -128,7 +129,7 @@ export default function AccountPage() {
           </Link>
         ))}
       </div>
-      {error ? <p className="text-sm text-high">{error}</p> : null}
+      {error ? <ErrorNote>{error}</ErrorNote> : null}
       <div className="surface flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="font-semibold">What matters emails</p>
@@ -155,7 +156,12 @@ export default function AccountPage() {
           <div>
             <p className="font-semibold">Export or delete</p>
             <p className="mt-1 text-sm text-muted">
-              Questions or a billing problem: email <SupportLink />.{" "}
+              Questions or a billing problem:{" "}
+              <Link href="/contact" className="font-semibold text-accent">
+                Contact
+              </Link>
+              {" · "}
+              email <SupportLink />.{" "}
               <Link href="/privacy" className="font-semibold text-accent">
                 Privacy
               </Link>

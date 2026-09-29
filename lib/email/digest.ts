@@ -205,12 +205,14 @@ async function adminSections(uid: string, user: UserDoc, today: string): Promise
   return sections;
 }
 
-export async function digestForUser(uid: string, user: UserDoc, origin: string): Promise<boolean> {
+export async function digestForUser(uid: string, user: UserDoc, origin: string, opts?: { force?: boolean }): Promise<boolean> {
   const email = String(user.email ?? "").trim().toLowerCase();
   if (!email.includes("@")) return false;
-  if (user.emailUnsubscribedAt) return false;
-  if (hoursSince(user.emailDigestAt ?? "") < DIGEST_GAP_HOURS) return false;
-  if (hoursSince(user.lastSeenAt ?? "") < ACTIVE_SKIP_HOURS) return false;
+  if (!opts?.force) {
+    if (user.emailUnsubscribedAt) return false;
+    if (hoursSince(user.emailDigestAt ?? "") < DIGEST_GAP_HOURS) return false;
+    if (hoursSince(user.lastSeenAt ?? "") < ACTIVE_SKIP_HOURS) return false;
+  }
 
   const today = todayISO();
   const yesterday = addDays(today, -1);
@@ -224,7 +226,17 @@ export async function digestForUser(uid: string, user: UserDoc, origin: string):
   const joiner = await joinerSections(uid, user, events, contacts, today);
   const admin = await adminSections(uid, user, today);
   const sections = [...personal, ...joiner, ...admin].sort((a, b) => b.weight - a.weight);
-  if (!sections.length) return false;
+  if (!sections.length) {
+    if (!opts?.force) return false;
+    sections.push({
+      heading: "This is a test of BilloAI email",
+      intro: "The daily cron can reach this account. We never email the people you met.",
+      lines: [],
+      href: "/home",
+      action: "Open BilloAI",
+      weight: 1,
+    });
+  }
 
   const lead = sections[0]!;
   const extra = sections.slice(1, 3);
@@ -249,12 +261,14 @@ export async function digestForUser(uid: string, user: UserDoc, origin: string):
   });
   if (!sent) return false;
 
-  const patch: Record<string, string> = { emailDigestAt: new Date().toISOString() };
-  if (joiner.some((item) => item.heading.startsWith("The seat was for"))) {
-    patch.emailJoinerNudgeAt = patch.emailDigestAt;
+  if (!opts?.force) {
+    const patch: Record<string, string> = { emailDigestAt: new Date().toISOString() };
+    if (joiner.some((item) => item.heading.startsWith("The seat was for"))) {
+      patch.emailJoinerNudgeAt = patch.emailDigestAt;
+    }
+    if (admin.length) patch.emailAdminDigestAt = patch.emailDigestAt;
+    await adminDb().collection("users").doc(uid).set(patch, { merge: true });
   }
-  if (admin.length) patch.emailAdminDigestAt = patch.emailDigestAt;
-  await adminDb().collection("users").doc(uid).set(patch, { merge: true });
   return true;
 }
 
@@ -319,21 +333,31 @@ export async function runInviteReminders(origin: string) {
   return sent;
 }
 
+async function usersToScan(onlyEmail: string) {
+  const all = await adminDb().collection("users").get();
+  if (!onlyEmail) return all.docs;
+  return all.docs.filter((item) => String(item.data().email ?? "").trim().toLowerCase() === onlyEmail);
+}
+
 export async function runDigests(request: Request) {
-  const origin = mailOrigin(request);
-  if (!origin) return { scanned: 0, sent: 0, invites: 0, error: "Missing app origin." };
-  const invites = await runInviteReminders(origin);
-  const users = await adminDb().collection("users").get();
+  let origin = mailOrigin(request) || "https://billoai.com";
+  if (origin.includes("localhost") || origin.includes("127.0.0.1")) origin = "https://billoai.com";
+  const url = new URL(request.url);
+  const onlyEmail = (url.searchParams.get("email") ?? "").trim().toLowerCase();
+  const force = url.searchParams.get("force") === "1";
+  if (!onlyEmail && force) return { scanned: 0, sent: 0, invites: 0, error: "force needs an email." };
+  const invites = onlyEmail ? 0 : await runInviteReminders(origin);
+  const users = await usersToScan(onlyEmail);
   let sent = 0;
-  for (const item of users.docs) {
+  for (const item of users) {
     const data = item.data() as UserDoc;
     try {
-      if (await digestForUser(item.id, data, origin)) sent += 1;
+      if (await digestForUser(item.id, data, origin, { force })) sent += 1;
     } catch {
       // Keep going. One bad account must not stop the rest.
     }
   }
-  return { scanned: users.size, sent, invites };
+  return { scanned: users.length, sent, invites, email: onlyEmail || undefined, forced: force || undefined };
 }
 
 export { mailOrigin };

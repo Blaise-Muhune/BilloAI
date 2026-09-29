@@ -7,11 +7,12 @@ import { useAuth } from "@/components/auth-provider";
 import { BusyBar, DetailSkeleton, OverlayStatus } from "@/components/loading";
 import { HuntWhy, type HuntSummary } from "@/components/hunt-why";
 import { PaywallNotice } from "@/components/paywall";
-import { Area, Avatar, Button, Field, Fold, InPlayBadge, PageWrap, PriorityBadge } from "@/components/ui";
+import { Area, Avatar, Button, ErrorNote, Field, Fold, InPlayBadge, PageWrap, PriorityBadge } from "@/components/ui";
 import { ApiError, getJson, isPaywalled, postJson } from "@/lib/api";
 import { createTask, deleteContact, getContact, getEvent, openTaskForContact, updateContact, updateTask } from "@/lib/data";
 import { addDays, todayISO } from "@/lib/dates";
 import { CHANNEL_LABELS, recommendedLabel, showRecommendedAction } from "@/lib/channels";
+import { userMessage } from "@/lib/errors";
 import { evidenceLine, skipFollowUp } from "@/lib/relevance";
 import type { ContactFields, ContactRecord, EventRecord, FollowUpDraft, TaskChannel, TaskRecord, UnderstandResult } from "@/lib/types";
 import { TASK_CHANNELS } from "@/lib/types";
@@ -140,7 +141,7 @@ export default function PersonPage() {
     if (!dirtyDraft.current) return;
     const timer = window.setTimeout(() => {
       void persistDraft().catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Could not save that note.");
+        setError(userMessage(err, "Could not save that note."));
       });
     }, 700);
     return () => window.clearTimeout(timer);
@@ -219,7 +220,7 @@ export default function PersonPage() {
           setPaywallEvent(err.eventName ?? "");
           setPaywallReason(err.reason ?? "");
         }
-      } else setError(err instanceof Error ? err.message : "Could not score this contact.");
+      } else setError(userMessage(err, "Could not score this contact."));
     } finally {
       setScoring(false);
     }
@@ -242,7 +243,7 @@ export default function PersonPage() {
       taskRef.current = next;
       setTask(next);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not mark that sent.");
+      setError(userMessage(err, "Could not mark that sent."));
     } finally {
       setMarkingSent(false);
     }
@@ -284,7 +285,7 @@ export default function PersonPage() {
           setPaywallEvent(err.eventName ?? "");
           setPaywallReason(err.reason ?? "");
         }
-      } else setError(err instanceof Error ? err.message : "Could not write that note.");
+      } else setError(userMessage(err, "Could not write that note."));
     } finally {
       setDrafting(false);
     }
@@ -308,7 +309,7 @@ export default function PersonPage() {
       }
       setEditing(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save those details.");
+      setError(userMessage(err, "Could not save those details."));
     } finally {
       setSavingPerson(false);
     }
@@ -323,7 +324,7 @@ export default function PersonPage() {
       await deleteContact(user.uid, contact.id);
       router.push("/people");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not remove this person.");
+      setError(userMessage(err, "Could not remove this person."));
       setRemoving(false);
     }
   }
@@ -498,7 +499,7 @@ export default function PersonPage() {
               </Button>
             </div>
           )}
-          {error ? <p className="text-sm text-high">{error}</p> : null}
+          {error ? <ErrorNote>{error}</ErrorNote> : null}
 
           {editing ? (
             <form onSubmit={(form) => void savePerson(form)} className="surface space-y-5 p-5">

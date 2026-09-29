@@ -14,12 +14,12 @@ import {
 } from "firebase/auth";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useId, useRef, useState } from "react";
 import { AuthProvider, useAuth } from "@/components/auth-provider";
 import { BrandLockup, BrandMark } from "@/components/brand";
 import { AuthSkeleton, BootScreen } from "@/components/loading";
 import { SupportLink } from "@/components/support";
-import { Avatar, Button, Field, PriorityBadge, SetupNotice, Steps } from "@/components/ui";
+import { Avatar, Button, ErrorNote, Field, PriorityBadge, SetupNotice, Steps } from "@/components/ui";
 import { authEmailSettings } from "@/lib/auth-email";
 import { ensureUser, getUser, saveConsent, saveWorkspace } from "@/lib/data";
 import { firebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
@@ -87,6 +87,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [pending, setPending] = useState(false);
   const [signupStep, setSignupStep] = useState(0);
   const [agreed, setAgreed] = useState(false);
+  const errorId = useId();
   const configured = isFirebaseConfigured();
 
   useEffect(() => {
@@ -327,7 +328,15 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
                 className="space-y-3.5"
               >
                 {mode === "signup" && signupStep === 0 ? (
-                  <Field label="Name" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} required />
+                  <Field
+                    label="Name"
+                    autoComplete="name"
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    required
+                    invalid={Boolean(error)}
+                    errorId={error ? errorId : undefined}
+                  />
                 ) : null}
                 {mode === "login" || signupStep === 1 ? (
                   <>
@@ -338,6 +347,8 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
                       value={email}
                       onChange={(event) => setEmail(event.target.value)}
                       required
+                      invalid={Boolean(error)}
+                      errorId={error ? errorId : undefined}
                     />
                     <Field
                       label="Password"
@@ -347,10 +358,12 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
                       onChange={(event) => setPassword(event.target.value)}
                       minLength={8}
                       required
+                      invalid={Boolean(error)}
+                      errorId={error ? errorId : undefined}
                     />
                   </>
                 ) : null}
-                {error ? <p className="text-sm text-high">{error}</p> : null}
+                <ErrorNote id={errorId}>{error}</ErrorNote>
                 {notice ? <p className="text-sm text-accent">{notice}</p> : null}
                 <div className="flex gap-3 pt-1">
                   {mode === "signup" && signupStep === 1 ? (
@@ -403,7 +416,12 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
           )}
           <span aria-hidden>·</span>
           <span>
-            Help: <SupportLink />
+            Help:{" "}
+            <Link href="/contact" className="font-semibold text-foreground">
+              Contact
+            </Link>
+            {" · "}
+            <SupportLink />
           </span>
         </p>
       </div>

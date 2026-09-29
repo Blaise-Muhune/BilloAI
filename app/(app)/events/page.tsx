@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { EventCardsSkeleton } from "@/components/loading";
-import { Empty, PageHeader, PageWrap } from "@/components/ui";
+import { Empty, ErrorNote, PageHeader, PageWrap } from "@/components/ui";
 import { formatDay } from "@/lib/dates";
 import { listEvents } from "@/lib/data";
+import { userMessage } from "@/lib/errors";
 import { GOAL_LABELS, type EventRecord } from "@/lib/types";
 
 export default function EventsPage() {
@@ -20,7 +21,7 @@ export default function EventsPage() {
     setError("");
     listEvents(user.uid)
       .then(setEvents)
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load events."))
+      .catch((err: unknown) => setError(userMessage(err, "Could not load events.")))
       .finally(() => setReady(true));
   }
 
@@ -40,14 +41,7 @@ export default function EventsPage() {
           </Link>
         }
       />
-      {error ? (
-        <p className="text-sm text-high">
-          {error}{" "}
-          <button type="button" className="font-semibold text-accent" onClick={load}>
-            Retry
-          </button>
-        </p>
-      ) : null}
+      {error ? <ErrorNote retry={load}>{error}</ErrorNote> : null}
       {!ready ? (
         <EventCardsSkeleton />
       ) : events.length === 0 ? (

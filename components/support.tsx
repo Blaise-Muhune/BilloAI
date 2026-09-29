@@ -1,4 +1,6 @@
-export const supportEmail = "blaisemu007@gmail.com";
+import { supportEmail } from "@/lib/support";
+
+export { supportEmail };
 
 export function SupportLink({ className = "font-semibold text-accent" }: { className?: string }) {
   return (

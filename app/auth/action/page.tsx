@@ -11,7 +11,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BrandLockup } from "@/components/brand";
 import { AuthSkeleton } from "@/components/loading";
-import { Button, Field } from "@/components/ui";
+import { Button, ErrorNote, Field } from "@/components/ui";
 import { safeAuthNext } from "@/lib/auth-email";
 import { firebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 
@@ -105,7 +105,7 @@ function ActionBody() {
         <p className="kicker">BilloAI</p>
         <h1 className="serif mt-2 text-4xl leading-tight">{title}</h1>
         {email && status === "form" ? <p className="mt-3 text-muted">{email}</p> : null}
-        {message ? <p className={`mt-3 ${status === "error" ? "text-high" : "text-muted"}`}>{message}</p> : null}
+        {status === "error" ? <ErrorNote className="mt-3">{message}</ErrorNote> : message ? <p className="mt-3 text-muted">{message}</p> : null}
         {status === "form" ? (
           <form onSubmit={(event) => void savePassword(event)} className="mt-6 space-y-4">
             <Field

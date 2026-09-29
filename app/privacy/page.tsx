@@ -48,7 +48,8 @@ export default function PrivacyPage() {
         </p>
         <p>
           Google Firebase holds your login and the records above. Stripe handles cards, invoices, and tax when you pay.
-          Resend sends email to you. Vercel hosts the site. We do not sell your personal information, and we do not
+          Resend sends email to you. If you write us from the contact form, we store that message and email it to our
+          support inbox so we can reply. Vercel hosts the site. We do not sell your personal information, and we do not
           email, text, or message the people you met.
         </p>
 
@@ -71,8 +72,11 @@ export default function PrivacyPage() {
         <p>
           Export or delete from Account. Delete cancels open subscriptions, removes your contacts and notes, and
           deletes the login. You can turn off public lookup for a person when you save them, or when you score them
-          again. Questions, or if someone under 18 has an account: email <SupportLink />. This service is for people 18
-          or older.
+          again. Questions, or if someone under 18 has an account: use{" "}
+          <Link href="/contact" className="font-semibold text-accent">
+            Contact
+          </Link>{" "}
+          or email <SupportLink />. This service is for people 18 or older.
         </p>
         <p>
           We keep your data until you delete the account. If we change this policy we will update this page. The

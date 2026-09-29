@@ -7,8 +7,9 @@ import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { BrandLockup } from "@/components/brand";
 import { BootScreen, OverlayStatus } from "@/components/loading";
-import { Button, Field, LiveCard, SelectField, Steps } from "@/components/ui";
+import { Button, ErrorNote, Field, LiveCard, SelectField, Steps } from "@/components/ui";
 import { postJson } from "@/lib/api";
+import { userMessage } from "@/lib/errors";
 import { createEvent, getPublicProfile, getUser, markOnboarded, savePublicProfile, saveWorkspace } from "@/lib/data";
 import { todayISO } from "@/lib/dates";
 import { firebaseAuth } from "@/lib/firebase/client";
@@ -130,7 +131,7 @@ function OnboardingFlow() {
       await markOnboarded(user.uid);
       router.replace(nextHref);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not finish setup.");
+      setError(userMessage(err, "Could not finish setup."));
       setPending(false);
     }
   }
@@ -157,7 +158,7 @@ function OnboardingFlow() {
       }
       setStep(2);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save your card.");
+      setError(userMessage(err, "Could not save your card."));
     } finally {
       setPending(false);
     }
@@ -198,7 +199,7 @@ function OnboardingFlow() {
       }
       setStep(3);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create the event.");
+      setError(userMessage(err, "Could not create the event."));
     } finally {
       setPending(false);
     }
@@ -254,7 +255,7 @@ function OnboardingFlow() {
             <span key={label} className={`h-1.5 flex-1 rounded-full ${index <= step ? "bg-accent" : "bg-line"}`} />
           ))}
         </div>
-        {error ? <p className="mt-4 text-sm text-high">{error}</p> : null}
+        {error ? <ErrorNote className="mt-4">{error}</ErrorNote> : null}
 
         <div className="mt-8 flex flex-1 flex-col">
           {step === 0 ? (

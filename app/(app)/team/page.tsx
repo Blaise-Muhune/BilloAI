@@ -6,8 +6,9 @@ import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { GroupBodySkeleton, GroupSkeleton, Pulse } from "@/components/loading";
 import { SeatRoster } from "@/components/seat-roster";
-import { Area, Button, Empty, Field, PageHeader, PageWrap } from "@/components/ui";
+import { Area, Button, Empty, ErrorNote, Field, PageHeader, PageWrap } from "@/components/ui";
 import { getJson, patchJson, postJson } from "@/lib/api";
+import { userMessage } from "@/lib/errors";
 import { TEAM_SEAT_MIN, TEAM_SEAT_YEARLY_USD, usd } from "@/lib/pricing";
 import type { SeatPerson, TeamSeatStatus } from "@/lib/types";
 import { invitePath, teamBillingHref, teamCopy } from "@/lib/workspace";
@@ -78,7 +79,7 @@ function TeamOverview() {
         applyTeam(next);
         setMetrics(next.admin ? nextMetrics : null);
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load the team."))
+      .catch((err: unknown) => setError(userMessage(err, "Could not load the team.")))
       .finally(() => setReady(true));
   }
 
@@ -100,7 +101,7 @@ function TeamOverview() {
       setSaved("Hunt saved. Scoring uses this on the next capture.");
       load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save the hunt.");
+      setError(userMessage(err, "Could not save the hunt."));
     } finally {
       setPending(false);
     }
@@ -115,7 +116,7 @@ function TeamOverview() {
       setInvite("");
       load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not invite that email.");
+      setError(userMessage(err, "Could not invite that email."));
     } finally {
       setPending(false);
     }
@@ -128,7 +129,7 @@ function TeamOverview() {
       await patchJson("/api/team/seats", { seatId, status: "revoked" });
       load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not revoke that seat.");
+      setError(userMessage(err, "Could not revoke that seat."));
     } finally {
       setPending(false);
     }
@@ -147,14 +148,7 @@ function TeamOverview() {
     <PageWrap>
       <PageHeader kicker={copy.kicker} title={copy.overviewTitle} body={copy.overviewBody} />
       {paid ? <p className="text-sm text-accent">Seats are on the way. Invite emails as soon as the limit appears.</p> : null}
-      {error ? (
-        <p className="text-sm text-high">
-          {error}{" "}
-          <button type="button" className="font-semibold text-accent" onClick={load}>
-            Retry
-          </button>
-        </p>
-      ) : null}
+      {error ? <ErrorNote retry={load}>{error}</ErrorNote> : null}
       {saved ? <p className="text-sm text-accent">{saved}</p> : null}
       {!ready ? <GroupBodySkeleton /> : null}
       {ready && !data?.team ? (

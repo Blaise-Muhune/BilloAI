@@ -73,7 +73,11 @@ export default function TermsPage() {
           reviews. We can update these terms on this page. The current version is the one that applies.
         </p>
         <p>
-          Questions: email <SupportLink />.
+          Questions: use{" "}
+          <Link href="/contact" className="font-semibold text-accent">
+            Contact
+          </Link>{" "}
+          or email <SupportLink />.
         </p>
         <Link href="/" className="text-accent">
           Back

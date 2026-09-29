@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { publicErrorMessage, reportServerError } from "@/lib/errors";
 import { adminDb, sessionFromRequest } from "@/lib/firebase/admin";
 import { listTeamSeats, normalizeEmail, teamByJoinCode } from "@/lib/team";
 import type { EventDoc, EventInput } from "@/lib/types";
@@ -151,7 +152,8 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ eventId });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not join.";
+    reportServerError("join", error);
+    const message = publicErrorMessage(error, "Could not join.");
     const status = message.includes("no open seats") ? 403 : message.includes("not found") ? 404 : 500;
     return NextResponse.json({ error: message }, { status });
   }

@@ -45,7 +45,7 @@ export async function scoreWithJev(input: {
     headers: {
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": "https://www.billoai.com",
+      "HTTP-Referer": "https://billoai.com",
       "X-OpenRouter-Title": "BilloAI",
     },
     body: JSON.stringify({

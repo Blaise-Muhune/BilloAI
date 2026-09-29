@@ -24,7 +24,9 @@ export default function NotFound() {
         </Link>
       </div>
       <p className="mt-6 text-sm text-muted">
-        Need help? Email <SupportLink />.
+        Need help? <Link href="/contact" className="font-semibold text-accent">Contact</Link>
+        {" · "}
+        Email <SupportLink />.
       </p>
     </main>
   );

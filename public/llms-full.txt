@@ -42,6 +42,7 @@ Your first event includes matching people you met to why you went. After that it
 - For teams: https://billoai.com/for-teams
 - Privacy: https://billoai.com/privacy
 - Terms: https://billoai.com/terms
+- Contact: https://billoai.com/contact
 
 ## Do not index
 
@@ -51,4 +52,5 @@ The service is for people 18 or older. Card photos and voice are processed then 
 
 ## Contact
 
-https://billoai.com
+https://billoai.com/contact
+mailto:blaisemu007@gmail.com

@@ -1,10 +1,16 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { BrandHomeLink } from "@/components/brand";
 import { SupportLink } from "@/components/support";
+import { reportClientError } from "@/lib/errors";
 
-export default function ErrorPage({ reset }: { error: Error; reset: () => void }) {
+export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  useEffect(() => {
+    reportClientError(error);
+  }, [error]);
+
   return (
     <main className="mx-auto max-w-lg px-5 py-16">
       <BrandHomeLink />
@@ -19,7 +25,12 @@ export default function ErrorPage({ reset }: { error: Error; reset: () => void }
         </Link>
       </div>
       <p className="mt-6 text-sm text-muted">
-        If this keeps happening, email <SupportLink />.
+        If this keeps happening,{" "}
+        <Link href="/contact" className="font-semibold text-accent">
+          write us
+        </Link>{" "}
+        or email <SupportLink />
+        {error.digest ? ` and include ${error.digest}.` : "."}
       </p>
     </main>
   );

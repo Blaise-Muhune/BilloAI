@@ -15,6 +15,33 @@ export function SetupNotice() {
   );
 }
 
+export function ErrorNote({
+  children,
+  retry,
+  className = "",
+  id,
+}: {
+  children?: ReactNode;
+  retry?: () => void;
+  className?: string;
+  id?: string;
+}) {
+  if (!children) return null;
+  return (
+    <p id={id} role="alert" aria-live="assertive" className={`text-sm text-high ${className}`}>
+      {children}
+      {retry ? (
+        <>
+          {" "}
+          <button type="button" className="font-semibold text-accent" onClick={retry}>
+            Retry
+          </button>
+        </>
+      ) : null}
+    </p>
+  );
+}
+
 export function Steps({ labels, index }: { labels: string[]; index: number }) {
   return (
     <div className="space-y-2">
@@ -60,12 +87,20 @@ export function PageHeader({
 export function Field({
   label,
   className,
+  invalid,
+  errorId,
   ...props
-}: { label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+}: { label: string; invalid?: boolean; errorId?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+  const describedBy = [props["aria-describedby"], errorId].filter(Boolean).join(" ") || undefined;
   return (
     <label className={`block ${className ?? ""}`}>
       <span className="mb-1.5 block text-sm font-medium text-muted">{label}</span>
-      <input {...props} className="field-control" />
+      <input
+        {...props}
+        aria-invalid={invalid || props["aria-invalid"]}
+        aria-describedby={describedBy}
+        className="field-control"
+      />
     </label>
   );
 }

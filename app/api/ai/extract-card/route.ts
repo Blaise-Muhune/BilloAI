@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { guardAi } from "@/lib/ai/guard";
 import { extractCard } from "@/lib/ai/run";
+import { reportServerError } from "@/lib/errors";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
     const fields = await extractCard(body.image);
     return NextResponse.json({ fields });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not read that card.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    reportServerError("extract-card", error);
+    return NextResponse.json({ error: "Could not read that card." }, { status: 500 });
   }
 }

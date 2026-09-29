@@ -17,6 +17,7 @@ const privatePaths = [
   "/group",
   "/team",
   "/organizer",
+  "/admin",
   "/auth/",
   "/api/",
 ];
@@ -37,7 +38,7 @@ export default function robots(): MetadataRoute.Robots {
       },
       {
         userAgent: ["GPTBot", "ChatGPT-User", "Google-Extended", "anthropic-ai", "ClaudeBot", "PerplexityBot", "CCBot"],
-        allow: ["/", "/for-organizers", "/for-teams", "/privacy", "/terms", "/llms.txt", "/llms-full.txt"],
+        allow: ["/", "/for-organizers", "/for-teams", "/contact", "/privacy", "/terms", "/llms.txt", "/llms-full.txt"],
         disallow: privatePaths,
       },
     ],

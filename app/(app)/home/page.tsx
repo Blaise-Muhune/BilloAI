@@ -5,9 +5,10 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { HomeBodySkeleton } from "@/components/loading";
 import { BrandMark } from "@/components/brand";
-import { Empty, PageHeader, PageWrap, PersonLink } from "@/components/ui";
+import { Empty, ErrorNote, PageHeader, PageWrap, PersonLink } from "@/components/ui";
 import { CHANNEL_LABELS, recommendedLabel } from "@/lib/channels";
 import { getJson } from "@/lib/api";
+import { userMessage } from "@/lib/errors";
 import { dueBucket, formatDay, todayISO } from "@/lib/dates";
 import { listContacts, listEvents, listTasks } from "@/lib/data";
 import type { ContactRecord, EventRecord, TaskRecord } from "@/lib/types";
@@ -38,7 +39,7 @@ export default function HomePage() {
         setEvents(nextEvents);
         setPlanLine(nextPlan?.line ?? "");
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load home."))
+      .catch((err: unknown) => setError(userMessage(err, "Could not load home.")))
       .finally(() => setReady(true));
   }
 
@@ -69,14 +70,7 @@ export default function HomePage() {
         }
       />
       {planLine ? <p className="text-sm font-semibold text-accent">{planLine}</p> : null}
-      {error ? (
-        <p className="text-sm text-high">
-          {error}{" "}
-          <button type="button" className="font-semibold text-accent" onClick={load}>
-            Retry
-          </button>
-        </p>
-      ) : null}
+      {error ? <ErrorNote retry={load}>{error}</ErrorNote> : null}
 
       {!ready ? <HomeBodySkeleton /> : (
         <>

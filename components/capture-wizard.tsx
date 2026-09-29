@@ -7,8 +7,9 @@ import { BusyBar, CaptureBodySkeleton, OverlayStatus, ScreenStatus } from "@/com
 import { HuntWhy, type HuntSummary } from "@/components/hunt-why";
 import { PaywallNotice } from "@/components/paywall";
 import { IconMic } from "@/components/icons";
-import { Area, Button, Field, PageHeader, PageWrap, SelectField } from "@/components/ui";
+import { Area, Button, ErrorNote, Field, PageHeader, PageWrap, SelectField } from "@/components/ui";
 import { ApiError, getJson, isPaywalled, postForm, postJson } from "@/lib/api";
+import { userMessage } from "@/lib/errors";
 import { addDays, todayISO } from "@/lib/dates";
 import { createContact, createEvent, createTask, getEvent, getPublicProfile, listEvents, updateEvent } from "@/lib/data";
 import { asHref, looksLikeLink } from "@/lib/links";
@@ -103,7 +104,7 @@ export function CaptureWizard() {
           setStep("event");
         }
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load events."))
+      .catch((err: unknown) => setError(userMessage(err, "Could not load events.")))
       .finally(() => setEventsReady(true));
     void getJson<{ team: HuntSummary | null }>("/api/team")
       .then((payload) => {
@@ -212,7 +213,7 @@ export function CaptureWizard() {
             break;
           }
           failed += 1;
-          lastError = err instanceof Error ? err.message : "Could not read that photo.";
+          lastError = userMessage(err, "Could not read that photo.");
         }
       }
       if (mergeIntoCurrent) {
@@ -250,7 +251,7 @@ export function CaptureWizard() {
         () => undefined,
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Camera access is required to scan a QR code.");
+      setError(userMessage(err, "Camera access is required to scan a QR code."));
     }
   }
 
@@ -284,7 +285,7 @@ export function CaptureWizard() {
         website: result.fields.website || (linkedin ? result.fields.website : href),
       });
     } catch (err) {
-      if (!notePaywall(err)) setError(err instanceof Error ? err.message : "Could not read that page. Add what you have.");
+      if (!notePaywall(err)) setError(userMessage(err, "Could not read that page. Add what you have."));
       openConfirm({
         ...emptyFields,
         linkedin: linkedin ? href : "",
@@ -383,7 +384,7 @@ export function CaptureWizard() {
         const result = await postForm<{ text: string }>("/api/ai/transcribe", body);
         setNote((current) => [current, result.text].filter(Boolean).join(" "));
       } catch (err) {
-        if (!notePaywall(err)) setError(err instanceof Error ? err.message : "Could not transcribe that note.");
+        if (!notePaywall(err)) setError(userMessage(err, "Could not transcribe that note."));
       } finally {
         setHearing(false);
       }
@@ -418,7 +419,7 @@ export function CaptureWizard() {
       setEventId(id);
       setStep("method");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create the event.");
+      setError(userMessage(err, "Could not create the event."));
     } finally {
       setSavingEvent(false);
     }
@@ -440,7 +441,7 @@ export function CaptureWizard() {
       );
       setStep("method");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save why you went.");
+      setError(userMessage(err, "Could not save why you went."));
     } finally {
       setSavingEvent(false);
     }
@@ -475,7 +476,7 @@ export function CaptureWizard() {
         if (notePaywall(err)) {
           blocked = true;
         } else {
-          setError(err instanceof Error ? err.message : "Scoring is unavailable. The contact was still saved.");
+          setError(userMessage(err, "Scoring is unavailable. The contact was still saved."));
         }
       }
     }
@@ -547,7 +548,7 @@ export function CaptureWizard() {
           }
         />
       ) : null}
-      {error ? <p className="text-sm text-high">{error}</p> : null}
+      {error ? <ErrorNote>{error}</ErrorNote> : null}
       {paywalled ? (
         <PaywallNotice
           eventName={paywallEvent}
@@ -774,7 +775,7 @@ export function CaptureWizard() {
                 Hearing that note
               </p>
             ) : recording ? (
-              <p className="text-sm text-high">Recording. Tap Stop when you are done.</p>
+              <p className="text-sm text-muted">Recording. Tap Stop when you are done.</p>
             ) : null}
             {night && !moreDetails ? null : (
               <div className="flex flex-wrap gap-2">

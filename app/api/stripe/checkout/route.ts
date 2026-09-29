@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { publicErrorMessage, reportServerError } from "@/lib/errors";
 import { adminDb, sessionFromRequest } from "@/lib/firebase/admin";
 import { clampSeats, clampTeamSeats, SEAT_MAX, SEAT_MIN, TEAM_SEAT_MAX, TEAM_SEAT_MIN } from "@/lib/pricing";
 import { appOrigin, integrationId, stripeClient } from "@/lib/stripe";
@@ -155,7 +156,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: checkout.url });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not start checkout.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    reportServerError("checkout", error);
+    return NextResponse.json({ error: publicErrorMessage(error, "Could not start checkout.") }, { status: 500 });
   }
 }

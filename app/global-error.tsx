@@ -1,6 +1,13 @@
 "use client";
 
-export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+import { useEffect } from "react";
+import { reportClientError } from "@/lib/errors";
+
+export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  useEffect(() => {
+    reportClientError(error);
+  }, [error]);
+
   return (
     <html lang="en">
       <body style={{ fontFamily: "Segoe UI, sans-serif", margin: 0, background: "#f4efe6", color: "#1a1612" }}>
@@ -11,7 +18,8 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
             Try again
           </button>
           <p style={{ marginTop: "1.5rem" }}>
-            Email <a href="mailto:blaisemu007@gmail.com">blaisemu007@gmail.com</a> if it keeps happening.
+            Email <a href="mailto:blaisemu007@gmail.com">blaisemu007@gmail.com</a> if it keeps happening
+            {error.digest ? `, and include ${error.digest}.` : "."}
           </p>
         </main>
       </body>

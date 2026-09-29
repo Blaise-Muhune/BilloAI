@@ -4,7 +4,6 @@ import { BrandLockup, BrandMark } from "@/components/brand";
 import { JsonLd } from "@/components/json-ld";
 import { SkipLink } from "@/components/skip-link";
 import { Avatar, PriorityBadge } from "@/components/ui";
-import { SupportLink } from "@/components/support";
 import { INDIVIDUAL_MONTHLY_USD, INDIVIDUAL_YEARLY_USD, ORGANIZER_SEAT_USD, TEAM_SEAT_MIN, TEAM_SEAT_YEARLY_USD, usd } from "@/lib/pricing";
 import { SITE_NAME, SITE_TAGLINE, SITE_URL, pageMeta } from "@/lib/seo";
 
@@ -440,6 +439,10 @@ export default function LandingPage() {
                 For teams
               </Link>
               {" · "}
+              <Link href="/contact" className="font-semibold text-accent">
+                Contact
+              </Link>
+              {" · "}
               <Link href="/privacy" className="font-semibold text-accent">
                 Privacy
               </Link>
@@ -447,8 +450,6 @@ export default function LandingPage() {
               <Link href="/terms" className="font-semibold text-accent">
                 Terms
               </Link>
-              {" · "}
-              <SupportLink />
             </p>
           </div>
         </footer>

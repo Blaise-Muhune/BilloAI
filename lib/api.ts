@@ -40,6 +40,25 @@ export async function getPublicJson<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+export async function postPublicJson<T>(path: string, body: unknown): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const user = firebaseAuth().currentUser;
+  if (user) {
+    try {
+      headers.Authorization = `Bearer ${await user.getIdToken()}`;
+    } catch {
+      // Public routes still work without a session.
+    }
+  }
+  const response = await fetch(path, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) await readError(response);
+  return (await response.json()) as T;
+}
+
 export async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(path, { headers: await authHeaders(false) });
   if (!response.ok) await readError(response);

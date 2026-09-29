@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { understand } from "@/lib/ai/run";
 import { guardAi } from "@/lib/ai/guard";
+import { reportServerError } from "@/lib/errors";
 import { applyTeamHunt, companyAlreadyInPlay, recordCompanyPlay, teamContextForUser } from "@/lib/team";
 import type { ContactFields, EventInput } from "@/lib/types";
 
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ ...result, alreadyInPlay });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not understand this contact.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    reportServerError("understand", error);
+    return NextResponse.json({ error: "Could not understand this contact." }, { status: 500 });
   }
 }

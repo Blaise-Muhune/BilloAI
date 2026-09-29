@@ -29,6 +29,8 @@ const privateSources = [
   "/team/:path*",
   "/organizer",
   "/organizer/:path*",
+  "/admin",
+  "/admin/:path*",
   "/auth/:path*",
   "/login",
   "/login/:path*",
@@ -40,21 +42,7 @@ const privateSources = [
 const nextConfig: NextConfig = {
   serverExternalPackages: ["firebase-admin", "jose", "jwks-rsa"],
   async redirects() {
-    return [
-      { source: "/organizer", destination: "/group", permanent: false },
-      {
-        source: "/",
-        has: [{ type: "host", value: "www.billoai.com" }],
-        destination: "https://billoai.com/",
-        permanent: true,
-      },
-      {
-        source: "/:path*",
-        has: [{ type: "host", value: "www.billoai.com" }],
-        destination: "https://billoai.com/:path*",
-        permanent: true,
-      },
-    ];
+    return [{ source: "/organizer", destination: "/group", permanent: false }];
   },
   async rewrites() {
     return [

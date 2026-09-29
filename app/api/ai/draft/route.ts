@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { draftChannel } from "@/lib/ai/run";
 import { guardAi } from "@/lib/ai/guard";
+import { reportServerError } from "@/lib/errors";
 import { skipFollowUp } from "@/lib/relevance";
 import { todayISO } from "@/lib/dates";
 import type { ContactRecord, EventRecord, TaskChannel } from "@/lib/types";
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(draft);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not write that follow-up.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    reportServerError("draft", error);
+    return NextResponse.json({ error: "Could not write that follow-up." }, { status: 500 });
   }
 }

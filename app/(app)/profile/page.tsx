@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { BrandMark } from "@/components/brand";
 import { Pulse } from "@/components/loading";
-import { Button, Field, PageHeader, PageWrap, Steps } from "@/components/ui";
+import { Button, ErrorNote, Field, PageHeader, PageWrap, Steps } from "@/components/ui";
 import { getPublicProfile, savePublicProfile } from "@/lib/data";
+import { userMessage } from "@/lib/errors";
 import type { PublicProfile } from "@/lib/types";
 
 const empty: PublicProfile = { name: "", company: "", title: "", email: "", linkedin: "", website: "" };
@@ -64,7 +65,7 @@ export default function ProfilePage() {
             await savePublicProfile(user.uid, profile);
             setMessage("Saved.");
           } catch (err) {
-            setError(err instanceof Error ? err.message : "Could not save your card.");
+            setError(userMessage(err, "Could not save your card."));
           } finally {
             setSaving(false);
           }
@@ -86,7 +87,7 @@ export default function ProfilePage() {
               <Field label="Website" value={profile.website} onChange={(event) => set("website", event.target.value)} className="lg:col-span-2" />
             </div>
           )}
-          {error ? <p className="text-sm text-high">{error}</p> : null}
+          {error ? <ErrorNote>{error}</ErrorNote> : null}
           {message ? <p className="text-sm text-accent">{message}</p> : null}
           <div className="flex gap-3">
             {step > 0 ? (
