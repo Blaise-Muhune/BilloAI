@@ -4,7 +4,7 @@ import { BrandLockup, BrandMark } from "@/components/brand";
 import { JsonLd } from "@/components/json-ld";
 import { SkipLink } from "@/components/skip-link";
 import { Avatar, PriorityBadge } from "@/components/ui";
-import { INDIVIDUAL_MONTHLY_USD, INDIVIDUAL_YEARLY_USD, ORGANIZER_SEAT_USD, TEAM_SEAT_MIN, TEAM_SEAT_YEARLY_USD, usd } from "@/lib/pricing";
+import { INDIVIDUAL_MONTHLY_USD, INDIVIDUAL_YEARLY_PER_MONTH_USD, INDIVIDUAL_YEARLY_SAVINGS_USD, INDIVIDUAL_YEARLY_USD, ORGANIZER_SEAT_USD, TEAM_SEAT_MIN, TEAM_SEAT_MONTHLY_USD, TEAM_SEAT_YEARLY_USD, TEAM_YEARLY_FLOOR_USD, usd } from "@/lib/pricing";
 import { SITE_NAME, SITE_TAGLINE, SITE_URL, pageMeta } from "@/lib/seo";
 
 export const metadata: Metadata = pageMeta({
@@ -29,7 +29,11 @@ const faqs = [
   },
   {
     q: "What is included before I pay?",
-    a: "Your first event includes matching people you met to why you went. After that it is Individual, a Team seat, or a Group seat for that event.",
+    a: "Your first event includes matching people you met to why you went. After that event, matching is Individual, a Team seat, or a Group seat for a later named event. You can still save people without matching.",
+  },
+  {
+    q: "Group or Team?",
+    a: `Group is ${usd(ORGANIZER_SEAT_USD)} once per seat for one named event. Team is year-round for sales — ${usd(TEAM_SEAT_YEARLY_USD)} a seat a year or ${usd(TEAM_SEAT_MONTHLY_USD)} a month, minimum ${TEAM_SEAT_MIN} seats (from ${usd(TEAM_YEARLY_FLOOR_USD)} a year). Unused Group seats do not become Team seats.`,
   },
 ];
 
@@ -78,43 +82,63 @@ const voices = [
   },
 ];
 
+const who = [
+  { href: "#plan-individual", label: "I go to events", hint: "Individual" },
+  { href: "#plan-group", label: "I pay for one event", hint: "Group" },
+  { href: "#plan-team", label: "We sell all year", hint: "Team" },
+];
+
 const plans = [
   {
-    name: "Free",
-    price: usd(0),
-    unit: "to start",
-    body: "Events and typed contacts. Matching who you met to your goal on your first event.",
-    href: "/signup",
-    action: "Start free",
-    featured: false,
-  },
-  {
+    id: "plan-individual",
+    audience: "You go to events",
     name: "Individual",
-    price: usd(INDIVIDUAL_MONTHLY_USD),
-    unit: "per month",
-    body: `Keep seeing who is worth staying connected to on every event after the first. ${usd(INDIVIDUAL_YEARLY_USD)} a year if you keep going.`,
-    href: "/signup",
-    action: "Get Individual",
     featured: true,
+    badge: "Most people",
+    price: usd(INDIVIDUAL_MONTHLY_USD),
+    unit: "a month after your first event",
+    note: `First event matching is included. Or ${usd(INDIVIDUAL_YEARLY_USD)} a year — ${usd(INDIVIDUAL_YEARLY_PER_MONTH_USD)} / mo, save ${usd(INDIVIDUAL_YEARLY_SAVINGS_USD)}.`,
+    points: ["Your book and drafts stay yours", "Matching on every event after the first", "Nothing sends itself"],
+    href: "/signup",
+    action: "Start with your first event",
+    order: "lg:order-2",
   },
   {
+    id: "plan-group",
+    audience: "You pay for people, one event",
     name: "Group",
+    featured: false,
+    badge: "",
     price: usd(ORGANIZER_SEAT_USD),
-    unit: "per seat, once, for one event",
-    body: "Pay for one named event. You see who used a seat. People you pay for keep who they met. Unused seats stay with that event.",
+    unit: "per seat, once",
+    note: "Named event only. Unused seats stay there. Not a Team subscription.",
+    points: ["You see who used a seat", "They keep who they met", "Your matching is still Individual or the first event"],
     href: "/signup?for=group",
     action: "Set up a group",
-    featured: false,
+    order: "lg:order-1",
   },
   {
+    id: "plan-team",
+    audience: "Sales or BD, all year",
     name: "Team",
+    featured: false,
+    badge: "",
     price: usd(TEAM_SEAT_YEARLY_USD),
-    unit: `per seat / year, min ${TEAM_SEAT_MIN}`,
-    body: "Year-round seats for sales and BD. One hunt list. A nameless already-in-play signal. Not Group’s one-event seat.",
+    unit: "per seat / year",
+    note: `Or ${usd(TEAM_SEAT_MONTHLY_USD)} a month. Minimum ${TEAM_SEAT_MIN} seats — from ${usd(TEAM_YEARLY_FLOOR_USD)} a year.`,
+    points: ["One hunt list for the team", "Nameless already-in-play badge", "Admin sees seats, never contact names"],
     href: "/signup?for=team",
     action: "Set up a team",
-    featured: false,
+    order: "lg:order-3",
   },
+];
+
+const comparison = [
+  { feature: "Who it’s for", individual: "You, every event", group: "Payer, one named event", team: "Sales / BD, year-round" },
+  { feature: "Matching after the first event", individual: "On your account", group: "On that named event only", team: "On assigned seats, all year" },
+  { feature: "Who they met", individual: "Yours", group: "Theirs — you never see names", team: "Theirs — you never see names" },
+  { feature: "Company hunt", individual: "No", group: "No", team: "Yes, plus already-in-play" },
+  { feature: "How you pay", individual: `${usd(INDIVIDUAL_MONTHLY_USD)} / mo or ${usd(INDIVIDUAL_YEARLY_USD)} / yr`, group: `${usd(ORGANIZER_SEAT_USD)} once per seat`, team: `From ${usd(TEAM_YEARLY_FLOOR_USD)} / yr` },
 ];
 
 const landingGraph = {
@@ -155,10 +179,17 @@ const landingGraph = {
         },
         {
           "@type": "Offer",
+          name: "Individual yearly",
+          price: String(INDIVIDUAL_YEARLY_USD),
+          priceCurrency: "USD",
+          description: "Yearly after the first included event",
+        },
+        {
+          "@type": "Offer",
           name: "Team",
           price: String(TEAM_SEAT_YEARLY_USD),
           priceCurrency: "USD",
-          description: `Per seat per year, minimum ${TEAM_SEAT_MIN}`,
+          description: `Per seat per year or ${TEAM_SEAT_MONTHLY_USD} a month, minimum ${TEAM_SEAT_MIN} seats, from ${TEAM_YEARLY_FLOOR_USD} a year`,
         },
         {
           "@type": "Offer",
@@ -359,37 +390,90 @@ export default function LandingPage() {
 
         <section id="pricing" className="mx-auto max-w-6xl scroll-mt-24 px-5 py-8 lg:pb-6">
           <p className="kicker text-accent">Pricing</p>
-          <h2 className="serif mt-3 text-4xl leading-tight sm:text-5xl">Same prices here and at checkout.</h2>
-          <p className="mt-4 max-w-xl text-muted">
-            Your first event is included. Individual is for every event after that. Team is {usd(TEAM_SEAT_YEARLY_USD)} a seat for the year. Group seats are {usd(ORGANIZER_SEAT_USD)} once, for one named event.
+          <h2 className="serif mt-3 text-4xl leading-tight sm:text-5xl">Find the plan that matches how you work.</h2>
+          <p className="mt-4 max-w-2xl text-muted">
+            Matching on your first event is included. After that there are three paid ways — Individual, Group, or Team. Same numbers at checkout. Free is how you start, not a fourth column.
           </p>
-          <div className="mt-10 grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <ul className="mt-8 grid gap-3 sm:grid-cols-3">
+            {who.map((item) => (
+              <li key={item.href}>
+                <a
+                  href={item.href}
+                  className="flex min-h-12 items-center justify-between gap-3 rounded-full border border-line bg-card px-5 py-3 text-sm font-semibold transition hover:border-accent"
+                >
+                  <span>{item.label}</span>
+                  <span className="text-muted">{item.hint}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-10 grid items-stretch gap-4 lg:grid-cols-3">
             {plans.map((plan) => (
               <article
+                id={plan.id}
                 key={plan.name}
-                className={
+                className={`scroll-mt-28 ${plan.order} ${
                   plan.featured
                     ? "flex flex-col rounded-[1.6rem] bg-foreground p-6 text-card shadow-[0_24px_50px_rgb(40_28_12/0.18)] lg:-translate-y-2 lg:p-7"
                     : "surface flex flex-col p-6"
-                }
+                }`}
               >
-                {plan.featured ? <p className="kicker text-[#9ddec8]">Most people</p> : null}
-                <h3 className={`font-semibold ${plan.featured ? "mt-2" : ""}`}>{plan.name}</h3>
+                <p className={`kicker ${plan.featured ? "text-[#9ddec8]" : "text-accent"}`}>{plan.audience}</p>
+                {plan.badge ? <p className="mt-3 text-sm font-semibold text-[#9ddec8]">{plan.badge}</p> : null}
+                <h3 className={`font-semibold ${plan.badge ? "mt-1" : "mt-2"}`}>{plan.name}</h3>
                 <p className="serif mt-4 text-5xl leading-none">{plan.price}</p>
                 <p className={`mt-2 text-sm ${plan.featured ? "text-white/65" : "text-muted"}`}>{plan.unit}</p>
-                <p className={`mt-5 flex-1 text-sm leading-relaxed ${plan.featured ? "text-white/80" : "text-muted"}`}>{plan.body}</p>
+                <p className={`mt-5 text-sm leading-relaxed ${plan.featured ? "text-white/80" : "text-muted"}`}>{plan.note}</p>
+                <ul className={`mt-5 flex-1 space-y-2 text-sm ${plan.featured ? "text-white/80" : "text-muted"}`}>
+                  {plan.points.map((point) => (
+                    <li key={point}>{point}</li>
+                  ))}
+                </ul>
                 <Link
                   href={plan.href}
                   className={
                     plan.featured
-                      ? "mt-8 inline-flex justify-center rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-ink"
-                      : "mt-8 inline-flex justify-center rounded-full border border-line px-5 py-3 text-sm font-semibold"
+                      ? "mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-ink"
+                      : "mt-8 inline-flex min-h-12 items-center justify-center rounded-full border border-line px-5 py-3 text-sm font-semibold"
                   }
                 >
                   {plan.action}
                 </Link>
               </article>
             ))}
+          </div>
+          <div className="mt-12 overflow-x-auto">
+            <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
+              <caption className="sr-only">What differs between Individual, Group, and Team</caption>
+              <thead>
+                <tr className="border-b border-line">
+                  <th scope="col" className="py-3 pr-4 font-semibold">
+                    What differs
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-semibold">
+                    Individual
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-semibold">
+                    Group
+                  </th>
+                  <th scope="col" className="px-4 py-3 font-semibold">
+                    Team
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {comparison.map((row) => (
+                  <tr key={row.feature} className="border-b border-line">
+                    <th scope="row" className="py-3 pr-4 font-semibold">
+                      {row.feature}
+                    </th>
+                    <td className="px-4 py-3 text-muted">{row.individual}</td>
+                    <td className="px-4 py-3 text-muted">{row.group}</td>
+                    <td className="px-4 py-3 text-muted">{row.team}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
 
@@ -427,7 +511,7 @@ export default function LandingPage() {
             <div>
               <BrandLockup />
               <p className="mt-2 max-w-sm text-sm text-muted">
-                First event included. Individual is {usd(INDIVIDUAL_MONTHLY_USD)} a month. Team is {usd(TEAM_SEAT_YEARLY_USD)} a seat / year. Group seats are {usd(ORGANIZER_SEAT_USD)} each for one event.
+                First event included. Individual is {usd(INDIVIDUAL_MONTHLY_USD)} a month or {usd(INDIVIDUAL_YEARLY_USD)} a year. Team starts at {usd(TEAM_YEARLY_FLOOR_USD)} a year. Group seats are {usd(ORGANIZER_SEAT_USD)} once, for one event.
               </p>
             </div>
             <p className="text-sm">

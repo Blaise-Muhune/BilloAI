@@ -14,6 +14,7 @@ import { getUser, listEvents, listOrganizedEvents } from "@/lib/data";
 import {
   INDIVIDUAL_MONTHLY_USD,
   INDIVIDUAL_YEARLY_PER_MONTH_USD,
+  INDIVIDUAL_YEARLY_SAVINGS_USD,
   INDIVIDUAL_YEARLY_USD,
   ORGANIZER_SEAT_USD,
   SEAT_MAX,
@@ -22,6 +23,7 @@ import {
   TEAM_SEAT_MIN,
   TEAM_SEAT_MONTHLY_USD,
   TEAM_SEAT_YEARLY_USD,
+  TEAM_YEARLY_FLOOR_USD,
   clampSeats,
   clampTeamSeats,
   planLabel,
@@ -130,8 +132,8 @@ function BillingForm() {
           planStep === "organizer"
             ? `Group seats are ${usd(ORGANIZER_SEAT_USD)} each, once, for one named event. People you pay for keep who they met. Unused seats stay with this event. Your own matching is Individual, or your first event.`
             : planStep === "team"
-              ? `Team is ${usd(TEAM_SEAT_YEARLY_USD)} per seat per year, or ${usd(TEAM_SEAT_MONTHLY_USD)} a month. Minimum ${TEAM_SEAT_MIN} seats. This is not Group’s ${usd(ORGANIZER_SEAT_USD)} one-event seat.`
-              : `Your first event includes matching. After that, Individual is ${usd(INDIVIDUAL_MONTHLY_USD)} a month, or ${usd(INDIVIDUAL_YEARLY_USD)} a year. Team is ${usd(TEAM_SEAT_YEARLY_USD)} a seat for the year. Group seats are ${usd(ORGANIZER_SEAT_USD)} each for one event.`
+              ? `Team is ${usd(TEAM_SEAT_YEARLY_USD)} per seat per year, or ${usd(TEAM_SEAT_MONTHLY_USD)} a month. Minimum ${TEAM_SEAT_MIN} seats — from ${usd(TEAM_YEARLY_FLOOR_USD)} a year. This is not Group’s ${usd(ORGANIZER_SEAT_USD)} one-event seat.`
+              : `Your first event includes matching. After that, Individual is ${usd(INDIVIDUAL_MONTHLY_USD)} a month or ${usd(INDIVIDUAL_YEARLY_USD)} a year. Team starts at ${usd(TEAM_YEARLY_FLOOR_USD)} a year. Group seats are ${usd(ORGANIZER_SEAT_USD)} each for one event.`
         }
       />
       {pending ? <OverlayStatus label="Taking you to checkout" /> : null}
@@ -152,14 +154,18 @@ function BillingForm() {
       {error ? <ErrorNote>{error}</ErrorNote> : null}
       {ready && planStep === "choose" ? (
         <div className="grid gap-4 lg:grid-cols-3">
-          <button type="button" className="surface p-7 text-left transition hover:bg-[#f7f3ea]" onClick={() => setPlanStep("individual")}>
-            <span className="kicker">For you, every event</span>
+          <button
+            type="button"
+            className="rounded-[1.6rem] bg-foreground p-7 text-left text-card shadow-[0_24px_50px_rgb(40_28_12/0.18)] transition hover:opacity-95"
+            onClick={() => setPlanStep("individual")}
+          >
+            <span className="kicker text-[#9ddec8]">Most people · every event</span>
             <span className="mt-3 block font-semibold">Individual</span>
             <span className="serif mt-3 block text-5xl">{usd(INDIVIDUAL_MONTHLY_USD)}</span>
-            <span className="mt-2 block text-sm text-muted">
-              per month after your first event. Or {usd(INDIVIDUAL_YEARLY_USD)} a year.
+            <span className="mt-2 block text-sm text-white/65">
+              a month after your first event. Or {usd(INDIVIDUAL_YEARLY_USD)} a year — save {usd(INDIVIDUAL_YEARLY_SAVINGS_USD)}.
             </span>
-            <span className="mt-6 block text-sm font-semibold text-accent">Choose Individual</span>
+            <span className="mt-6 block text-sm font-semibold text-[#9ddec8]">Choose Individual</span>
           </button>
           <button
             type="button"
@@ -169,18 +175,18 @@ function BillingForm() {
               setSeatStep(events.length <= 1 ? 1 : 0);
             }}
           >
-            <span className="kicker">For one event</span>
+            <span className="kicker">Pay for people, one event</span>
             <span className="mt-3 block font-semibold">Group seats</span>
             <span className="serif mt-3 block text-5xl">{usd(ORGANIZER_SEAT_USD)}</span>
-            <span className="mt-2 block text-sm text-muted">per seat, once, for that event. They keep who they met. You see who used a seat.</span>
+            <span className="mt-2 block text-sm text-muted">per seat, once, for that event. They keep who they met. You see who used a seat. Not Team.</span>
             <span className="mt-6 block text-sm font-semibold text-accent">Choose group seats</span>
           </button>
           <button type="button" className="surface p-7 text-left transition hover:bg-[#f7f3ea]" onClick={() => setPlanStep("team")}>
-            <span className="kicker">For sales, every event</span>
+            <span className="kicker">Sales or BD, all year</span>
             <span className="mt-3 block font-semibold">Team</span>
             <span className="serif mt-3 block text-5xl">{usd(TEAM_SEAT_YEARLY_USD)}</span>
             <span className="mt-2 block text-sm text-muted">
-              per seat per year. Minimum {TEAM_SEAT_MIN}. Or {usd(TEAM_SEAT_MONTHLY_USD)} a month. Not Group’s one-event seat.
+              per seat / year, or {usd(TEAM_SEAT_MONTHLY_USD)} a month. From {usd(TEAM_YEARLY_FLOOR_USD)} a year at {TEAM_SEAT_MIN} seats. Not Group’s one-event seat.
             </span>
             <span className="mt-6 block text-sm font-semibold text-accent">Choose Team</span>
           </button>
@@ -198,7 +204,9 @@ function BillingForm() {
             </button>
             <button type="button" className={`rounded-2xl border px-4 py-4 text-left ${interval === "year" ? "border-accent bg-white" : "border-line"}`} onClick={() => setInterval("year")}>
               <span className="block font-semibold">{usd(INDIVIDUAL_YEARLY_USD)} a year</span>
-              <span className="text-sm text-muted">{usd(INDIVIDUAL_YEARLY_PER_MONTH_USD)} a month if you pay the year</span>
+              <span className="text-sm text-muted">
+                {usd(INDIVIDUAL_YEARLY_PER_MONTH_USD)} a month if you pay the year. Save {usd(INDIVIDUAL_YEARLY_SAVINGS_USD)}.
+              </span>
             </button>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -224,6 +232,9 @@ function BillingForm() {
               onClick={() => setTeamInterval("year")}
             >
               <span className="block font-semibold">{usd(TEAM_SEAT_YEARLY_USD)} a seat / year</span>
+              <span className="text-sm text-muted">
+                From {usd(TEAM_YEARLY_FLOOR_USD)} a year at {TEAM_SEAT_MIN} seats
+              </span>
             </button>
             <button
               type="button"
@@ -248,7 +259,7 @@ function BillingForm() {
             </span>
           </p>
           <ul className="space-y-2 text-sm text-muted">
-            <li>Minimum {TEAM_SEAT_MIN} seats. Move a seat when someone leaves.</li>
+            <li>Minimum {TEAM_SEAT_MIN} seats — from {usd(TEAM_YEARLY_FLOOR_USD)} a year. Move a seat when someone leaves.</li>
             <li>You see who has a seat. You never see who they met, notes, or drafts.</li>
             <li>Group $6 seats stay a separate checkout for one named event.</li>
           </ul>

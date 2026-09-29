@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BrandLockup } from "@/components/brand";
 import { SupportLink } from "@/components/support";
-import { ORGANIZER_SEAT_USD, usd } from "@/lib/pricing";
+import { ORGANIZER_SEAT_USD, TEAM_SEAT_YEARLY_USD, TEAM_YEARLY_FLOOR_USD, usd } from "@/lib/pricing";
 import { JsonLd } from "@/components/json-ld";
 import { SkipLink } from "@/components/skip-link";
 import { breadcrumbJsonLd, pageMeta } from "@/lib/seo";
@@ -99,7 +99,11 @@ export default function ForOrganizersPage() {
               <Link href="/login?for=group" className="font-semibold text-accent">
                 Sign in, then switch to Group
               </Link>
-              .
+              . Sales going every month?{" "}
+              <Link href="/for-teams" className="font-semibold text-accent">
+                Team is year-round, from {usd(TEAM_YEARLY_FLOOR_USD)} a year
+              </Link>
+              — not these one-event seats.
             </p>
           </div>
 
@@ -195,7 +199,7 @@ export default function ForOrganizersPage() {
             <div>
               <BrandLockup />
               <p className="mt-2 max-w-sm text-sm text-muted">
-                Group seats are {usd(ORGANIZER_SEAT_USD)} each, once, for one event. You do not get a list of their contacts.
+                Group seats are {usd(ORGANIZER_SEAT_USD)} each, once, for one event. You do not get a list of their contacts. Team is {usd(TEAM_SEAT_YEARLY_USD)} a seat / year.
               </p>
             </div>
             <p className="text-sm">

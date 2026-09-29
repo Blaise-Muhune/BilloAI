@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BrandLockup } from "@/components/brand";
 import { SupportLink } from "@/components/support";
-import { ORGANIZER_SEAT_USD, TEAM_SEAT_MIN, TEAM_SEAT_MONTHLY_USD, TEAM_SEAT_YEARLY_USD, usd } from "@/lib/pricing";
+import { ORGANIZER_SEAT_USD, TEAM_SEAT_MIN, TEAM_SEAT_MONTHLY_USD, TEAM_SEAT_YEARLY_USD, TEAM_YEARLY_FLOOR_USD, usd } from "@/lib/pricing";
 import { JsonLd } from "@/components/json-ld";
 import { SkipLink } from "@/components/skip-link";
 import { breadcrumbJsonLd, pageMeta } from "@/lib/seo";
@@ -24,7 +24,7 @@ const chapters = [
   {
     n: "01",
     title: "Pay by the seat",
-    body: `${usd(TEAM_SEAT_YEARLY_USD)} per seat per year, or ${usd(TEAM_SEAT_MONTHLY_USD)} a month. Minimum ${TEAM_SEAT_MIN}. One bill. Move a seat when someone leaves. This is not the ${usd(ORGANIZER_SEAT_USD)} Group seat for one event.`,
+    body: `${usd(TEAM_SEAT_YEARLY_USD)} per seat per year, or ${usd(TEAM_SEAT_MONTHLY_USD)} a month. Minimum ${TEAM_SEAT_MIN} — from ${usd(TEAM_YEARLY_FLOOR_USD)} a year. One bill. Move a seat when someone leaves. This is not the ${usd(ORGANIZER_SEAT_USD)} Group seat for one event.`,
   },
   {
     n: "02",
@@ -82,11 +82,11 @@ export default function ForTeamsPage() {
             </p>
             <div className="mt-9">
               <Link href="/signup?for=team" className="inline-flex rounded-full bg-accent px-7 py-3.5 text-base font-semibold text-accent-ink shadow-[0_10px_28px_rgb(11_107_79/0.28)]">
-                Start Team at {usd(TEAM_SEAT_YEARLY_USD)} a seat
+                Start Team at {usd(TEAM_SEAT_YEARLY_USD)} a seat / year
               </Link>
             </div>
             <p className="mt-5 text-sm text-muted">
-              Paying for one mixer?{" "}
+              From {usd(TEAM_YEARLY_FLOOR_USD)} a year at {TEAM_SEAT_MIN} seats, or {usd(TEAM_SEAT_MONTHLY_USD)} a seat / month. Paying for one mixer?{" "}
               <Link href="/for-organizers" className="font-semibold text-accent">
                 Group seats are {usd(ORGANIZER_SEAT_USD)} once, for that event
               </Link>
@@ -126,7 +126,7 @@ export default function ForTeamsPage() {
           <div className="flex max-w-2xl flex-col items-start">
             <h2 className="serif text-4xl leading-[1.1] sm:text-5xl">Pay for the year. Stay out of their notebooks.</h2>
             <p className="mt-5 text-lg leading-relaxed text-muted">
-              {usd(TEAM_SEAT_YEARLY_USD)} a seat, minimum {TEAM_SEAT_MIN}. Same price here and at checkout. Revoking a seat does not delete their book.
+              {usd(TEAM_SEAT_YEARLY_USD)} a seat / year, or {usd(TEAM_SEAT_MONTHLY_USD)} a month. From {usd(TEAM_YEARLY_FLOOR_USD)} a year at {TEAM_SEAT_MIN} seats. Same price here and at checkout. Revoking a seat does not delete their book.
             </p>
             <Link
               href="/signup?for=team"
@@ -142,7 +142,7 @@ export default function ForTeamsPage() {
             <div>
               <BrandLockup />
               <p className="mt-2 max-w-sm text-sm text-muted">
-                Team is {usd(TEAM_SEAT_YEARLY_USD)} per seat per year. Group seats stay a separate product.
+                Team is {usd(TEAM_SEAT_YEARLY_USD)} per seat per year, or {usd(TEAM_SEAT_MONTHLY_USD)} a month, from {usd(TEAM_YEARLY_FLOOR_USD)} a year. Group seats stay a separate product.
               </p>
             </div>
             <p className="text-sm">

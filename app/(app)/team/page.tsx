@@ -9,7 +9,7 @@ import { SeatRoster } from "@/components/seat-roster";
 import { Area, Button, Empty, ErrorNote, Field, PageHeader, PageWrap } from "@/components/ui";
 import { getJson, patchJson, postJson } from "@/lib/api";
 import { userMessage } from "@/lib/errors";
-import { TEAM_SEAT_MIN, TEAM_SEAT_YEARLY_USD, usd } from "@/lib/pricing";
+import { TEAM_SEAT_MIN, TEAM_SEAT_MONTHLY_USD, TEAM_SEAT_YEARLY_USD, TEAM_YEARLY_FLOOR_USD, usd } from "@/lib/pricing";
 import type { SeatPerson, TeamSeatStatus } from "@/lib/types";
 import { invitePath, teamBillingHref, teamCopy } from "@/lib/workspace";
 
@@ -154,7 +154,7 @@ function TeamOverview() {
       {ready && !data?.team ? (
         <Empty
           title="No Team seats yet"
-          body={`${usd(TEAM_SEAT_YEARLY_USD)} per seat per year. Minimum ${TEAM_SEAT_MIN} seats. Group $6 seats are a different product.`}
+          body={`${usd(TEAM_SEAT_YEARLY_USD)} a seat / year or ${usd(TEAM_SEAT_MONTHLY_USD)} a month. From ${usd(TEAM_YEARLY_FLOOR_USD)} a year at ${TEAM_SEAT_MIN} seats. Group $6 seats are a different product.`}
           href={teamBillingHref()}
           action="Pay for Team seats"
         />
