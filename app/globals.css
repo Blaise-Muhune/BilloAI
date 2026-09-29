@@ -29,12 +29,24 @@
   --font-serif: var(--font-fraunces);
 }
 
+html {
+  overflow-x: clip;
+}
+
 body {
+  overflow-x: clip;
+  min-width: 0;
   background:
     radial-gradient(1200px 500px at 50% -180px, rgb(11 107 79 / 0.12), transparent 60%),
     var(--background);
   color: var(--foreground);
   font-family: var(--font-sans-ui), "Segoe UI", sans-serif;
+}
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
 }
 
 .landing-shell {
@@ -88,8 +100,14 @@ summary {
 
 .page-wrap {
   width: 100%;
+  min-width: 0;
   max-width: 88rem;
   margin-inline: auto;
+}
+
+.break-long {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .form-grid {
@@ -127,6 +145,30 @@ summary {
   background:
     radial-gradient(48rem 28rem at 100% 0%, rgb(11 107 79 / 0.08), transparent 55%),
     var(--background);
+}
+
+.night-capture {
+  --card: #221e18;
+  --line: #3a342a;
+  --muted: #c4b8a8;
+  --shadow: 0 10px 30px rgb(0 0 0 / 0.28);
+  color: #f4efe6;
+}
+
+.night-capture .surface {
+  background: #221e18;
+  color: #f4efe6;
+}
+
+.night-capture .field-control {
+  background: #16130f;
+  color: #f4efe6;
+  border-color: #3a342a;
+}
+
+.night-capture .kicker,
+.night-capture .text-muted {
+  color: #c4b8a8;
 }
 
 .preview-pane {

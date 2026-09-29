@@ -1,6 +1,7 @@
 "use client";
 
 import { sendEmailVerification, signOut } from "firebase/auth";
+import { authEmailSettings } from "@/lib/auth-email";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
@@ -17,10 +18,12 @@ import {
   groupCopy,
   groupKindFromIntent,
   isGroupIntent,
+  isTeamIntent,
   persistAuthContext,
   readJoinCode,
   readJoinFrom,
   readStoredIntent,
+  teamCopy,
 } from "@/lib/workspace";
 
 const steps = ["Welcome", "Your card", "First event", "Stay connected", "Email"] as const;
@@ -38,6 +41,7 @@ function OnboardingFlow() {
   const router = useRouter();
   const params = useSearchParams();
   const [group, setGroup] = useState(isGroupIntent(params.get("for")));
+  const [team, setTeam] = useState(isTeamIntent(params.get("for")));
   const [kind, setKind] = useState<GroupKind | "">(groupKindFromIntent(params.get("for")));
   const [invited, setInvited] = useState(params.get("join") === "1" || Boolean(params.get("code")));
   const [step, setStep] = useState(0);
@@ -63,6 +67,9 @@ function OnboardingFlow() {
 
   useEffect(() => {
     persistAuthContext({ for: params.get("for"), code: params.get("code"), from: params.get("from") });
+    if (isTeamIntent(readStoredIntent()) || params.get("from") === "team") {
+      setTeam(true);
+    }
     if (isGroupIntent(readStoredIntent())) {
       setGroup(true);
       setKind(groupKindFromIntent(readStoredIntent()) || readJoinFrom());
@@ -76,7 +83,15 @@ function OnboardingFlow() {
     void (async () => {
       const [account, card] = await Promise.all([getUser(user.uid), getPublicProfile(user.uid)]);
       if (account?.onboardedAt) {
-        router.replace(group || isGroupIntent(readStoredIntent()) ? "/group" : invited || readJoinCode() ? `/join?code=${readJoinCode()}` : "/home");
+        router.replace(
+          team || isTeamIntent(readStoredIntent())
+            ? "/team"
+            : group || isGroupIntent(readStoredIntent())
+              ? "/group"
+              : invited || readJoinCode()
+                ? `/join?code=${readJoinCode()}`
+                : "/home",
+        );
         return;
       }
       setProfile({
@@ -89,21 +104,22 @@ function OnboardingFlow() {
       });
       if (user.emailVerified) setStep((current) => (current === 4 ? 3 : current));
     })();
-  }, [user, router, group, invited]);
+  }, [user, router, group, team, invited]);
 
   async function finish(nextHref: string) {
     if (!user) return;
     setPending(true);
     setError("");
     try {
+      if (team && !invited) await saveWorkspace(user.uid, "team");
       if (group && !invited) await saveWorkspace(user.uid, "group", kind || undefined);
       const code = readJoinCode() || params.get("code")?.trim().toLowerCase() || "";
       if (code) {
         try {
-          const result = await postJson<{ eventId: string }>("/api/join", { code });
+          const result = await postJson<{ eventId?: string; team?: boolean }>("/api/join", { code });
           clearJoinCode();
           await markOnboarded(user.uid);
-          router.replace(`/capture?event=${result.eventId}`);
+          router.replace(result.team ? "/home" : `/capture?event=${result.eventId}`);
           return;
         } catch {
           await markOnboarded(user.uid);
@@ -131,6 +147,11 @@ function OnboardingFlow() {
       await savePublicProfile(user.uid, profile);
       if (invited) {
         if (user.emailVerified) await finish("/home");
+        else setStep(4);
+        return;
+      }
+      if (team) {
+        if (user.emailVerified) await finish("/billing?plan=team");
         else setStep(4);
         return;
       }
@@ -184,13 +205,18 @@ function OnboardingFlow() {
   }
 
   const last = user?.emailVerified ? 3 : 4;
-  const copy = groupCopy(kind);
+  const copy = team ? teamCopy() : groupCopy(kind);
   const welcomeItems = invited
     ? [
         { n: "1", title: "Your card", body: "Name, company, and title. This is the only thing another user can scan." },
         { n: "2", title: "Join what they paid for", body: copy.joinBody },
       ]
-    : group
+    : team
+      ? [
+          { n: "1", title: "Who you are", body: "Your name on the account. People you pay for never see your private notes." },
+          { n: "2", title: "Seats for the year", body: "Pay for at least five seats, then invite emails and set the company hunt." },
+        ]
+      : group
       ? [
           { n: "1", title: "Who you are", body: "Your name on the account. People you pay for never see your private notes." },
           { n: "2", title: "The event", body: "Seats attach to this event. Then you pay once and share the join link." },
@@ -234,16 +260,18 @@ function OnboardingFlow() {
           {step === 0 ? (
             <section className="flex flex-1 flex-col">
               <h1 className="serif max-w-3xl text-4xl leading-[1.08] sm:text-5xl xl:text-[3.35rem]">
-                {invited ? copy.joinTitle : group ? "Set up the group you are paying for." : "Set up BilloAI before the room gets loud."}
+                {invited ? copy.joinTitle : team ? "Set up the team you are paying for." : group ? "Set up the group you are paying for." : "Set up BilloAI before the room gets loud."}
               </h1>
               <p className="mt-4 max-w-2xl text-lg text-muted">
                 {invited
                   ? copy.joinBody
-                  : group
+                  : team
+                    ? "Pay for year-round seats, then set the hunt. You will not see who they meet — only coverage counts and a company-level already-in-play signal."
+                    : group
                     ? "Name the event, then buy seats for that event. You get a join link. You will not see who they meet."
                     : "Four short steps. After this you’ll know who from the event is worth staying connected to."}
               </p>
-              <ol className={`mt-10 grid gap-4 ${group || invited ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
+              <ol className={`mt-10 grid gap-4 ${group || team || invited ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
                 {welcomeItems.map((item, index) => (
                   <li
                     key={item.n}
@@ -430,7 +458,9 @@ function OnboardingFlow() {
             <section className="max-w-xl space-y-5">
               <h1 className="serif text-4xl xl:text-5xl">Verify your email</h1>
               <p className="text-muted">
-                {group
+                {team
+                  ? `Verify ${user?.email || "your email"} so you can pay for Team seats.`
+                  : group
                   ? `Verify ${user?.email || "your email"} so you can pay for seats.`
                   : invited
                     ? `Verify ${user?.email || "your email"}, then you will join what they set up for you.`
@@ -442,13 +472,13 @@ function OnboardingFlow() {
                   tone="ghost"
                   onClick={() => {
                     if (!user) return;
-                    void sendEmailVerification(user).then(() => setSent(true));
+                    void sendEmailVerification(user, authEmailSettings("/onboarding")).then(() => setSent(true));
                   }}
                 >
                   {sent ? "Verification email sent" : "Send verification email"}
                 </Button>
-                <Button type="button" busy={pending} onClick={() => void finish(group ? (eventId ? `/billing?plan=organizer&event=${eventId}` : "/billing?plan=organizer") : eventId ? `/capture?event=${eventId}` : "/capture")}>
-                  {pending ? "Finishing…" : group ? "Go pay for seats" : invited ? "Join" : "Add someone you met"}
+                <Button type="button" busy={pending} onClick={() => void finish(team ? "/billing?plan=team" : group ? (eventId ? `/billing?plan=organizer&event=${eventId}` : "/billing?plan=organizer") : eventId ? `/capture?event=${eventId}` : "/capture")}>
+                  {pending ? "Finishing…" : team ? "Go pay for Team seats" : group ? "Go pay for seats" : invited ? "Join" : "Add someone you met"}
                 </Button>
               </div>
             </section>
@@ -476,11 +506,13 @@ function OnboardingFlow() {
           </div>
         </div>
         <p className="max-w-sm text-sm leading-relaxed text-white/55">
-          {group
-            ? "You will see counts. You will not see their contacts, notes, or drafts."
-            : invited
-              ? copy.neverSee
-              : "Notes stay private. The card is the only thing another BilloAI user can scan."}
+          {team
+            ? "You will see who has a seat. You will not see their contacts, notes, or drafts."
+            : group
+              ? "You will see who used a seat. You will not see their contacts, notes, or drafts."
+              : invited
+                ? copy.neverSee
+                : "Notes stay private. The card is the only thing another BilloAI user can scan."}
         </p>
       </aside>
     </div>

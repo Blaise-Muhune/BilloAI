@@ -2,7 +2,10 @@ import { generateText, Output, stepCountIs, transcribe } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { addDays, todayISO } from "@/lib/dates";
+import { CHANNEL_DRAFT_RULES, FIT_RULES } from "@/lib/ai/fit-rules";
 import { scoreWithJev } from "@/lib/ai/jev";
+import { clampChannel } from "@/lib/channels";
+import { asHref } from "@/lib/links";
 import { clampRelevance, hasConversationEvidence, hasVerifiedPublic, shouldLookupPublic } from "@/lib/relevance";
 import type {
   ContactFields,
@@ -54,6 +57,7 @@ const relevanceSchema = z.object({
   suggestedAction: z.string(),
   opportunityType: z.string(),
   skipFollowUp: z.boolean(),
+  recommendedChannel: z.enum(["email", "linkedin", "text", "call", "intro"]).optional(),
 });
 
 const draftSchema = z.object({
@@ -76,15 +80,48 @@ const emptyEnrichment = (): Enrichment => ({
   unavailable: true,
 });
 
-function goalText(event: EventInput) {
+type TeamHunt = { icp: string; targetCompanies: string[]; targetRoles: string };
+
+function goalText(event: EventInput, team?: TeamHunt | null) {
+  const companies = team?.targetCompanies.filter(Boolean).join(", ") ?? "";
   return [
     `Event: ${event.name} (${event.type}) in ${event.location} on ${event.date}.`,
     `Success looks like: ${event.goal}. ${event.goalDetail}`,
     `People they want to meet: ${event.targetPeople}`,
     event.targetCompaniesOrRoles ? `Target companies or roles: ${event.targetCompaniesOrRoles}` : "",
+    team?.icp ? `Company hunt (team ICP): ${team.icp}` : "",
+    companies ? `Team target companies: ${companies}` : "",
+    team?.targetRoles ? `Team target roles: ${team.targetRoles}` : "",
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+export async function lookupFromLink(input: string): Promise<ContactFields> {
+  const href = asHref(input);
+  const search = await generateText({
+    model: openai.responses("gpt-4.1"),
+    tools: { web_search: openai.tools.webSearch({}) },
+    stopWhen: stepCountIs(4),
+    prompt: `This is a public professional page or profile URL. Find only public professional identity. Do not look for private, family, health, or home details.
+URL or page: ${href}
+Prefer the page itself, LinkedIn, and the official company site.
+Extract the person's name, current title, company, public work email if shown, LinkedIn URL, website, and city if public.
+If this is a company page and not a person, fill company and website only. Do not invent a person, email, or phone.
+If a field is not on a public page, say it was not found.`,
+  });
+  const structured = await generateText({
+    model,
+    output: Output.object({ schema: contactSchema }),
+    prompt: `Turn this research into contact fields. Use an empty string when a fact was not found. Do not invent emails, phones, or titles. Put a LinkedIn URL in linkedin and a site in website.\n\nThe original input was: ${href}\n\n${search.text}`,
+  });
+  const next = withFields(structured.output);
+  if (href.toLowerCase().includes("linkedin.com")) {
+    next.linkedin = next.linkedin || href;
+  } else {
+    next.website = next.website || href;
+  }
+  return next;
 }
 
 export async function extractCard(image: string): Promise<ContactFields> {
@@ -123,7 +160,7 @@ async function structureNote(rawNote: string): Promise<StructuredNote> {
   const result = await generateText({
     model,
     output: Output.object({ schema: noteSchema }),
-    prompt: `Structure this networking note. Leave a field empty if it was not said. Do not invent details.\n\n${rawNote}`,
+    prompt: `Structure this networking note. Leave a field empty if it was not said. Do not invent details. If they offered to introduce a colleague or named someone on another team, put that in opportunity.\n\n${rawNote}`,
   });
   return result.output;
 }
@@ -182,6 +219,7 @@ export async function understand(input: {
   contact: ContactFields;
   rawNote: string;
   allowPublicLookup?: boolean;
+  teamHunt?: TeamHunt | null;
 }): Promise<UnderstandResult> {
   const contact = withFields(input.contact);
   const [structuredNote, enrichment] = await Promise.all([
@@ -195,6 +233,7 @@ export async function understand(input: {
     rawNote: input.rawNote,
     structuredNote,
     enrichment,
+    teamHunt: input.teamHunt,
   }).catch(() => null);
 
   const scored = await generateText({
@@ -203,25 +242,24 @@ export async function understand(input: {
       schema: z.object({ relevance: relevanceSchema, draft: draftSchema }),
     }),
     prompt: `You help a person decide who deserves follow-up time after a networking event. Do not give false hope.
+${FIT_RULES}
 ${
   jev
     ? `The fit decision is already locked: level=${jev.level}, skipFollowUp=${jev.skipFollowUp}. Do not change those fields. Write reasons, opportunityType, suggestedAction, and the draft to match that decision.`
     : `Compare the contact and any verified public context with the user's goal.
-High only if they clearly buy, fund, partner, hire, or introduce toward that goal AND you can cite a conversation fact or a verified public page. A title on a card is not enough for High.
-Medium if there is a real but weaker overlap and at least one cited fact.
-Low if the overlap is thin. Low may say do not follow up.
 unknown if there is no conversation note and no verified public page, or the identity is uncertain. Never upgrade unknown to High.
 skipFollowUp is true for unknown, and for Low when a message is not worth sending.`
 }
-opportunityType in plain words. Examples: "Buyer for plant automation" or "Not a fit — recruiter, not an operator" or "Not enough to say".
-Reasons must cite the goal plus a conversation fact or a public source URL that was found. Do not invent private facts. Do not invent company facts when enrichment is unavailable.
-Suggested action must be honest. If skipFollowUp, say do not follow up and why.
+opportunityType in plain words. Examples: "Buyer for plant automation" or "Intro path — plant ops to OT at a mid-size supplier" or "Not a fit — recruiter, not an operator" or "Company only — no path" or "Not enough to say".
+Reasons must cite the goal plus a conversation fact or a public source URL that was found. Name the path in plain words (buyer, investor, intro, company only). Do not invent private facts, departments, or checks.
+Suggested action must start with the recommended action: "Email them…", "Send a LinkedIn note…", "Text them…", "Call as they asked…", "Ask for an intro to…", or "Do not follow up…".
+recommendedChannel must match that action. If skipFollowUp, omit it.
 If skipFollowUp or level is unknown, set draft.body to an empty string. Otherwise draft a follow-up the user will review. Never claim it was already sent.
 If the note contains a date, set dueDate to YYYY-MM-DD. Otherwise use ${todayISO()} for high and ${addDays(todayISO(), 7)} otherwise.
-Primary channel should be email when an email exists, intro when they are not the decision maker, otherwise linkedin.
+draft.channel must be the same as recommendedChannel. Do not pick email without an email, text or call without a phone or WhatsApp, or intro unless the intro path is real.
 
 User goal:
-${goalText(input.event)}
+${goalText(input.event, input.teamHunt)}
 
 Contact:
 ${JSON.stringify(contact)}
@@ -244,15 +282,19 @@ ${JSON.stringify(enrichment)}`,
     structuredNote,
     enrichment,
   );
-  const draft =
-    relevance.skipFollowUp || relevance.level === "unknown"
-      ? { ...scored.output.draft, body: "", title: relevance.suggestedAction }
-      : scored.output.draft;
+  const skip = relevance.skipFollowUp || relevance.level === "unknown";
+  const channel = skip ? scored.output.draft.channel : clampChannel(contact, scored.output.draft.channel);
+  const draft = skip
+    ? { ...scored.output.draft, body: "", title: relevance.suggestedAction, channel }
+    : { ...scored.output.draft, channel };
+  const nextRelevance = skip
+    ? { ...relevance, recommendedChannel: undefined }
+    : { ...relevance, recommendedChannel: channel };
 
   return {
     structuredNote,
     enrichment,
-    relevance,
+    relevance: nextRelevance,
     draft,
   };
 }
@@ -274,7 +316,7 @@ export async function draftChannel(input: {
     output: Output.object({ schema: draftSchema }),
     prompt: `Write one ${input.channel} follow-up the user will copy and send themselves. Do not say the message was already sent.
 If there is no conversation and no verified public fact, return an empty body. Do not invent a relationship.
-Channel guidance: email is a short email, linkedin is a short connection note, text is one or two sentences, call is a reminder of what to say, intro asks this person to introduce the user to the right colleague.
+${CHANNEL_DRAFT_RULES}
 Use the conversation and only public facts that exist. If a fact is missing, leave it out.
 
 Goal:

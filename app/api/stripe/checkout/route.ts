@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
 import { adminDb, sessionFromRequest } from "@/lib/firebase/admin";
-import { clampSeats, SEAT_MAX, SEAT_MIN } from "@/lib/pricing";
+import { clampSeats, clampTeamSeats, SEAT_MAX, SEAT_MIN, TEAM_SEAT_MAX, TEAM_SEAT_MIN } from "@/lib/pricing";
 import { appOrigin, integrationId, stripeClient } from "@/lib/stripe";
+import { joinCode, teamByAdmin } from "@/lib/team";
 
 export const runtime = "nodejs";
-
-function joinCode() {
-  return crypto.randomUUID().replace(/-/g, "").slice(0, 8);
-}
 
 export async function POST(request: Request) {
   const session = await sessionFromRequest(request);
@@ -17,12 +14,12 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json()) as {
-    plan?: "individual" | "organizer";
+    plan?: "individual" | "organizer" | "team";
     interval?: "month" | "year";
     eventId?: string;
     seats?: number;
   };
-  if (body.plan !== "individual" && body.plan !== "organizer") {
+  if (body.plan !== "individual" && body.plan !== "organizer" && body.plan !== "team") {
     return NextResponse.json({ error: "Choose a plan." }, { status: 400 });
   }
 
@@ -32,6 +29,7 @@ export async function POST(request: Request) {
     const user = await userRef.get();
     const customerId = String(user.data()?.stripeCustomerId ?? "");
     let organizedEventId = "";
+    let teamId = "";
 
     if (body.plan === "organizer") {
       const seats = Number(body.seats);
@@ -79,36 +77,78 @@ export async function POST(request: Request) {
       }
     }
 
+    if (body.plan === "team") {
+      if (user.data()?.plan === "team" && user.data()?.subscriptionStatus === "active") {
+        return NextResponse.json({ error: "Change the seat count in Manage billing. Do not start a second Team checkout." }, { status: 400 });
+      }
+      const seats = Number(body.seats);
+      if (!Number.isFinite(seats) || seats < TEAM_SEAT_MIN || seats > TEAM_SEAT_MAX) {
+        return NextResponse.json({ error: `Team seats start at ${TEAM_SEAT_MIN}.` }, { status: 400 });
+      }
+      const existing = await teamByAdmin(session.uid);
+      if (existing) {
+        teamId = existing.id;
+      } else {
+        const created = await adminDb().collection("teams").add({
+          adminUid: session.uid,
+          name: String(user.data()?.name || "Team"),
+          seatLimit: 0,
+          stripeCustomerId: customerId,
+          icp: "",
+          targetCompanies: [],
+          targetRoles: "",
+          joinCode: joinCode(),
+          createdAt: new Date().toISOString(),
+        });
+        teamId = created.id;
+      }
+    }
+
     const price =
       body.plan === "individual"
         ? body.interval === "year"
           ? process.env.STRIPE_PRICE_INDIVIDUAL_YEARLY
           : process.env.STRIPE_PRICE_INDIVIDUAL
-        : process.env.STRIPE_PRICE_ORGANIZER;
+        : body.plan === "team"
+          ? body.interval === "month"
+            ? process.env.STRIPE_PRICE_TEAM_MONTHLY
+            : process.env.STRIPE_PRICE_TEAM_YEARLY
+          : process.env.STRIPE_PRICE_ORGANIZER;
     if (!price) return NextResponse.json({ error: "Stripe prices are not configured yet." }, { status: 500 });
 
     const origin = appOrigin(request);
-    const quantity = body.plan === "organizer" ? clampSeats(Number(body.seats)) : 1;
+    const quantity =
+      body.plan === "organizer"
+        ? clampSeats(Number(body.seats))
+        : body.plan === "team"
+          ? clampTeamSeats(Number(body.seats))
+          : 1;
     const checkout = await stripe.checkout.sessions.create({
       mode: body.plan === "organizer" ? "payment" : "subscription",
       client_reference_id: session.uid,
       customer: customerId || undefined,
       customer_email: customerId ? undefined : session.email,
-      customer_update: customerId ? { address: "auto" } : undefined,
-      billing_address_collection: customerId ? "required" : undefined,
+      customer_update: customerId ? { address: "auto", name: "auto" } : undefined,
+      billing_address_collection: "required",
       automatic_tax: { enabled: true },
       line_items: [{ price, quantity }],
-      success_url: body.plan === "organizer" ? `${origin}/group?status=success` : `${origin}/billing?status=success`,
+      success_url:
+        body.plan === "organizer"
+          ? `${origin}/group?status=success`
+          : body.plan === "team"
+            ? `${origin}/team?status=success`
+            : `${origin}/billing?status=success`,
       cancel_url: `${origin}/billing?status=cancel`,
       metadata: {
         uid: session.uid,
         plan: body.plan,
         organizedEventId,
+        teamId,
         seats: String(quantity),
       },
       subscription_data:
-        body.plan === "individual"
-          ? { metadata: { uid: session.uid, plan: body.plan } }
+        body.plan === "individual" || body.plan === "team"
+          ? { metadata: { uid: session.uid, plan: body.plan, teamId } }
           : undefined,
       integration_identifier: integrationId("billoai_checkout"),
     });

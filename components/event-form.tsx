@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button, Field, Area, PageWrap, SelectField, Steps } from "@/components/ui";
+import { clampSeats, ORGANIZER_SEAT_USD, SEAT_MAX, SEAT_MIN, seatsPrice, usd } from "@/lib/pricing";
 import { GOAL_LABELS, NETWORKING_GOALS, type EventInput, type NetworkingGoal } from "@/lib/types";
 
 const empty: EventInput = {
@@ -21,15 +22,17 @@ export function EventForm({
   onSave,
   variant = "network",
 }: {
-  onSave: (input: EventInput) => Promise<void>;
+  onSave: (input: EventInput, extras?: { seats?: number }) => Promise<void>;
   variant?: "network" | "seats";
 }) {
   const seats = variant === "seats";
-  const last = seats ? 1 : 3;
+  const last = seats ? 0 : 3;
   const [input, setInput] = useState<EventInput>(empty);
   const [step, setStep] = useState(0);
+  const [seatCount, setSeatCount] = useState(25);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
+  const paying = clampSeats(seatCount);
 
   function set<K extends keyof EventInput>(key: K, value: EventInput[K]) {
     setInput((current) => ({ ...current, [key]: value }));
@@ -66,6 +69,10 @@ export function EventForm({
       setError("Say who you want to meet.");
       return;
     }
+    if (seats && (!input.name.trim() || !input.type.trim() || !input.location.trim() || !input.date)) {
+      setError("Name the event, what kind it is, where, and the date — then pay on this screen.");
+      return;
+    }
     setPending(true);
     setError("");
     try {
@@ -73,6 +80,7 @@ export function EventForm({
         seats
           ? { ...input, goal: "customers", goalDetail: "", targetPeople: "", targetCompaniesOrRoles: "" }
           : input,
+        seats ? { seats: paying } : undefined,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save the event.");
@@ -84,17 +92,34 @@ export function EventForm({
     <PageWrap>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <form onSubmit={onSubmit} className="surface space-y-5 p-6 lg:p-8">
-          <Steps labels={seats ? ["The event", "When and where"] : labels} index={step} />
+          {seats ? null : <Steps labels={labels} index={step} />}
           {step === 0 ? (
             <>
-              <h1 className="serif text-4xl">{seats ? "Which event are these seats for?" : "What is the event?"}</h1>
+              <h1 className="serif text-4xl">{seats ? "Name the event. Pay for the seats here." : "What is the event?"}</h1>
               <div className="form-grid">
                 <Field label="Event name" value={input.name} onChange={(event) => set("name", event.target.value)} required />
                 <Field label="Event type" value={input.type} onChange={(event) => set("type", event.target.value)} placeholder="Conference, chamber, meetup" required />
               </div>
+              {seats ? (
+                <div className="form-grid">
+                  <Field label="Location" value={input.location} onChange={(event) => set("location", event.target.value)} required />
+                  <Field label="Date" type="date" value={input.date} onChange={(event) => set("date", event.target.value)} required />
+                  <Field
+                    label="Seats"
+                    type="number"
+                    min={SEAT_MIN}
+                    max={SEAT_MAX}
+                    value={seatCount}
+                    onChange={(event) => setSeatCount(Number(event.target.value))}
+                  />
+                  <p className="self-end text-sm text-muted">
+                    {usd(ORGANIZER_SEAT_USD)} each, once. {usd(seatsPrice(paying))} for {paying} seats.
+                  </p>
+                </div>
+              ) : null}
             </>
           ) : null}
-          {step === 1 ? (
+          {!seats && step === 1 ? (
             <>
               <h1 className="serif text-4xl">When and where?</h1>
               <div className="form-grid">
@@ -147,7 +172,7 @@ export function EventForm({
               </Button>
             ) : null}
             <Button type="submit" busy={pending} className="min-w-40">
-              {step < last ? "Continue" : pending ? "Saving…" : seats ? "Use this for seats" : "Create event"}
+              {step < last ? "Continue" : pending ? "Saving…" : seats ? `Pay ${usd(seatsPrice(paying))} for seats` : "Create event"}
             </Button>
           </div>
         </form>

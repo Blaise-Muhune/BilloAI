@@ -1,0 +1,32 @@
+# BilloAI
+
+> After you network, know who from the room is worth staying connected to.
+
+BilloAI is a web app for people who just left a conference, mixer, or trade show. You name why you went, save who you met (card, name, or link, plus one line), and see who actually matches that goal. A draft note is written for you. You copy it. Nothing sends itself.
+
+## Product rules
+
+- Card photos are read and discarded. They are not stored.
+- Follow-ups never send themselves.
+- A group or Team admin can see who used a seat (name, email, activity counts). They never see who that person met, notes, or drafts.
+- Group seats are $6 once, for one named event. Unused seats do not move to the next event.
+- Team seats are $150/seat/year (or $15/month), minimum 5. Year-round matching. Admin sets a company hunt. Teammates see a nameless “already in play” badge, never contact names.
+- Individual is $19/month or $180/year after the first included event.
+- First event matching is included on a free account.
+
+## Public pages
+
+- [Home](https://billoai.com/): What it is, how it works, pricing
+- [For groups](https://billoai.com/for-organizers): One-event seats for a company or host
+- [For teams](https://billoai.com/for-teams): Year-round seats for sales and BD
+- [Privacy](https://billoai.com/privacy)
+- [Terms](https://billoai.com/terms)
+- [Full brief](https://billoai.com/llms-full.txt): Same facts, longer, for models
+
+## Do not index
+
+Signed-in books, capture, billing, join codes, and APIs. Those pages are private.
+
+## Contact
+
+https://billoai.com

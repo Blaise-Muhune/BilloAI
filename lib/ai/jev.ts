@@ -35,6 +35,7 @@ export async function scoreWithJev(input: {
   rawNote: string;
   structuredNote: StructuredNote;
   enrichment: Enrichment;
+  teamHunt?: { icp: string; targetCompanies: string[]; targetRoles: string } | null;
 }): Promise<JevFit> {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new Error("OPENROUTER_API_KEY is missing.");
@@ -58,6 +59,9 @@ export async function scoreWithJev(input: {
           success: `${input.event.goal}. ${input.event.goalDetail}`.trim(),
           targetPeople: input.event.targetPeople,
           targetCompaniesOrRoles: input.event.targetCompaniesOrRoles,
+          teamIcp: input.teamHunt?.icp ?? "",
+          teamTargetCompanies: input.teamHunt?.targetCompanies ?? [],
+          teamTargetRoles: input.teamHunt?.targetRoles ?? "",
         },
         person: {
           name: input.contact.name,
@@ -76,6 +80,7 @@ export async function scoreWithJev(input: {
               role: input.enrichment.roleSummary,
               company: input.enrichment.companyDescription,
               industry: input.enrichment.industry,
+              companySize: input.enrichment.companySize,
               sources: input.enrichment.sources,
             },
       },
@@ -83,28 +88,28 @@ export async function scoreWithJev(input: {
         fit: {
           type: "score",
           instructions:
-            "How well does this person match why the user went? High only if they buy, fund, partner, hire, or introduce toward that goal and the conversation or a verified public page supports it. A title on a card is not enough for High.",
+            "How well does this person match why the user went, including any team ICP and target-company list in the goal? Direct fit only if they themselves buy, fund, partner, supply, hire, or mentor toward that goal — with a conversation fact or verified page. Intro path only if their role at that company can realistically open that team (adjacent departments, company size makes the intro plausible, conversation supports it). Same company on a card is not a fit. A title is not enough for High. Investor means they write this kind of check. Partner means a real joint motion. Recruiter for the wrong function is not a job. Large-company badge with no path is not High.",
           criteria: [
             "Not enough evidence to claim a fit",
-            "Thin overlap with the goal",
-            "Real but weaker overlap",
-            "Direct fit with a cited conversation fact or verified public page",
+            "Thin overlap, company name only, or the wrong kind of person",
+            "Real intro path or weaker direct overlap, cited",
+            "Direct decision maker, or they offered a named intro / own the adjacent buy, cited",
           ],
         },
         enoughEvidence: {
           type: "noul",
-          instructions: "Is there enough evidence to claim a fit?",
+          instructions: "Is there enough evidence to claim a fit, including a realistic intro path?",
           criteria: {
-            true: "A conversation fact or a verified public page supports the match.",
-            false: "Only a card, a guess, or an uncertain identity.",
+            true: "A conversation fact or a verified public page supports a direct fit or a real intro path (adjacent role, company has that team, size makes the intro plausible).",
+            false: "Only a card, the company name, a guess, or an uncertain identity.",
           },
         },
         skipFollowUp: {
           type: "noul",
           instructions: "Should the user skip a follow-up?",
           criteria: {
-            true: "Unknown identity, thin overlap, or no reason to send a message.",
-            false: "A follow-up is worth writing from what is known.",
+            true: "Unknown identity, company name only, or no realistic way this person opens the team you need.",
+            false: "A follow-up is worth writing from what is known, including a professional ask for an intro when the path is real.",
           },
         },
       },

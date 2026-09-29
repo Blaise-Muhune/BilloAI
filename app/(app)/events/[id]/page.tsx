@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { DetailSkeleton } from "@/components/loading";
 import { Button, Empty, Field, PageWrap, PersonLink, PriorityBadge, SelectField } from "@/components/ui";
+import { recommendedLabel } from "@/lib/channels";
 import { formatDay } from "@/lib/dates";
 import { getEvent, listContactsForEvent, updateEvent } from "@/lib/data";
 import { groupSeatsHref } from "@/lib/workspace";
@@ -118,7 +119,7 @@ export default function EventDetailPage() {
         </p>
         <h1 className="serif mt-2 text-4xl leading-tight xl:text-5xl">{event.name}</h1>
         <p className="mt-4 max-w-2xl text-muted">
-          Seats attach to this event. People you pay for set why they went. You see counts on Group, not who joined or who they met.
+          Seats attach to this event. People you pay for set why they went. On Group you see who used a seat. You never see who they met.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link href="/group" className="inline-flex rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-ink">
@@ -237,6 +238,7 @@ export default function EventDetailPage() {
                   href={`/people/${contact.id}`}
                   name={`${index + 1}. ${contact.name || "Unnamed"}`}
                   detail={[contact.relevance?.opportunityType, contact.title, contact.company].filter(Boolean).join(" · ")}
+                  action={recommendedLabel(contact.relevance)}
                   level={contact.relevance?.level ?? null}
                 />
               ))}
@@ -260,6 +262,7 @@ export default function EventDetailPage() {
                   href={`/people/${contact.id}`}
                   name={contact.name || "Unnamed"}
                   detail={contact.company}
+                  action={recommendedLabel(contact.relevance)}
                   level={contact.relevance?.level ?? null}
                   layout="columns"
                 />

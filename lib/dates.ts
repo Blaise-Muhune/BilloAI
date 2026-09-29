@@ -23,6 +23,13 @@ export function dueBucket(dueDate: string, now = new Date()): DueBucket {
   return "later";
 }
 
+export function formatWhen(iso: string) {
+  if (!iso) return "";
+  const date = new Date(iso.includes("T") ? iso : `${iso}T12:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 export function formatDay(iso: string) {
   if (!iso) return "";
   const date = new Date(`${iso}T12:00:00`);

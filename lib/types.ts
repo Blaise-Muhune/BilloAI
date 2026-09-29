@@ -43,10 +43,11 @@ export type TaskChannel = (typeof TASK_CHANNELS)[number];
 
 export type TaskStatus = "open" | "done";
 
-export type AccountPlan = "free" | "individual" | "organizer";
+export type AccountPlan = "free" | "individual" | "organizer" | "team";
 export type SubscriptionStatus = "none" | "active" | "past_due" | "canceled";
-export type Workspace = "network" | "group";
+export type Workspace = "network" | "group" | "team";
 export type GroupKind = "company" | "event";
+export type TeamSeatStatus = "invited" | "active" | "revoked";
 
 export interface UserDoc {
   name: string;
@@ -60,6 +61,12 @@ export interface UserDoc {
   includedEventId?: string;
   workspace?: Workspace;
   groupKind?: GroupKind | "";
+  teamId?: string;
+  lastSeenAt?: string;
+  emailUnsubscribedAt?: string;
+  emailDigestAt?: string;
+  emailJoinerNudgeAt?: string;
+  emailAdminDigestAt?: string;
 }
 
 export interface PublicProfile {
@@ -107,6 +114,23 @@ export interface EventMembershipDoc {
   eventId: string;
   organizedEventId: string;
   createdAt: string;
+  name?: string;
+  email?: string;
+}
+
+export type SeatPersonStatus = "invited" | "joined" | "captured";
+
+export interface SeatPerson {
+  id: string;
+  name: string;
+  email: string;
+  status: SeatPersonStatus;
+  joinedAt: string;
+  captures: number;
+  high: number;
+  followUps: number;
+  followUpsDone: number;
+  lastCaptureAt: string;
 }
 
 export interface StructuredNote {
@@ -141,6 +165,7 @@ export interface Relevance {
   suggestedAction: string;
   opportunityType: string;
   skipFollowUp?: boolean;
+  recommendedChannel?: TaskChannel;
 }
 
 export interface ContactFields {
@@ -166,6 +191,7 @@ export interface ContactDoc extends ContactFields {
   relevance: Relevance | null;
   createdAt: string;
   updatedAt: string;
+  alreadyInPlay?: boolean;
 }
 
 export interface TaskDoc {
@@ -197,4 +223,37 @@ export interface UnderstandResult {
   enrichment: Enrichment;
   relevance: Relevance;
   draft: FollowUpDraft;
+  alreadyInPlay?: boolean;
+}
+
+export interface TeamDoc {
+  adminUid: string;
+  name: string;
+  seatLimit: number;
+  stripeCustomerId: string;
+  icp: string;
+  targetCompanies: string[];
+  targetRoles: string;
+  joinCode: string;
+  createdAt: string;
+}
+
+export interface TeamSeatDoc {
+  teamId: string;
+  email: string;
+  uid: string;
+  name: string;
+  status: TeamSeatStatus;
+  createdAt: string;
+  activatedAt?: string;
+  inviteEmailAt?: string;
+  inviteRemindedAt?: string;
+}
+
+export interface TeamRecord extends TeamDoc {
+  id: string;
+}
+
+export interface TeamSeatRecord extends TeamSeatDoc {
+  id: string;
 }

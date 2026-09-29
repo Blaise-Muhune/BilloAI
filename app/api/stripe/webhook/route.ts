@@ -4,24 +4,83 @@ import type Stripe from "stripe";
 import { adminDb } from "@/lib/firebase/admin";
 import { clampSeats } from "@/lib/pricing";
 import { stripeClient } from "@/lib/stripe";
+import { ensureSeat, joinCode, teamByAdmin } from "@/lib/team";
 
 export const runtime = "nodejs";
 
-async function applySubscription(subscription: Stripe.Subscription) {
+function subscriptionStatus(subscription: Stripe.Subscription) {
+  return subscription.status === "active" || subscription.status === "trialing"
+    ? "active"
+    : subscription.status === "past_due"
+      ? "past_due"
+      : "canceled";
+}
+
+async function applyIndividual(subscription: Stripe.Subscription) {
   const uid = subscription.metadata.uid;
-  const plan = subscription.metadata.plan;
-  if (!uid || (plan !== "individual" && plan !== "organizer")) return;
-  const status =
-    subscription.status === "active" || subscription.status === "trialing"
-      ? "active"
-      : subscription.status === "past_due"
-        ? "past_due"
-        : "canceled";
+  if (!uid || subscription.metadata.plan !== "individual") return;
+  const status = subscriptionStatus(subscription);
   const customer = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
   await adminDb().collection("users").doc(uid).set(
-    { plan: status === "canceled" ? "free" : plan, subscriptionStatus: status, stripeCustomerId: customer },
+    { plan: status === "canceled" ? "free" : "individual", subscriptionStatus: status, stripeCustomerId: customer },
     { merge: true },
   );
+}
+
+async function applyTeamSubscription(subscription: Stripe.Subscription) {
+  const uid = subscription.metadata.uid;
+  if (!uid || subscription.metadata.plan !== "team") return;
+  const status = subscriptionStatus(subscription);
+  const customer = typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
+  const quantity = Number(subscription.items.data[0]?.quantity ?? subscription.metadata.seats ?? 0);
+  const seatLimit = Number.isFinite(quantity) ? Math.max(0, Math.floor(quantity)) : 0;
+  let teamId = subscription.metadata.teamId || "";
+  const existing = teamId ? await adminDb().collection("teams").doc(teamId).get() : null;
+  if (!existing?.exists) {
+    const found = await teamByAdmin(uid);
+    teamId = found?.id ?? "";
+  }
+  if (!teamId) {
+    const user = await adminDb().collection("users").doc(uid).get();
+    const created = await adminDb().collection("teams").add({
+      adminUid: uid,
+      name: String(user.data()?.name || "Team"),
+      seatLimit,
+      stripeCustomerId: customer,
+      icp: "",
+      targetCompanies: [],
+      targetRoles: "",
+      joinCode: joinCode(),
+      createdAt: new Date().toISOString(),
+    });
+    teamId = created.id;
+  } else {
+    await adminDb().collection("teams").doc(teamId).set({ seatLimit, stripeCustomerId: customer }, { merge: true });
+  }
+
+  await adminDb().collection("users").doc(uid).set(
+    {
+      plan: status === "canceled" ? "free" : "team",
+      subscriptionStatus: status,
+      stripeCustomerId: customer,
+      teamId,
+      ...(status === "active" ? { workspace: "team" } : {}),
+    },
+    { merge: true },
+  );
+
+  if (status === "active") {
+    const user = await adminDb().collection("users").doc(uid).get();
+    await ensureSeat(teamId, String(user.data()?.email ?? ""), uid, "active");
+  }
+}
+
+async function applySubscription(subscription: Stripe.Subscription) {
+  if (subscription.metadata.plan === "team") {
+    await applyTeamSubscription(subscription);
+    return;
+  }
+  await applyIndividual(subscription);
 }
 
 async function applySeatPayment(session: Stripe.Checkout.Session) {
@@ -39,7 +98,7 @@ async function applySeatPayment(session: Stripe.Checkout.Session) {
       {
         stripeCustomerId: customer,
         workspace: "group",
-        ...(currentPlan === "individual" ? {} : { plan: "organizer" }),
+        ...(currentPlan === "individual" || currentPlan === "team" ? {} : { plan: "organizer" }),
       },
       { merge: true },
     );
@@ -77,6 +136,11 @@ export async function POST(request: Request) {
     if (session.subscription) {
       const subscriptionId = typeof session.subscription === "string" ? session.subscription : session.subscription.id;
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      if (!subscription.metadata.plan && session.metadata?.plan) {
+        subscription.metadata.plan = session.metadata.plan;
+        subscription.metadata.uid = session.metadata.uid || subscription.metadata.uid;
+        subscription.metadata.teamId = session.metadata.teamId || subscription.metadata.teamId;
+      }
       await applySubscription(subscription);
     }
   }

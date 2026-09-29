@@ -6,26 +6,37 @@ import { useAuth } from "@/components/auth-provider";
 import { HomeBodySkeleton } from "@/components/loading";
 import { BrandMark } from "@/components/brand";
 import { Empty, PageHeader, PageWrap, PersonLink } from "@/components/ui";
+import { CHANNEL_LABELS, recommendedLabel } from "@/lib/channels";
+import { getJson } from "@/lib/api";
 import { dueBucket, formatDay, todayISO } from "@/lib/dates";
 import { listContacts, listEvents, listTasks } from "@/lib/data";
 import type { ContactRecord, EventRecord, TaskRecord } from "@/lib/types";
+
+type PlanLine = { line: string; kind: string };
 
 export default function HomePage() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [contacts, setContacts] = useState<ContactRecord[]>([]);
   const [events, setEvents] = useState<EventRecord[]>([]);
+  const [planLine, setPlanLine] = useState("");
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
 
   function load() {
     if (!user) return;
     setError("");
-    void Promise.all([listTasks(user.uid), listContacts(user.uid), listEvents(user.uid)])
-      .then(([nextTasks, nextContacts, nextEvents]) => {
+    void Promise.all([
+      listTasks(user.uid),
+      listContacts(user.uid),
+      listEvents(user.uid),
+      getJson<PlanLine>("/api/access/status").catch(() => null),
+    ])
+      .then(([nextTasks, nextContacts, nextEvents, nextPlan]) => {
         setTasks(nextTasks);
         setContacts(nextContacts);
         setEvents(nextEvents);
+        setPlanLine(nextPlan?.line ?? "");
       })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load home."))
       .finally(() => setReady(true));
@@ -57,6 +68,7 @@ export default function HomePage() {
           </Link>
         }
       />
+      {planLine ? <p className="text-sm font-semibold text-accent">{planLine}</p> : null}
       {error ? (
         <p className="text-sm text-high">
           {error}{" "}
@@ -93,6 +105,7 @@ export default function HomePage() {
                     href={`/people/${task.contactId}`}
                     name={task.contactName}
                     detail={task.title}
+                    action={CHANNEL_LABELS[task.channel]}
                     level={contacts.find((contact) => contact.id === task.contactId)?.relevance?.level ?? null}
                   />
                 ))}
@@ -122,6 +135,7 @@ export default function HomePage() {
                     href={`/people/${contact.id}`}
                     name={contact.name || "Unnamed contact"}
                     detail={[contact.title, contact.company].filter(Boolean).join(" · ")}
+                    action={recommendedLabel(contact.relevance)}
                     level="high"
                     layout="columns"
                   />

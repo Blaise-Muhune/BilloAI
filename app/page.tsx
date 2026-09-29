@@ -1,14 +1,38 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BrandLockup, BrandMark } from "@/components/brand";
+import { JsonLd } from "@/components/json-ld";
+import { SkipLink } from "@/components/skip-link";
 import { Avatar, PriorityBadge } from "@/components/ui";
 import { SupportLink } from "@/components/support";
-import { INDIVIDUAL_MONTHLY_USD, INDIVIDUAL_YEARLY_USD, ORGANIZER_SEAT_USD, usd } from "@/lib/pricing";
+import { INDIVIDUAL_MONTHLY_USD, INDIVIDUAL_YEARLY_USD, ORGANIZER_SEAT_USD, TEAM_SEAT_MIN, TEAM_SEAT_YEARLY_USD, usd } from "@/lib/pricing";
+import { SITE_NAME, SITE_TAGLINE, SITE_URL, pageMeta } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta({
   title: "Know who from the room is worth staying connected to",
-  description: "After you network, BilloAI shows who matched why you went, and a note so you can keep the conversation going. You send it.",
-};
+  description:
+    "After you network, BilloAI shows who matched why you went, and a note so you can keep the conversation going. You send it. Card photos are read and discarded.",
+  path: "/",
+});
+
+const faqs = [
+  {
+    q: "Does BilloAI send follow-ups for me?",
+    a: "No. It writes a note you can copy. You send it yourself.",
+  },
+  {
+    q: "Does a company or host see who I met?",
+    a: "No. They can see that you used a seat. They never see contacts, notes, or drafts.",
+  },
+  {
+    q: "Do you store the card photo?",
+    a: "No. The photo is read on the spot and discarded.",
+  },
+  {
+    q: "What is included before I pay?",
+    a: "Your first event includes matching people you met to why you went. After that it is Individual, a Team seat, or a Group seat for that event.",
+  },
+];
 
 const people = [
   { name: "Maya Chen", detail: "Ops director, Northline", level: "high" as const },
@@ -78,24 +102,101 @@ const plans = [
     name: "Group",
     price: usd(ORGANIZER_SEAT_USD),
     unit: "per seat, once, for one event",
-    body: "Pay for one named event. People you pay for keep who they met. Unused seats stay with that event. You see counts.",
+    body: "Pay for one named event. You see who used a seat. People you pay for keep who they met. Unused seats stay with that event.",
     href: "/signup?for=group",
     action: "Set up a group",
     featured: false,
   },
+  {
+    name: "Team",
+    price: usd(TEAM_SEAT_YEARLY_USD),
+    unit: `per seat / year, min ${TEAM_SEAT_MIN}`,
+    body: "Year-round seats for sales and BD. One hunt list. A nameless already-in-play signal. Not Group’s one-event seat.",
+    href: "/signup?for=team",
+    action: "Set up a team",
+    featured: false,
+  },
 ];
+
+const landingGraph = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#org`,
+      name: SITE_NAME,
+      url: SITE_URL,
+      logo: `${SITE_URL}/brand/mark.png`,
+      description: SITE_TAGLINE,
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#site`,
+      url: SITE_URL,
+      name: SITE_NAME,
+      publisher: { "@id": `${SITE_URL}/#org` },
+      inLanguage: "en-US",
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${SITE_URL}/#app`,
+      name: SITE_NAME,
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      url: SITE_URL,
+      description: SITE_TAGLINE,
+      publisher: { "@id": `${SITE_URL}/#org` },
+      offers: [
+        {
+          "@type": "Offer",
+          name: "Individual",
+          price: String(INDIVIDUAL_MONTHLY_USD),
+          priceCurrency: "USD",
+          description: "Monthly after the first included event",
+        },
+        {
+          "@type": "Offer",
+          name: "Team",
+          price: String(TEAM_SEAT_YEARLY_USD),
+          priceCurrency: "USD",
+          description: `Per seat per year, minimum ${TEAM_SEAT_MIN}`,
+        },
+        {
+          "@type": "Offer",
+          name: "Group",
+          price: String(ORGANIZER_SEAT_USD),
+          priceCurrency: "USD",
+          description: "Per seat, once, for one named event",
+        },
+      ],
+    },
+    {
+      "@type": "FAQPage",
+      mainEntity: faqs.map((item) => ({
+        "@type": "Question",
+        name: item.q,
+        acceptedAnswer: { "@type": "Answer", text: item.a },
+      })),
+    },
+  ],
+};
 
 export default function LandingPage() {
   return (
     <div className="landing-shell min-h-full">
+      <JsonLd data={landingGraph} />
+      <SkipLink />
       <header className="sticky top-0 z-30 border-b border-line/80 bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4">
+        <div className="mx-auto flex max-w-6xl min-w-0 items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-5 sm:py-4">
           <Link href="/">
             <BrandLockup />
           </Link>
-          <nav className="flex items-center gap-2 text-sm font-semibold sm:gap-5">
+          <nav aria-label="Primary" className="flex items-center gap-2 text-sm font-semibold sm:gap-5">
             <Link href="/for-organizers" className="hidden text-muted hover:text-foreground sm:inline">
               For groups
+            </Link>
+            <Link href="/for-teams" className="hidden text-muted hover:text-foreground sm:inline">
+              For teams
             </Link>
             <Link href="#pricing" className="hidden text-muted hover:text-foreground sm:inline">
               Pricing
@@ -110,7 +211,7 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main>
+      <main id="main">
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-8 pt-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)] lg:gap-16 lg:pt-20">
           <div>
             <p className="kicker text-accent">After the handshake</p>
@@ -226,7 +327,8 @@ export default function LandingPage() {
             They sat down. They knew who to write.
           </h2>
           <p className="mt-4 max-w-xl text-muted">
-            Same loop as above. A note they copied. Nothing left the account on its own.
+            Same loop as above. A note they copied. Nothing left the account on its own. These are composites that show
+            the product — not reviews from named customers.
           </p>
           <div className="mt-10 grid gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
             <blockquote className="surface p-6 lg:p-8">
@@ -260,9 +362,9 @@ export default function LandingPage() {
           <p className="kicker text-accent">Pricing</p>
           <h2 className="serif mt-3 text-4xl leading-tight sm:text-5xl">Same prices here and at checkout.</h2>
           <p className="mt-4 max-w-xl text-muted">
-            Your first event is included. Individual is for every event after that. Group seats are ${usd(ORGANIZER_SEAT_USD)} once, for one named event.
+            Your first event is included. Individual is for every event after that. Team is {usd(TEAM_SEAT_YEARLY_USD)} a seat for the year. Group seats are {usd(ORGANIZER_SEAT_USD)} once, for one named event.
           </p>
-          <div className="mt-10 grid items-stretch gap-4 lg:grid-cols-3">
+          <div className="mt-10 grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-4">
             {plans.map((plan) => (
               <article
                 key={plan.name}
@@ -307,17 +409,35 @@ export default function LandingPage() {
           </div>
         </section>
 
+        <section className="mx-auto max-w-6xl px-5 pb-16 lg:pb-24" aria-labelledby="faq-heading">
+          <h2 id="faq-heading" className="serif text-4xl leading-[1.1] sm:text-5xl">
+            Straight answers
+          </h2>
+          <dl className="mt-10 grid gap-8 lg:grid-cols-2">
+            {faqs.map((item) => (
+              <div key={item.q}>
+                <dt className="font-semibold">{item.q}</dt>
+                <dd className="mt-2 text-muted">{item.a}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
         <footer className="border-t border-line">
           <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-10 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <BrandLockup />
               <p className="mt-2 max-w-sm text-sm text-muted">
-                First event included. Individual is {usd(INDIVIDUAL_MONTHLY_USD)} a month. Group seats are {usd(ORGANIZER_SEAT_USD)} each for one event.
+                First event included. Individual is {usd(INDIVIDUAL_MONTHLY_USD)} a month. Team is {usd(TEAM_SEAT_YEARLY_USD)} a seat / year. Group seats are {usd(ORGANIZER_SEAT_USD)} each for one event.
               </p>
             </div>
             <p className="text-sm">
               <Link href="/for-organizers" className="font-semibold text-accent">
                 For groups
+              </Link>
+              {" · "}
+              <Link href="/for-teams" className="font-semibold text-accent">
+                For teams
               </Link>
               {" · "}
               <Link href="/privacy" className="font-semibold text-accent">

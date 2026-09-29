@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { PeopleListSkeleton } from "@/components/loading";
 import { Empty, PageHeader, PageWrap, PersonLink } from "@/components/ui";
-import { listContacts } from "@/lib/data";
-import type { ContactRecord, RelevanceLevel } from "@/lib/types";
+import { recommendedLabel } from "@/lib/channels";
+import { listContacts, listEvents } from "@/lib/data";
+import type { ContactRecord, EventRecord, RelevanceLevel } from "@/lib/types";
 
 const filters: Array<RelevanceLevel | "all"> = ["all", "high", "medium", "low", "unknown"];
 const filterLabel: Record<RelevanceLevel | "all", string> = {
@@ -14,12 +15,13 @@ const filterLabel: Record<RelevanceLevel | "all", string> = {
   high: "High",
   medium: "Medium",
   low: "Low",
-  unknown: "Not enough",
+  unknown: "Not enough to say",
 };
 
 export default function PeoplePage() {
   const { user } = useAuth();
   const [contacts, setContacts] = useState<ContactRecord[]>([]);
+  const [events, setEvents] = useState<EventRecord[]>([]);
   const [filter, setFilter] = useState<RelevanceLevel | "all">("all");
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
@@ -28,8 +30,11 @@ export default function PeoplePage() {
   function load() {
     if (!user) return;
     setError("");
-    listContacts(user.uid)
-      .then(setContacts)
+    void Promise.all([listContacts(user.uid), listEvents(user.uid)])
+      .then(([nextContacts, nextEvents]) => {
+        setContacts(nextContacts);
+        setEvents(nextEvents);
+      })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load people."))
       .finally(() => setReady(true));
   }
@@ -42,6 +47,7 @@ export default function PeoplePage() {
   const visible = contacts.filter((contact) => {
     if (filter !== "all" && contact.relevance?.level !== filter) return false;
     if (!needle) return true;
+    const night = events.find((item) => item.id === contact.eventId);
     const hay = [
       contact.name,
       contact.company,
@@ -49,9 +55,19 @@ export default function PeoplePage() {
       contact.location,
       contact.otherContact,
       contact.rawNote,
+      contact.structuredNote?.painPoint,
+      contact.structuredNote?.interest,
+      contact.structuredNote?.opportunity,
+      contact.structuredNote?.personalDetail,
+      contact.structuredNote?.followUpPromise,
       contact.relevance?.opportunityType,
+      contact.relevance?.recommendedChannel,
+      contact.relevance?.suggestedAction,
+      ...(contact.relevance?.reasons ?? []),
       contact.enrichment?.industry,
       contact.enrichment?.roleSummary,
+      night?.name,
+      night?.goalDetail,
     ]
       .filter(Boolean)
       .join(" ")
@@ -64,7 +80,7 @@ export default function PeoplePage() {
       <PageHeader
         kicker="People"
         title="People from the rooms you were in"
-        body="Search a name or a company. Filter by how well they fit why you went."
+        body="Search a name, a company, or a promise — Ford plant, pricing, the late shift. Filter by how well they fit why you went."
         action={
           <Link href="/capture" className="inline-flex rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink md:hidden">
             Add someone
@@ -87,7 +103,7 @@ export default function PeoplePage() {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="The Ford person, or a promise you made"
+              placeholder="Ford plant, promised pricing, a first name"
               className="field-control lg:flex-1"
             />
             <div className="flex flex-wrap gap-2">
@@ -122,6 +138,7 @@ export default function PeoplePage() {
                   href={`/people/${contact.id}`}
                   name={contact.name || "Unnamed"}
                   detail={[contact.title, contact.company].filter(Boolean).join(" · ")}
+                  action={recommendedLabel(contact.relevance)}
                   level={contact.relevance?.level ?? null}
                   layout="columns"
                 />

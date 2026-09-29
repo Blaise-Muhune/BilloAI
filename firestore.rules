@@ -78,5 +78,17 @@ service cloud.firestore {
     match /rateLimits/{uid} {
       allow read, write: if false;
     }
+
+    match /teams/{id} {
+      allow read, write: if false;
+    }
+
+    match /teamSeats/{id} {
+      allow read, write: if false;
+    }
+
+    match /teamCompanyFlags/{id} {
+      allow read, write: if false;
+    }
   }
 }

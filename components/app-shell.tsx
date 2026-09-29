@@ -8,10 +8,11 @@ import { AuthProvider, useAuth } from "@/components/auth-provider";
 import { IconCalendar, IconGroup, IconHome, IconPeople, IconPlus, IconTasks } from "@/components/icons";
 import { BrandLockup } from "@/components/brand";
 import { BootScreen } from "@/components/loading";
+import { postJson } from "@/lib/api";
 import { getUser, listEvents, markOnboarded, saveWorkspace } from "@/lib/data";
 import { firebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import type { GroupKind, UserDoc, Workspace } from "@/lib/types";
-import { groupSeatsHref, readWorkspace } from "@/lib/workspace";
+import { groupSeatsHref, readWorkspace, teamBillingHref } from "@/lib/workspace";
 
 const networkLinks = [
   { href: "/home", label: "Home", icon: IconHome },
@@ -32,7 +33,13 @@ const networkAccount = [
   { href: "/join", label: "Join with a code" },
 ];
 
+const teamLinks = [
+  { href: "/team", label: "Overview", icon: IconGroup },
+  { href: teamBillingHref(), label: "Seats", icon: IconCalendar },
+];
+
 const groupAccount: { href: string; label: string }[] = [];
+const teamAccount: { href: string; label: string }[] = [];
 
 function pageLabel(pathname: string, workspace: Workspace) {
   if (pathname.startsWith("/home")) return "Home";
@@ -44,7 +51,8 @@ function pageLabel(pathname: string, workspace: Workspace) {
   if (pathname.startsWith("/people")) return "People";
   if (pathname.startsWith("/tasks")) return "Tasks";
   if (pathname.startsWith("/profile")) return "Your card";
-  if (pathname.startsWith("/billing")) return workspace === "group" ? "Seats" : "Plan";
+  if (pathname.startsWith("/billing")) return workspace === "network" ? "Plan" : "Seats";
+  if (pathname.startsWith("/team")) return "Team";
   if (pathname.startsWith("/group") || pathname.startsWith("/organizer")) return "Overview";
   if (pathname.startsWith("/join")) return "Join";
   if (pathname.startsWith("/account")) return "Account";
@@ -52,6 +60,7 @@ function pageLabel(pathname: string, workspace: Workspace) {
 }
 
 function pathWorkspace(pathname: string): Workspace | null {
+  if (pathname.startsWith("/team")) return "team";
   if (pathname.startsWith("/group") || pathname.startsWith("/organizer")) return "group";
   if (pathname.startsWith("/events/new")) return null;
   if (
@@ -113,11 +122,16 @@ function Shell({ children }: { children: React.ReactNode }) {
     };
   }, [user, pathname, router, joining]);
 
+  useEffect(() => {
+    if (!user || !allowed) return;
+    void postJson("/api/email/seen", {}).catch(() => undefined);
+  }, [user, allowed]);
+
   async function switchWorkspace(next: Workspace, kind?: GroupKind | "") {
     if (!user) return;
     await saveWorkspace(user.uid, next, kind);
     setAccount((current) => (current ? { ...current, workspace: next, groupKind: kind ?? current.groupKind } : current));
-    router.push(next === "group" ? "/group" : "/home");
+    router.push(next === "group" ? "/group" : next === "team" ? "/team" : "/home");
   }
 
   useEffect(() => {
@@ -151,29 +165,37 @@ function Shell({ children }: { children: React.ReactNode }) {
     return <div className="min-h-full">{children}</div>;
   }
 
-  const links = workspace === "group" ? groupLinks : networkLinks;
-  const accountLinks = workspace === "group" ? groupAccount : networkAccount;
+  const links = workspace === "group" ? groupLinks : workspace === "team" ? teamLinks : networkLinks;
+  const accountLinks = workspace === "group" ? groupAccount : workspace === "team" ? teamAccount : networkAccount;
+  const homeHref = workspace === "group" ? "/group" : workspace === "team" ? "/team" : "/home";
 
   return (
-    <div className="min-h-full md:grid md:grid-cols-[17.5rem_minmax(0,1fr)]">
+    <div className="min-h-full min-w-0 md:grid md:grid-cols-[17.5rem_minmax(0,1fr)]">
       <aside className="sticky top-0 hidden h-screen flex-col border-r border-line bg-card md:flex">
-        <Link href={workspace === "group" ? "/group" : "/home"} className="px-5 pt-6">
+        <Link href={homeHref} className="px-5 pt-6">
           <BrandLockup />
         </Link>
-        <div className="mx-4 mt-6 grid grid-cols-2 rounded-full bg-[#f7f3ea] p-1 text-xs font-semibold">
+        <div className="mx-4 mt-6 grid grid-cols-3 rounded-full bg-[#f7f3ea] p-1 text-[11px] font-semibold">
           <button
             type="button"
             onClick={() => void switchWorkspace("network")}
-            className={`rounded-full px-2 py-1.5 ${workspace === "network" ? "bg-card text-foreground shadow-sm" : "text-muted"}`}
+            className={`rounded-full px-1 py-1.5 ${workspace === "network" ? "bg-card text-foreground shadow-sm" : "text-muted"}`}
           >
-            My network
+            Network
           </button>
           <button
             type="button"
             onClick={() => void switchWorkspace("group")}
-            className={`rounded-full px-2 py-1.5 ${workspace === "group" ? "bg-card text-foreground shadow-sm" : "text-muted"}`}
+            className={`rounded-full px-1 py-1.5 ${workspace === "group" ? "bg-card text-foreground shadow-sm" : "text-muted"}`}
           >
             Group
+          </button>
+          <button
+            type="button"
+            onClick={() => void switchWorkspace("team")}
+            className={`rounded-full px-1 py-1.5 ${workspace === "team" ? "bg-card text-foreground shadow-sm" : "text-muted"}`}
+          >
+            Team
           </button>
         </div>
         {workspace === "network" ? (
@@ -188,20 +210,20 @@ function Shell({ children }: { children: React.ReactNode }) {
         ) : (
           <div className="mt-5 px-4">
             <Link
-              href={groupSeatsHref()}
+              href={workspace === "team" ? teamBillingHref() : groupSeatsHref()}
               className="flex items-center justify-center rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_8px_20px_rgb(11_107_79/0.22)] hover:brightness-110"
             >
-              Add seats
+              {workspace === "team" ? "Add Team seats" : "Add seats"}
             </Link>
           </div>
         )}
-        <p className="kicker mt-7 px-7">{workspace === "group" ? "The group" : "My network"}</p>
+        <p className="kicker mt-7 px-7">{workspace === "group" ? "The group" : workspace === "team" ? "The team" : "My network"}</p>
         <nav className="mt-2 space-y-1 px-3">
           {links.map((link) => {
             const hrefPath = link.href.split("?")[0] ?? link.href;
             const active =
               pathname === hrefPath ||
-              (hrefPath !== "/home" && hrefPath !== "/group" && pathname.startsWith(`${hrefPath}/`));
+              (hrefPath !== "/home" && hrefPath !== "/group" && hrefPath !== "/team" && pathname.startsWith(`${hrefPath}/`));
             const Icon = link.icon;
             return (
               <Link
@@ -250,10 +272,10 @@ function Shell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       </aside>
-      <div className="flex min-h-full flex-col pb-28 md:pb-0">
-        <header className="flex items-center justify-between gap-3 px-5 pt-5 md:hidden">
-          <Link href={workspace === "group" ? "/group" : "/home"}>
-            <BrandLockup />
+      <div className="flex min-h-full min-w-0 flex-col pb-28 md:pb-0">
+        <header className="flex items-center justify-between gap-3 px-4 pt-4 sm:px-5 sm:pt-5 md:hidden">
+          <Link href={homeHref} className="min-w-0">
+            <BrandLockup className="max-w-full" markClassName="h-7 w-7" />
           </Link>
           <Link
             href="/account"
@@ -263,12 +285,15 @@ function Shell({ children }: { children: React.ReactNode }) {
             {initial}
           </Link>
         </header>
-        <div className="flex gap-2 overflow-x-auto px-5 pt-3 md:hidden">
+        <div className="flex min-w-0 max-w-full gap-2 overflow-x-auto px-4 pt-3 sm:px-5 md:hidden">
           <button type="button" onClick={() => void switchWorkspace("network")} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${workspace === "network" ? "bg-foreground text-card" : "border border-line bg-card"}`}>
             My network
           </button>
           <button type="button" onClick={() => void switchWorkspace("group")} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${workspace === "group" ? "bg-foreground text-card" : "border border-line bg-card"}`}>
             Group
+          </button>
+          <button type="button" onClick={() => void switchWorkspace("team")} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${workspace === "team" ? "bg-foreground text-card" : "border border-line bg-card"}`}>
+            Team
           </button>
           {accountLinks.map((link) => (
             <Link key={link.href} href={link.href} className="shrink-0 rounded-full border border-line bg-card px-3 py-1.5 text-sm font-semibold">
@@ -282,7 +307,9 @@ function Shell({ children }: { children: React.ReactNode }) {
         <div className="hidden h-16 items-center justify-between border-b border-line bg-card/80 px-8 backdrop-blur xl:px-12 md:flex">
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{pageLabel(pathname, workspace)}</p>
-            <p className="truncate text-xs text-muted">{workspace === "group" ? "Group view · counts only" : user?.email}</p>
+            <p className="truncate text-xs text-muted">
+              {workspace === "group" ? "Group · who used a seat" : workspace === "team" ? "Team · who has a seat" : user?.email}
+            </p>
           </div>
           {workspace === "network" && !pathname.startsWith("/capture") ? (
             <Link href="/capture" className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
@@ -294,15 +321,20 @@ function Shell({ children }: { children: React.ReactNode }) {
               Add seats
             </Link>
           ) : null}
+          {workspace === "team" ? (
+            <Link href={teamBillingHref()} className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">
+              Add Team seats
+            </Link>
+          ) : null}
         </div>
-        <main className="app-canvas flex-1 px-5 py-6 md:px-8 md:py-8 xl:px-12 xl:py-10">{children}</main>
+        <main className="app-canvas min-w-0 flex-1 px-4 py-5 sm:px-5 sm:py-6 md:px-8 md:py-8 xl:px-12 xl:py-10">{children}</main>
         <nav className="fixed inset-x-0 bottom-0 border-t border-line bg-[#f7f3ea]/95 backdrop-blur md:hidden">
-          <div className={`mx-auto grid max-w-lg px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1 ${workspace === "group" ? "grid-cols-2" : "grid-cols-5"}`}>
+          <div className={`mx-auto grid max-w-lg px-2 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1 ${workspace === "group" || workspace === "team" ? "grid-cols-2" : "grid-cols-5"}`}>
             {links.map((link) => {
               const hrefPath = link.href.split("?")[0] ?? link.href;
               const active =
                 pathname === hrefPath ||
-                (hrefPath !== "/home" && hrefPath !== "/group" && pathname.startsWith(`${hrefPath}/`));
+                (hrefPath !== "/home" && hrefPath !== "/group" && hrefPath !== "/team" && pathname.startsWith(`${hrefPath}/`));
               const Icon = link.icon;
               const capture = link.href === "/capture";
               return (

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { understand } from "@/lib/ai/run";
 import { guardAi } from "@/lib/ai/guard";
+import { applyTeamHunt, companyAlreadyInPlay, recordCompanyPlay, teamContextForUser } from "@/lib/team";
 import type { ContactFields, EventInput } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -14,17 +15,31 @@ export async function POST(request: Request) {
   };
   const gate = await guardAi(request, body.event?.id);
   if (gate.error) return gate.error;
+  const uid = "uid" in gate ? gate.uid : "";
+  if (!uid) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   try {
     if (!body.event || !body.contact) {
       return NextResponse.json({ error: "Event and contact are required." }, { status: 400 });
     }
+    const team = await teamContextForUser(uid);
+    const event = applyTeamHunt(body.event, team);
     const result = await understand({
-      event: body.event,
+      event,
       contact: body.contact,
       rawNote: body.rawNote ?? "",
       allowPublicLookup: body.allowPublicLookup !== false,
+      teamHunt: team
+        ? { icp: team.icp, targetCompanies: team.targetCompanies, targetRoles: team.targetRoles }
+        : null,
     });
-    return NextResponse.json(result);
+    let alreadyInPlay = false;
+    if (team) {
+      alreadyInPlay = await companyAlreadyInPlay(team.teamId, body.contact.company, uid);
+      if (result.relevance.level === "high" || result.relevance.level === "medium") {
+        await recordCompanyPlay(team.teamId, body.contact.company, uid, result.relevance.level);
+      }
+    }
+    return NextResponse.json({ ...result, alreadyInPlay });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not understand this contact.";
     return NextResponse.json({ error: message }, { status: 500 });

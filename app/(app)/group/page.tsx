@@ -5,11 +5,12 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { GroupBodySkeleton, GroupSkeleton, Pulse } from "@/components/loading";
+import { SeatRoster } from "@/components/seat-roster";
 import { Button, Empty, PageHeader, PageWrap } from "@/components/ui";
 import { getJson } from "@/lib/api";
 import { getUser, listOrganizedEvents, saveWorkspace } from "@/lib/data";
 import { formatDay } from "@/lib/dates";
-import type { GroupKind, OrganizedEventDoc } from "@/lib/types";
+import type { GroupKind, OrganizedEventDoc, SeatPerson } from "@/lib/types";
 import { groupCopy, groupSeatsHref, invitePath } from "@/lib/workspace";
 
 type Organized = OrganizedEventDoc & { id: string };
@@ -24,6 +25,7 @@ type Metrics = {
   low: number;
   followUps: number;
   followUpsDone: number;
+  members: SeatPerson[];
 };
 
 function GroupOverview() {
@@ -86,14 +88,14 @@ function GroupOverview() {
             <span className="kicker">Paying for people</span>
             <span className="serif mt-3 block text-3xl">A company sending people</span>
             <span className="mt-3 block text-sm leading-relaxed text-muted">
-              You buy seats for one event they are attending. They keep who they met. You see whether they followed through at that event.
+              You buy seats for one event they are attending. You see who used a seat. They keep who they met. You see whether they followed through.
             </span>
           </button>
           <button type="button" className="surface p-7 text-left transition hover:bg-[#f7f3ea]" onClick={() => void chooseKind("event")}>
             <span className="kicker">Hosting an event</span>
             <span className="serif mt-3 block text-3xl">A room or event</span>
             <span className="mt-3 block text-sm leading-relaxed text-muted">
-              You buy seats for attendees of this event. They leave with their own network. You see counts for the room.
+              You buy seats for attendees of this event. They leave with their own network. You see who used a seat. You never see who they met.
             </span>
           </button>
         </div>
@@ -102,7 +104,7 @@ function GroupOverview() {
         <Empty title="No seats yet" body={copy.emptySeats} href="/events/new?for=group" action="Create the event" />
       ) : null}
       {ready && kind && events.length > 0 ? (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="space-y-4">
           {events.map((event) => {
             const stats = metrics.find((item) => item.organizedEventId === event.id);
             const share = event.joinCode ? `${typeof window !== "undefined" ? window.location.origin : ""}${invitePath(event.joinCode, kind)}` : "";
@@ -161,6 +163,9 @@ function GroupOverview() {
                     <span className="sr-only">Loading counts</span>
                   </div>
                 ) : null}
+                {event.seatLimit > 0 && stats ? (
+                  <SeatRoster people={stats.members ?? []} openSeats={Math.max(0, event.seatLimit - event.seatsUsed)} />
+                ) : null}
               </article>
             );
           })}
@@ -168,11 +173,15 @@ function GroupOverview() {
       ) : null}
       {ready && kind ? (
         <p className="text-sm text-muted">
-          If this is every month,{" "}
-          <Link href="/billing" className="font-semibold text-accent">
-            Individual is the year-round plan for each person
+          If this is every month for a sales team,{" "}
+          <Link href="/billing?plan=team" className="font-semibold text-accent">
+            Team is the year-round seat
           </Link>
-          . Unused seats do not move to the next event.
+          . For one person,{" "}
+          <Link href="/billing" className="font-semibold text-accent">
+            Individual
+          </Link>
+          . Unused Group seats do not move to the next event.
         </p>
       ) : null}
       {ready && kind ? (

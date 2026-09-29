@@ -20,15 +20,18 @@ import { BrandLockup, BrandMark } from "@/components/brand";
 import { AuthSkeleton, BootScreen } from "@/components/loading";
 import { SupportLink } from "@/components/support";
 import { Avatar, Button, Field, PriorityBadge, SetupNotice, Steps } from "@/components/ui";
+import { authEmailSettings } from "@/lib/auth-email";
 import { ensureUser, getUser, saveConsent, saveWorkspace } from "@/lib/data";
 import { firebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import {
   groupCopy,
   groupKindFromIntent,
   isGroupIntent,
+  isTeamIntent,
   pathAfterAuth,
   persistAuthContext,
   readStoredIntent,
+  teamCopy,
 } from "@/lib/workspace";
 
 function messageFor(error: unknown) {
@@ -71,7 +74,9 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const { user, ready } = useAuth();
   const forParam = params.get("for");
   const group = isGroupIntent(forParam);
-  const copy = groupCopy(groupKindFromIntent(forParam || readStoredIntent()));
+  const team = isTeamIntent(forParam) || isTeamIntent(readStoredIntent());
+  const hosted = group || team;
+  const copy = team ? teamCopy() : groupCopy(groupKindFromIntent(forParam || readStoredIntent()));
   const handingOff = useRef(false);
   const signingIn = useRef(false);
   const [name, setName] = useState("");
@@ -81,6 +86,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [notice, setNotice] = useState("");
   const [pending, setPending] = useState(false);
   const [signupStep, setSignupStep] = useState(0);
+  const [agreed, setAgreed] = useState(false);
   const configured = isFirebaseConfigured();
 
   useEffect(() => {
@@ -96,7 +102,9 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
         await ensureUser(user.uid, user.displayName || "You", user.email || "");
         const existing = await getUser(user.uid);
         const intent = readStoredIntent();
-        if (isGroupIntent(intent)) {
+        if (isTeamIntent(intent)) {
+          await saveWorkspace(user.uid, "team");
+        } else if (isGroupIntent(intent)) {
           await saveWorkspace(user.uid, "group", existing?.groupKind || groupKindFromIntent(intent) || undefined);
         }
         router.replace(pathAfterAuth({ onboarded: Boolean(existing?.onboardedAt) }));
@@ -125,9 +133,11 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
     await ensureUser(account.uid, displayName, accountEmail);
     const existing = await getUser(account.uid);
     if (!existing?.consentAt) await saveConsent(account.uid);
-    if (!fromGoogle) await sendEmailVerification(account);
+    if (!fromGoogle) await sendEmailVerification(account, authEmailSettings("/onboarding"));
     const intent = readStoredIntent();
-    if (isGroupIntent(intent)) {
+    if (isTeamIntent(intent)) {
+      await saveWorkspace(account.uid, "team");
+    } else if (isGroupIntent(intent)) {
       await saveWorkspace(account.uid, "group", existing?.groupKind || groupKindFromIntent(intent) || undefined);
     }
     router.replace(pathAfterAuth({ onboarded: Boolean(existing?.onboardedAt) }));
@@ -137,6 +147,10 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
     event.preventDefault();
     setError("");
     setNotice("");
+    if (mode === "signup" && !agreed) {
+      setError("Agree to the privacy policy and terms first.");
+      return;
+    }
     setPending(true);
     signingIn.current = true;
     try {
@@ -145,7 +159,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
         const credential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(credential.user, { displayName: name });
         await finishAccount(credential.user, false);
-        setNotice("Check your email to verify the account before using AI features.");
+        setNotice("Check your inbox for a BilloAI link. That is how we verify the account.");
       } else {
         const credential = await signInWithEmailAndPassword(auth, email, password);
         await credential.user.getIdToken();
@@ -161,6 +175,10 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }
 
   async function google() {
+    if (mode === "signup" && !agreed) {
+      setError("Agree to the privacy policy and terms first.");
+      return;
+    }
     setError("");
     setPending(true);
     signingIn.current = true;
@@ -196,7 +214,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
       return;
     }
     try {
-      await sendPasswordResetEmail(firebaseAuth(), email);
+      await sendPasswordResetEmail(firebaseAuth(), email, authEmailSettings("/login"));
       setNotice("If that email has an account, a reset link is on its way.");
     } catch (err) {
       const code = errorCode(err);
@@ -228,7 +246,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
         ? group
           ? "You are setting up the group. You will not see who they met."
           : "Then we set up your card and the event you are walking into."
-        : "At least 8 characters. We send a verification link.";
+        : "At least 8 characters. We send a verification link from BilloAI.";
 
   if (!ready) return <AuthSkeleton />;
   if (user && !error) return <BootScreen label="Opening your account" />;
@@ -249,6 +267,28 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
             <div className="mt-8 space-y-4">
               {!configured ? <SetupNotice /> : null}
 
+              {mode === "signup" ? (
+                <label className="flex items-start gap-2.5 text-xs leading-relaxed text-muted">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={agreed}
+                    onChange={(event) => setAgreed(event.target.checked)}
+                  />
+                  <span>
+                    I am 18 or older and agree to the{" "}
+                    <Link href="/privacy" className="font-semibold text-foreground">
+                      privacy policy
+                    </Link>{" "}
+                    and{" "}
+                    <Link href="/terms" className="font-semibold text-foreground">
+                      terms
+                    </Link>
+                    .
+                  </span>
+                </label>
+              ) : null}
+
               {mode === "login" || signupStep === 0 ? (
                 <>
                   <Button
@@ -256,7 +296,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
                     tone="ghost"
                     className="flex w-full items-center justify-center gap-2.5 py-3"
                     busy={pending}
-                    disabled={!configured}
+                    disabled={!configured || (mode === "signup" && !agreed)}
                     onClick={() => void google()}
                   >
                     <GoogleMark />
@@ -318,7 +358,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
                       Back
                     </Button>
                   ) : null}
-                  <Button type="submit" busy={pending} disabled={!configured} className="flex-1">
+                  <Button type="submit" busy={pending} disabled={!configured || (mode === "signup" && !agreed)} className="flex-1">
                     {pending
                       ? "Please wait…"
                       : mode === "signup" && signupStep === 0
@@ -372,22 +412,22 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <div>
           <div className="flex items-center gap-2.5">
             <BrandMark className="h-8 w-8" />
-            <p className="kicker text-[#9ddec8]">{group ? copy.kicker : "After the room"}</p>
+            <p className="kicker text-[#9ddec8]">{hosted ? copy.kicker : "After the room"}</p>
           </div>
           <p className="serif mt-4 max-w-[14ch] text-5xl leading-[1.05] xl:text-[3.35rem]">
-            {group ? copy.overviewTitle : "Leave knowing who was worth the conversation."}
+            {hosted ? copy.overviewTitle : "Leave knowing who was worth the conversation."}
           </p>
           <p className="mt-5 max-w-md text-[0.95rem] leading-relaxed text-white/65">
-            {group
+            {hosted
               ? copy.overviewBody
               : "Say why you went. Keep who you met. Stay connected with the people who fit."}
           </p>
         </div>
 
-        {group ? (
+        {hosted ? (
           <div className="mt-10 max-w-md rounded-[1.5rem] border border-white/10 bg-white/[0.06] p-6">
             <p className="text-sm leading-relaxed text-white/75">{copy.neverSee}</p>
-            <p className="mt-4 text-sm text-white/45">Counts only. No names, notes, or drafts.</p>
+            <p className="mt-4 text-sm text-white/45">They see who used a seat. Never who you met, notes, or drafts.</p>
           </div>
         ) : (
           <div className="landing-frame mt-10 w-full max-w-md overflow-hidden rounded-[1.5rem] border border-white/10 bg-card text-foreground">

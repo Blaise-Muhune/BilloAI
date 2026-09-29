@@ -141,12 +141,6 @@ export async function createEvent(uid: string, input: EventInput, options?: { fo
     forSeats: Boolean(options?.forSeats),
   };
   const created = await addDoc(collection(firebaseDb(), "events"), payload);
-  if (!options?.forSeats) {
-    const account = await getUser(uid);
-    if (!account?.includedEventId) {
-      await setDoc(doc(firebaseDb(), "users", uid), { includedEventId: created.id }, { merge: true });
-    }
-  }
   return created.id;
 }
 

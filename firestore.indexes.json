@@ -48,6 +48,22 @@
         { "fieldPath": "uid", "order": "ASCENDING" },
         { "fieldPath": "organizedEventId", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "teamSeats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "uid", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "teamSeats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "teamId", "order": "ASCENDING" },
+        { "fieldPath": "email", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

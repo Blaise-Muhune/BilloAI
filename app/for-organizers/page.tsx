@@ -3,16 +3,25 @@ import Link from "next/link";
 import { BrandLockup } from "@/components/brand";
 import { SupportLink } from "@/components/support";
 import { ORGANIZER_SEAT_USD, usd } from "@/lib/pricing";
+import { JsonLd } from "@/components/json-ld";
+import { SkipLink } from "@/components/skip-link";
+import { breadcrumbJsonLd, pageMeta } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "For groups",
-  description: "Pay for one event. They keep who they met. You see counts, never their contacts.",
-};
+export const metadata: Metadata = pageMeta({
+  title: "Group seats for one event",
+  description: "Pay for one named event. You see who used a seat. They keep who they met. You never see their contacts.",
+  path: "/for-organizers",
+});
 
 const counts = [
   { label: "Seats used", value: "18" },
   { label: "Captured someone", value: "14" },
   { label: "Follow-ups done", value: "9" },
+];
+
+const roster = [
+  { name: "Ken Walsh", detail: "Used the seat · 4 saved" },
+  { name: "Priya Shah", detail: "Used the seat · nothing saved yet" },
 ];
 
 const chapters = [
@@ -29,21 +38,31 @@ const chapters = [
   {
     n: "03",
     title: "Watch whether it worked",
-    body: "You see how many seats were used, how many people captured someone, and whether they followed through. You never see names, notes, or drafts.",
+    body: "You see who used a seat, how many people captured someone, and whether they followed through. You never see who they met, notes, or drafts.",
   },
 ];
 
 export default function ForOrganizersPage() {
   return (
     <div className="landing-shell min-h-full">
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "BilloAI", path: "/" },
+          { name: "For groups", path: "/for-organizers" },
+        ])}
+      />
+      <SkipLink />
       <header className="sticky top-0 z-30 border-b border-line/80 bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4">
+        <div className="mx-auto flex max-w-6xl min-w-0 items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-5 sm:py-4">
           <Link href="/">
             <BrandLockup />
           </Link>
-          <nav className="flex items-center gap-2 text-sm font-semibold sm:gap-5">
+          <nav aria-label="Primary" className="flex items-center gap-2 text-sm font-semibold sm:gap-5">
             <Link href="/" className="hidden text-muted hover:text-foreground sm:inline">
               For individuals
+            </Link>
+            <Link href="/for-teams" className="hidden text-muted hover:text-foreground sm:inline">
+              For teams
             </Link>
             <Link href="/login?for=group" className="text-muted hover:text-foreground">
               Sign in
@@ -55,7 +74,7 @@ export default function ForOrganizersPage() {
         </div>
       </header>
 
-      <main>
+      <main id="main">
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-5 pb-8 pt-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)] lg:gap-16 lg:pt-20">
           <div>
             <p className="kicker text-accent">For one event</p>
@@ -63,7 +82,7 @@ export default function ForOrganizersPage() {
               Pay for the seats. Never see who they met.
             </h1>
             <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted">
-              You buy seats for one event. Your people leave knowing who from the room mattered. Their conversations stay on their accounts. You get counts that show the event worked. If they keep going, Individual is their plan.
+              You buy seats for one event. You see who used a seat. Your people leave knowing who from the room mattered. Their conversations stay on their accounts. If they keep going, Individual is their plan.
             </p>
             <div className="mt-9 grid max-w-lg gap-3 sm:grid-cols-2">
               <Link href="/signup?for=company" className="rounded-[1.4rem] bg-accent px-5 py-4 text-accent-ink shadow-[0_10px_28px_rgb(11_107_79/0.28)]">
@@ -86,7 +105,7 @@ export default function ForOrganizersPage() {
 
           <aside className="landing-frame overflow-hidden rounded-[1.6rem] border border-line bg-card" aria-label="Example of what a group sees">
             <div className="bg-foreground px-5 py-4 text-card">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9ddec8]">Group · counts only</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#9ddec8]">Group · who used a seat</p>
               <p className="serif mt-1 text-2xl">Detroit supplier night</p>
               <p className="mt-1 text-sm text-white/70">18 of 25 seats used</p>
             </div>
@@ -98,10 +117,14 @@ export default function ForOrganizersPage() {
                 </div>
               ))}
             </div>
-            <div className="border-t border-line px-5 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Send this to your team</p>
-              <p className="mt-2 truncate text-sm font-semibold">billoai.com/join?code=k4n2pq</p>
-              <p className="mt-2 text-sm text-muted">No names. No notes. No drafts.</p>
+            <div className="space-y-2 border-t border-line px-5 py-4">
+              {roster.map((person) => (
+                <div key={person.name} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="font-semibold">{person.name}</span>
+                  <span className="text-muted">{person.detail}</span>
+                </div>
+              ))}
+              <p className="pt-1 text-sm text-muted">You see who claimed a seat. Never who they met.</p>
             </div>
           </aside>
         </section>
@@ -114,7 +137,7 @@ export default function ForOrganizersPage() {
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.12em] text-[#9ddec8]">What you see</p>
                 <ul className="mt-4 space-y-3 text-lg">
-                  <li>How many seats were used</li>
+                  <li>Who used a seat</li>
                   <li>How many people captured someone</li>
                   <li>How many follow-ups got done</li>
                 </ul>
@@ -122,7 +145,6 @@ export default function ForOrganizersPage() {
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.12em] text-white/45">What you never see</p>
                 <ul className="mt-4 space-y-3 text-lg text-white/75">
-                  <li>Who joined by name</li>
                   <li>Who they met</li>
                   <li>Notes from the conversation</li>
                   <li>The draft they may send</li>
@@ -179,6 +201,10 @@ export default function ForOrganizersPage() {
             <p className="text-sm">
               <Link href="/" className="font-semibold text-accent">
                 For individuals
+              </Link>
+              {" · "}
+              <Link href="/for-teams" className="font-semibold text-accent">
+                For teams
               </Link>
               {" · "}
               <Link href="/privacy" className="font-semibold text-accent">

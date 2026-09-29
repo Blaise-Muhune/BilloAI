@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { FormSplitSkeleton } from "@/components/loading";
 import { EventForm } from "@/components/event-form";
+import { postJson } from "@/lib/api";
 import { createEvent, getUser } from "@/lib/data";
 
 function NewEventForm() {
@@ -24,10 +25,19 @@ function NewEventForm() {
     <EventForm
       key={forGroup ? "seats" : "network"}
       variant={forGroup ? "seats" : "network"}
-      onSave={async (input) => {
+      onSave={async (input, extras) => {
         if (!user) return;
         const id = await createEvent(user.uid, input, forGroup ? { forSeats: true } : undefined);
-        router.push(forGroup ? `/billing?plan=organizer&event=${id}` : `/events/${id}`);
+        if (!forGroup) {
+          router.push(`/events/${id}`);
+          return;
+        }
+        const checkout = await postJson<{ url: string }>("/api/stripe/checkout", {
+          plan: "organizer",
+          eventId: id,
+          seats: extras?.seats ?? 25,
+        });
+        window.location.href = checkout.url;
       }}
     />
   );

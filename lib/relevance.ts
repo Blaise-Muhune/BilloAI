@@ -83,6 +83,7 @@ export function clampRelevance(
       suggestedAction: "Do not follow up on a guess. Add what you talked about, then score again.",
       opportunityType: guessed.opportunityType.trim() || "Not enough to say",
       skipFollowUp: true,
+      recommendedChannel: undefined,
     };
   }
 
@@ -91,6 +92,7 @@ export function clampRelevance(
     ...guessed,
     reasons: reasons.length ? reasons : ["The overlap with your goal is limited."],
     skipFollowUp: guessed.level === "unknown" ? true : skip,
+    recommendedChannel: skip || guessed.level === "unknown" ? undefined : guessed.recommendedChannel,
     suggestedAction:
       skip || guessed.level === "unknown"
         ? guessed.suggestedAction.trim() || "Do not follow up. The overlap with why you went is too thin."

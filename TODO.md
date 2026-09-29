@@ -24,17 +24,23 @@ Do these when the trigger is true. Do not do them early to polish.
 - [ ] **Watch organizer seats**  
   When: the first chamber pays. If they stall at “create an event, then pay,” shorten that path. Send them `/for-organizers` only.
 
+- [x] **Add a Team plan**  
+  Shipped: $150/seat/year (or $15/month), minimum 5, quantity SKU separate from Group. ICP, nameless company collision, coverage counts. Admin sees who has a seat. Admin never sees who they met, notes, or drafts.
+
 - [ ] **Sell Team only after a company asks**  
   When: a company wants to pay for sales, BD, or other employees (not a chamber paying for attendees). Until then, invoice yearly Individual seats.  
   Why: Organizer is one night and the host must never see contacts. Team is year-round seats for their own people. Do not reuse organizer seats.
 
-- [ ] **Add a Team plan**  
-  When: that company is ready to pay. Price about $15/seat/month or $150/seat/year, minimum 5 seats. Admin assigns emails; each person keeps their own captures. Admin sees seat count and open high-priority follow-ups, not names, notes, or drafts.  
-  Why: cheaper than N Individual plans, one bill, seats they can move when someone leaves.
-
 - [ ] **Shared company book / CRM**  
   When: a paying Team admin asks to own the leads, and the reps know it. Not with the first Team checkout.  
   Why: a mixer contact is often personal. Company-owned names are a later add-on.
+
+## Auth email
+
+- [ ] **Firebase Action URL is locked**  
+  When: you want the verify/reset button to open `billoai.com` first, instead of `billoai-9ea4c.firebaseapp.com/__/auth/action`.  
+  Why: the console save fails with “An error occurred updating action URL” (`EMAIL_TEMPLATE_UPDATE_NOT_ALLOWED`). Firebase is blocking template/Action URL edits to prevent abuse. Leave the default Action URL. SMTP (Resend) still sends the mail. `actionCodeSettings` already continues to `/auth/action`. Do not add Firebase email DNS on `billoai.com` (Zoho SPF is already there).  
+  How: open a Firebase support ticket and ask them to set Action URL to `https://billoai.com/__/auth/action` (rewritten to `/auth/action` in `next.config.ts`). Or send verify/reset yourself with the Admin SDK + Resend if support never unlocks it.
 
 ## After V1 is in use
 

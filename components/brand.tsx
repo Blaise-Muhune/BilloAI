@@ -27,7 +27,7 @@ export function BrandLockup({
   return (
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
       <BrandMark className={markClassName} />
-      <span className="serif text-2xl leading-none">BilloAI</span>
+      <span className="serif text-xl leading-none sm:text-2xl">BilloAI</span>
     </span>
   );
 }

@@ -5,22 +5,16 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { BusyBar, DetailSkeleton, OverlayStatus } from "@/components/loading";
+import { HuntWhy, type HuntSummary } from "@/components/hunt-why";
 import { PaywallNotice } from "@/components/paywall";
-import { Area, Avatar, Button, Field, PageWrap, PriorityBadge } from "@/components/ui";
-import { isPaywalled, postJson } from "@/lib/api";
+import { Area, Avatar, Button, Field, Fold, InPlayBadge, PageWrap, PriorityBadge } from "@/components/ui";
+import { ApiError, getJson, isPaywalled, postJson } from "@/lib/api";
 import { createTask, deleteContact, getContact, getEvent, openTaskForContact, updateContact, updateTask } from "@/lib/data";
 import { addDays, todayISO } from "@/lib/dates";
+import { CHANNEL_LABELS, recommendedLabel, showRecommendedAction } from "@/lib/channels";
 import { evidenceLine, skipFollowUp } from "@/lib/relevance";
 import type { ContactFields, ContactRecord, EventRecord, FollowUpDraft, TaskChannel, TaskRecord, UnderstandResult } from "@/lib/types";
 import { TASK_CHANNELS } from "@/lib/types";
-
-const channelLabel: Record<TaskChannel, string> = {
-  email: "Email",
-  linkedin: "LinkedIn",
-  text: "Text",
-  call: "Call reminder",
-  intro: "Ask for introduction",
-};
 
 function fieldsFrom(contact: ContactRecord): ContactFields {
   return {
@@ -57,6 +51,11 @@ export default function PersonPage() {
   const [savingPerson, setSavingPerson] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
+  const [markingSent, setMarkingSent] = useState(false);
+  const [paywallEvent, setPaywallEvent] = useState("");
+  const [paywallReason, setPaywallReason] = useState("");
+  const [hunt, setHunt] = useState<HuntSummary | null>(null);
+  const [allowPublicLookup, setAllowPublicLookup] = useState(true);
   const dirtyDraft = useRef(false);
   const draftRef = useRef(draft);
   const taskRef = useRef(task);
@@ -84,6 +83,17 @@ export default function PersonPage() {
         setChannel(nextTask.channel);
         setDraft(nextTask.draft);
       }
+      void getJson<{ team: HuntSummary | null }>("/api/team")
+        .then((payload) => {
+          if (payload.team?.icp || payload.team?.targetCompanies?.length || payload.team?.targetRoles) {
+            setHunt({
+              icp: payload.team.icp,
+              targetCompanies: payload.team.targetCompanies ?? [],
+              targetRoles: payload.team.targetRoles ?? "",
+            });
+          }
+        })
+        .catch(() => undefined);
     })();
   }, [user, id]);
 
@@ -91,8 +101,10 @@ export default function PersonPage() {
     if (!user || !contact) return;
     const open = taskRef.current;
     if (open) {
+      const next = { ...open, draft: nextDraft, channel: nextChannel, contactName: contact.name };
       await updateTask(user.uid, open.id, { draft: nextDraft, channel: nextChannel, contactName: contact.name });
-      setTask({ ...open, draft: nextDraft, channel: nextChannel, contactName: contact.name });
+      taskRef.current = next;
+      setTask(next);
     } else if (nextDraft.trim()) {
       const created = await createTask(user.uid, {
         contactId: contact.id,
@@ -103,7 +115,7 @@ export default function PersonPage() {
         draft: nextDraft,
         dueDate: addDays(todayISO(), 1),
       });
-      setTask({
+      const next = {
         id: created,
         ownerId: user.uid,
         contactId: contact.id,
@@ -113,9 +125,11 @@ export default function PersonPage() {
         title: "Stay connected",
         draft: nextDraft,
         dueDate: addDays(todayISO(), 1),
-        status: "open",
+        status: "open" as const,
         createdAt: new Date().toISOString(),
-      });
+      };
+      taskRef.current = next;
+      setTask(next);
     }
     dirtyDraft.current = false;
     setDraftSaved(true);
@@ -136,20 +150,23 @@ export default function PersonPage() {
     if (!user || !contact || !event) return;
     setError("");
     setPaywalled(false);
+    setPaywallEvent("");
+    setPaywallReason("");
     setScoring(true);
     try {
       const result = await postJson<UnderstandResult>("/api/ai/understand", {
         event,
         contact,
         rawNote: contact.rawNote,
-        allowPublicLookup: true,
+        allowPublicLookup,
       });
       await updateContact(user.uid, contact.id, {
         structuredNote: result.structuredNote,
         enrichment: result.enrichment,
         relevance: result.relevance,
+        alreadyInPlay: result.alreadyInPlay,
       });
-      setContact({ ...contact, ...result });
+      setContact({ ...contact, ...result, alreadyInPlay: result.alreadyInPlay });
       if (skipFollowUp(result.relevance)) {
         if (task) {
           await updateTask(user.uid, task.id, {
@@ -196,11 +213,47 @@ export default function PersonPage() {
       setChannel(result.draft.channel);
       setDraft(result.draft.body);
     } catch (err) {
-      if (isPaywalled(err)) setPaywalled(true);
-      else setError(err instanceof Error ? err.message : "Could not score this contact.");
+      if (isPaywalled(err)) {
+        setPaywalled(true);
+        if (err instanceof ApiError) {
+          setPaywallEvent(err.eventName ?? "");
+          setPaywallReason(err.reason ?? "");
+        }
+      } else setError(err instanceof Error ? err.message : "Could not score this contact.");
     } finally {
       setScoring(false);
     }
+  }
+
+  async function markSent() {
+    if (!user || !contact) return;
+    setMarkingSent(true);
+    setError("");
+    try {
+      if (dirtyDraft.current) await persistDraft();
+      let open = taskRef.current;
+      if (!open && draftRef.current.trim()) {
+        await persistDraft();
+        open = taskRef.current;
+      }
+      if (!open) return;
+      await updateTask(user.uid, open.id, { status: "done" });
+      const next = { ...open, status: "done" as const };
+      taskRef.current = next;
+      setTask(next);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not mark that sent.");
+    } finally {
+      setMarkingSent(false);
+    }
+  }
+
+  async function reopenSent() {
+    if (!user || !task) return;
+    await updateTask(user.uid, task.id, { status: "open" });
+    const next = { ...task, status: "open" as const };
+    taskRef.current = next;
+    setTask(next);
   }
 
   async function writeChannel(next: TaskChannel) {
@@ -209,6 +262,8 @@ export default function PersonPage() {
     setChannel(next);
     setCopied(false);
     setPaywalled(false);
+    setPaywallEvent("");
+    setPaywallReason("");
     setDrafting(true);
     try {
       const result = await postJson<FollowUpDraft>("/api/ai/draft", {
@@ -223,8 +278,13 @@ export default function PersonPage() {
         setTask({ ...task, channel: next, draft: result.body, title: result.title });
       }
     } catch (err) {
-      if (isPaywalled(err)) setPaywalled(true);
-      else setError(err instanceof Error ? err.message : "Could not write that note.");
+      if (isPaywalled(err)) {
+        setPaywalled(true);
+        if (err instanceof ApiError) {
+          setPaywallEvent(err.eventName ?? "");
+          setPaywallReason(err.reason ?? "");
+        }
+      } else setError(err instanceof Error ? err.message : "Could not write that note.");
     } finally {
       setDrafting(false);
     }
@@ -284,6 +344,8 @@ export default function PersonPage() {
   const note = contact.structuredNote;
   const enrichment = contact.enrichment;
   const cardOnly = evidenceLine(contact.rawNote, contact.structuredNote, contact.enrichment);
+  const recommended = showRecommendedAction(contact.relevance, task?.channel);
+  const nextStep = recommendedLabel(contact.relevance, task?.channel);
   const facts = [
     ["Pain point", note?.painPoint],
     ["Interest", note?.interest],
@@ -291,65 +353,155 @@ export default function PersonPage() {
     ["Personal detail", note?.personalDetail],
     ["Follow-up promise", note?.followUpPromise],
   ].filter(([, value]) => value);
+  const skipped = skipFollowUp(contact.relevance);
+  const topReasons = contact.relevance?.reasons.slice(0, 2) ?? [];
+  const otherChannels = TASK_CHANNELS.filter((item) => item !== recommended);
+
+  const draftBox = (
+    <>
+      <div className="flex flex-wrap gap-2">
+        {TASK_CHANNELS.map((item) => (
+          <button
+            key={item}
+            type="button"
+            onClick={() => void writeChannel(item)}
+            className={`rounded-full px-3 py-1.5 text-sm font-semibold ${channel === item ? "bg-accent text-accent-ink" : "bg-[#f7f3ea] text-muted"}`}
+            disabled={drafting}
+          >
+            {recommended === item ? `Recommended · ${CHANNEL_LABELS[item]}` : CHANNEL_LABELS[item]}
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={draft}
+        onChange={(item) => {
+          dirtyDraft.current = true;
+          setDraftSaved(false);
+          setDraft(item.target.value);
+        }}
+        onBlur={() => {
+          if (dirtyDraft.current) void persistDraft();
+        }}
+        className="field-control min-h-40"
+        aria-busy={drafting}
+      />
+      {drafting ? (
+        <p className="flex items-center gap-3 text-sm text-muted">
+          <BusyBar className="w-24" />
+          Writing this note
+        </p>
+      ) : draftSaved ? (
+        <p className="text-sm text-accent">Saved on this account</p>
+      ) : null}
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Button
+          type="button"
+          className="w-full"
+          onClick={async () => {
+            if (dirtyDraft.current) await persistDraft();
+            await navigator.clipboard.writeText(draft);
+            setCopied(true);
+          }}
+          disabled={!draft}
+        >
+          {copied ? "Copied" : "Copy the note"}
+        </Button>
+        {task?.status === "done" ? (
+          <Button type="button" tone="ghost" className="w-full" onClick={() => void reopenSent()}>
+            Sent. Still need to send?
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            tone="ghost"
+            className="w-full"
+            busy={markingSent}
+            disabled={!task && !draft.trim()}
+            onClick={() => void markSent()}
+          >
+            {markingSent ? "Saving…" : "I sent it"}
+          </Button>
+        )}
+      </div>
+    </>
+  );
 
   return (
     <PageWrap>
       {scoring ? <OverlayStatus label="Seeing if they fit why you went" /> : null}
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,28rem)] xl:items-start">
-        <div className="space-y-6">
-          <div className="surface flex items-start gap-5 p-6 lg:p-8">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(18rem,26rem)] xl:items-start">
+        <div className="min-w-0 space-y-4">
+          <div className="surface flex min-w-0 items-start gap-4 overflow-hidden p-5 lg:p-6">
             <Avatar name={contact.name || "?"} size="lg" />
             <div className="min-w-0">
-              <PriorityBadge level={contact.relevance?.level ?? null} />
-              <h1 className="serif mt-3 text-4xl leading-tight xl:text-5xl">{contact.name || "Unnamed contact"}</h1>
-              <p className="mt-2 text-muted">{[contact.title, contact.company].filter(Boolean).join(" · ")}</p>
-              {contact.relevance?.opportunityType ? <p className="mt-2 font-semibold">{contact.relevance.opportunityType}</p> : null}
+              <PriorityBadge level={contact.relevance?.level ?? null} size="md" explain />
+              <h1 className="serif mt-3 text-3xl leading-tight">{contact.name || "Unnamed contact"}</h1>
+              <p className="mt-1 text-muted">{[contact.title, contact.company].filter(Boolean).join(" · ")}</p>
+              {contact.relevance?.opportunityType && contact.relevance.level !== "unknown" ? (
+                <p className="mt-2 font-semibold">{contact.relevance.opportunityType}</p>
+              ) : null}
+              {nextStep ? <p className="mt-1 text-sm font-semibold text-accent">Next: {nextStep}</p> : null}
+              <div className="mt-3">
+                <InPlayBadge show={contact.alreadyInPlay} />
+              </div>
               {event ? (
-                <Link href={`/events/${event.id}`} className="mt-3 inline-block text-sm font-semibold text-accent">
+                <Link href={`/events/${event.id}`} className="mt-2 inline-block text-sm font-semibold text-accent">
                   {event.name}
                 </Link>
               ) : null}
-              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm">
-                {contact.email ? (
-                  <a className="text-accent" href={`mailto:${contact.email}`}>
-                    {contact.email}
-                  </a>
-                ) : null}
-                {contact.phone ? <span className="text-muted">{contact.phone}</span> : null}
-                {contact.otherContact ? <span className="text-muted">{contact.otherContact}</span> : null}
-                {contact.linkedin ? (
-                  <a className="text-accent" href={contact.linkedin} target="_blank" rel="noreferrer">
-                    LinkedIn
-                  </a>
-                ) : null}
-                {contact.website ? (
-                  <a className="text-accent" href={contact.website} target="_blank" rel="noreferrer">
-                    Website
-                  </a>
-                ) : null}
-                {contact.location ? <span className="text-muted">{contact.location}</span> : null}
-              </div>
-              <div className="mt-5 flex flex-wrap gap-3">
-                <Button
-                  type="button"
-                  tone="ghost"
-                  onClick={() => {
-                    setFields(fieldsFrom(contact));
-                    setNoteDraft(contact.rawNote);
-                    setEditing((current) => !current);
-                  }}
-                >
-                  {editing ? "Cancel" : "Fix details"}
-                </Button>
-                <Button type="button" tone="ghost" busy={removing} onClick={() => void removePerson()}>
-                  Remove
-                </Button>
-              </div>
             </div>
           </div>
 
+          {paywalled ? (
+            <PaywallNotice
+              eventName={paywallEvent}
+              reason={paywallReason}
+              body="Scoring and drafts after your first event need Individual, a Team seat, or a seat paid for that event. This person stays on your account."
+            />
+          ) : null}
+
+          {contact.relevance ? (
+            <section className="surface space-y-3 p-5">
+              <h2 className="kicker">{contact.relevance.level === "unknown" ? "Why this is not a score" : "Why this matters"}</h2>
+              {cardOnly ? <p className="rounded-2xl bg-[#fff8e8] px-4 py-3 text-sm">{cardOnly}</p> : null}
+              <HuntWhy eventGoal={event?.goalDetail} hunt={hunt} />
+              <ul className="list-disc space-y-1 pl-5">
+                {topReasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+              <p className="font-semibold">{contact.relevance.suggestedAction}</p>
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={allowPublicLookup}
+                  onChange={(event) => setAllowPublicLookup(event.target.checked)}
+                />
+                Look them up on the public web when scoring.
+              </label>
+              <button type="button" className="text-sm font-semibold text-accent" onClick={() => void rescore()}>
+                Score again
+              </button>
+            </section>
+          ) : (
+            <div className="space-y-3">
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={allowPublicLookup}
+                  onChange={(event) => setAllowPublicLookup(event.target.checked)}
+                />
+                Look them up on the public web when scoring.
+              </label>
+              <Button type="button" busy={scoring} onClick={() => void rescore()}>
+                {scoring ? "Seeing if they fit" : "See if they fit"}
+              </Button>
+            </div>
+          )}
+          {error ? <p className="text-sm text-high">{error}</p> : null}
+
           {editing ? (
-            <form onSubmit={(form) => void savePerson(form)} className="surface space-y-5 p-6">
+            <form onSubmit={(form) => void savePerson(form)} className="surface space-y-5 p-5">
               <h2 className="kicker">Fix what the card got wrong</h2>
               <div className="form-grid">
                 <Field label="Name" value={fields.name} onChange={(item) => setFields({ ...fields, name: item.target.value })} />
@@ -369,139 +521,208 @@ export default function PersonPage() {
             </form>
           ) : null}
 
-          {paywalled ? (
-            <PaywallNotice body="Scoring and drafts after your first event need Individual, or a seat paid for that event. This person stays on your account." />
-          ) : null}
-
-          {contact.relevance ? (
-            <section className="surface space-y-3 p-6">
-              <h2 className="kicker">{contact.relevance.level === "unknown" ? "Not enough to score" : "Why they matter"}</h2>
-              {cardOnly ? <p className="rounded-2xl bg-[#f7f3ea] px-4 py-3 text-sm">{cardOnly}</p> : null}
-              <ul className="list-disc space-y-1 pl-5">
-                {contact.relevance.reasons.map((reason) => (
-                  <li key={reason}>{reason}</li>
-                ))}
-              </ul>
-              <p className="font-semibold">{contact.relevance.suggestedAction}</p>
-              <button type="button" className="text-sm font-semibold text-accent" onClick={() => void rescore()}>
-                Score again
-              </button>
-            </section>
-          ) : (
-            <Button type="button" busy={scoring} onClick={() => void rescore()}>
-              {scoring ? "Seeing if they fit" : "See if they fit"}
-            </Button>
-          )}
-          {error ? <p className="text-sm text-high">{error}</p> : null}
+          <Fold title="Contact details">
+            <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
+              {contact.email ? (
+                <a className="text-accent" href={`mailto:${contact.email}`}>
+                  {contact.email}
+                </a>
+              ) : null}
+              {contact.phone ? <span>{contact.phone}</span> : null}
+              {contact.otherContact ? <span>{contact.otherContact}</span> : null}
+              {contact.linkedin ? (
+                <a className="text-accent" href={contact.linkedin} target="_blank" rel="noreferrer">
+                  LinkedIn
+                </a>
+              ) : null}
+              {contact.website ? (
+                <a className="text-accent" href={contact.website} target="_blank" rel="noreferrer">
+                  Website
+                </a>
+              ) : null}
+              {contact.location ? <span className="text-muted">{contact.location}</span> : null}
+              {!contact.email && !contact.phone && !contact.otherContact && !contact.linkedin && !contact.website && !contact.location ? (
+                <p className="text-muted">No email, phone, or link saved.</p>
+              ) : null}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Button
+                type="button"
+                tone="ghost"
+                onClick={() => {
+                  setFields(fieldsFrom(contact));
+                  setNoteDraft(contact.rawNote);
+                  setEditing((current) => !current);
+                }}
+              >
+                {editing ? "Cancel" : "Fix details"}
+              </Button>
+              <Button type="button" tone="ghost" busy={removing} onClick={() => void removePerson()}>
+                Remove
+              </Button>
+            </div>
+          </Fold>
 
           {contact.rawNote && !editing ? (
-            <section className="surface space-y-2 p-6">
-              <h2 className="kicker">Your note</h2>
+            <Fold title="Your note">
               <p className="whitespace-pre-wrap">{contact.rawNote}</p>
-            </section>
+            </Fold>
           ) : null}
 
           {facts.length ? (
-            <section className="surface overflow-hidden">
-              <h2 className="kicker px-6 pt-5">Conversation</h2>
-              <dl className="mt-2 divide-y divide-line">
+            <Fold title="Conversation">
+              <dl className="divide-y divide-line">
                 {facts.map(([label, value]) => (
-                  <div key={label} className="grid gap-1 px-6 py-4 sm:grid-cols-[10rem_minmax(0,1fr)]">
+                  <div key={label} className="grid gap-1 py-3 first:pt-0 last:pb-0 sm:grid-cols-[10rem_minmax(0,1fr)]">
                     <dt className="text-sm text-muted">{label}</dt>
                     <dd>{value}</dd>
                   </div>
                 ))}
               </dl>
-            </section>
+            </Fold>
+          ) : null}
+
+          {contact.relevance && contact.relevance.reasons.length > 2 ? (
+            <Fold title="All reasons">
+              <ul className="list-disc space-y-1 pl-5">
+                {contact.relevance.reasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+            </Fold>
           ) : null}
 
           {enrichment && !enrichment.unavailable ? (
-            <section className="surface space-y-3 p-6">
-              <h2 className="kicker">Who they are, in public</h2>
-              {enrichment.roleSummary ? <p className="font-semibold">{enrichment.roleSummary}</p> : null}
-              <p>{enrichment.companyDescription}</p>
-              <p className="text-sm text-muted">{[enrichment.industry, enrichment.companySize].filter(Boolean).join(" · ")}</p>
-              {[
-                ["They sell", enrichment.products],
-                ["They care about", enrichment.priorities],
-                ["Public interests", enrichment.interests],
-              ]
-                .filter(([, value]) => value)
-                .map(([label, value]) => (
-                  <p key={label}>
-                    <span className="text-muted">{label}. </span>
-                    {value}
-                  </p>
+            <Fold title="Who they are, in public">
+              <div className="space-y-3">
+                {enrichment.roleSummary ? <p className="font-semibold">{enrichment.roleSummary}</p> : null}
+                <p>{enrichment.companyDescription}</p>
+                <p className="text-sm text-muted">{[enrichment.industry, enrichment.companySize].filter(Boolean).join(" · ")}</p>
+                {[
+                  ["They sell", enrichment.products],
+                  ["They care about", enrichment.priorities],
+                  ["Public interests", enrichment.interests],
+                ]
+                  .filter(([, value]) => value)
+                  .map(([label, value]) => (
+                    <p key={label}>
+                      <span className="text-muted">{label}. </span>
+                      {value}
+                    </p>
+                  ))}
+                {enrichment.news.map((item) => (
+                  <a key={item.url} href={item.url} className="break-long block text-sm text-accent" target="_blank" rel="noreferrer">
+                    {item.title}
+                  </a>
                 ))}
-              {enrichment.news.map((item) => (
-                <a key={item.url} href={item.url} className="block text-sm text-accent" target="_blank" rel="noreferrer">
-                  {item.title}
-                </a>
-              ))}
-              {enrichment.sources.map((source) => (
-                <a key={source} href={source} className="block truncate text-sm text-accent" target="_blank" rel="noreferrer">
-                  {source}
-                </a>
-              ))}
-            </section>
+                {enrichment.sources.map((source) => (
+                  <a key={source} href={source} className="break-long block min-w-0 text-sm text-accent" target="_blank" rel="noreferrer">
+                    {source}
+                  </a>
+                ))}
+              </div>
+            </Fold>
           ) : enrichment?.unavailable ? (
-            <p className="text-sm text-muted">No public professional page turned up for these details. The score used the card and your note only.</p>
+            <Fold title="Public lookup">
+              <p className="text-sm text-muted">No public professional page turned up. The score used the card and your note only.</p>
+            </Fold>
           ) : null}
         </div>
 
-        <section className="surface space-y-4 p-6 lg:sticky lg:top-8">
+        <section className="surface min-w-0 space-y-4 overflow-hidden p-5 lg:sticky lg:top-8">
           <h2 className="kicker">Stay connected</h2>
-          <p className="text-sm text-muted">
-            {skipFollowUp(contact.relevance)
-              ? "No follow-up is suggested from what we have. You can still write one if you want. Nothing goes out on its own."
-              : "A note you can send to keep the conversation going. Nothing goes out on its own. Edits save here."}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {TASK_CHANNELS.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => void writeChannel(item)}
-                className={`rounded-full px-3 py-1.5 text-sm font-semibold ${channel === item ? "bg-accent text-accent-ink" : "bg-[#f7f3ea] text-muted"}`}
-                disabled={drafting}
-              >
-                {channelLabel[item]}
-              </button>
-            ))}
-          </div>
-          <textarea
-            value={draft}
-            onChange={(item) => {
-              dirtyDraft.current = true;
-              setDraftSaved(false);
-              setDraft(item.target.value);
-            }}
-            onBlur={() => {
-              if (dirtyDraft.current) void persistDraft();
-            }}
-            className="field-control min-h-52"
-            aria-busy={drafting}
-          />
-          {drafting ? (
-            <p className="flex items-center gap-3 text-sm text-muted">
-              <BusyBar className="w-24" />
-              Writing this note
-            </p>
-          ) : draftSaved ? (
-            <p className="text-sm text-accent">Saved on this account</p>
-          ) : null}
-          <Button
-            type="button"
-            className="w-full"
-            onClick={async () => {
-              if (dirtyDraft.current) await persistDraft();
-              await navigator.clipboard.writeText(draft);
-              setCopied(true);
-            }}
-            disabled={!draft}
-          >
-            {copied ? "Copied" : "Copy the note"}
-          </Button>
+          {skipped ? (
+            <Fold title="No follow-up suggested — write one anyway" flush>
+              <p className="mb-4 text-sm text-muted">Nothing goes out on its own.</p>
+              <div className="space-y-4">{draftBox}</div>
+            </Fold>
+          ) : (
+            <>
+              <p className="text-sm text-muted">
+                {nextStep ? `Recommended: ${nextStep}. You can pick another.` : "A note you can send."} Nothing goes out on its own.
+              </p>
+              {recommended && otherChannels.length ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void writeChannel(recommended)}
+                    disabled={drafting}
+                    className="rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink"
+                  >
+                    {CHANNEL_LABELS[recommended]}
+                  </button>
+                  <Fold title="Other ways to send" flush>
+                    <div className="flex flex-wrap gap-2">
+                      {otherChannels.map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => void writeChannel(item)}
+                          className={`rounded-full px-3 py-1.5 text-sm font-semibold ${channel === item ? "bg-accent text-accent-ink" : "bg-[#f7f3ea] text-muted"}`}
+                          disabled={drafting}
+                        >
+                          {CHANNEL_LABELS[item]}
+                        </button>
+                      ))}
+                    </div>
+                  </Fold>
+                  <textarea
+                    value={draft}
+                    onChange={(item) => {
+                      dirtyDraft.current = true;
+                      setDraftSaved(false);
+                      setDraft(item.target.value);
+                    }}
+                    onBlur={() => {
+                      if (dirtyDraft.current) void persistDraft();
+                    }}
+                    className="field-control min-h-40"
+                    aria-busy={drafting}
+                  />
+                  {drafting ? (
+                    <p className="flex items-center gap-3 text-sm text-muted">
+                      <BusyBar className="w-24" />
+                      Writing this note
+                    </p>
+                  ) : draftSaved ? (
+                    <p className="text-sm text-accent">Saved on this account</p>
+                  ) : null}
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Button
+                      type="button"
+                      className="w-full"
+                      onClick={async () => {
+                        if (dirtyDraft.current) await persistDraft();
+                        await navigator.clipboard.writeText(draft);
+                        setCopied(true);
+                      }}
+                      disabled={!draft}
+                    >
+                      {copied ? "Copied" : "Copy the note"}
+                    </Button>
+                    {task?.status === "done" ? (
+                      <Button type="button" tone="ghost" className="w-full" onClick={() => void reopenSent()}>
+                        Sent. Still need to send?
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        tone="ghost"
+                        className="w-full"
+                        busy={markingSent}
+                        disabled={!task && !draft.trim()}
+                        onClick={() => void markSent()}
+                      >
+                        {markingSent ? "Saving…" : "I sent it"}
+                      </Button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-4">{draftBox}</div>
+              )}
+            </>
+          )}
         </section>
       </div>
     </PageWrap>

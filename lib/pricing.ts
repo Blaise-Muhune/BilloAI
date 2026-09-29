@@ -4,8 +4,12 @@ export const INDIVIDUAL_MONTHLY_USD = 19;
 export const INDIVIDUAL_YEARLY_USD = 180;
 export const INDIVIDUAL_YEARLY_PER_MONTH_USD = Math.round(INDIVIDUAL_YEARLY_USD / 12);
 export const ORGANIZER_SEAT_USD = 6;
+export const TEAM_SEAT_MONTHLY_USD = 15;
+export const TEAM_SEAT_YEARLY_USD = 150;
 export const SEAT_MIN = 1;
 export const SEAT_MAX = 500;
+export const TEAM_SEAT_MIN = 5;
+export const TEAM_SEAT_MAX = 200;
 
 export function usd(amount: number) {
   return new Intl.NumberFormat("en-US", {
@@ -16,6 +20,7 @@ export function usd(amount: number) {
 }
 
 export function planLabel(plan: string | undefined) {
+  if (plan === "team") return "Team";
   if (plan === "organizer") return "Group seats";
   if (plan === "individual") return "Individual";
   return "Free";
@@ -35,4 +40,17 @@ export function clampSeats(value: number) {
 
 export function seatsPrice(value: number) {
   return clampSeats(value) * ORGANIZER_SEAT_USD;
+}
+
+export function clampTeamSeats(value: number) {
+  if (!Number.isFinite(value)) return TEAM_SEAT_MIN;
+  return Math.min(TEAM_SEAT_MAX, Math.max(TEAM_SEAT_MIN, Math.floor(value)));
+}
+
+export function teamSeatsYearlyPrice(value: number) {
+  return clampTeamSeats(value) * TEAM_SEAT_YEARLY_USD;
+}
+
+export function teamSeatsMonthlyPrice(value: number) {
+  return clampTeamSeats(value) * TEAM_SEAT_MONTHLY_USD;
 }

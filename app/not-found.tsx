@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { BrandHomeLink } from "@/components/brand";
 import { SupportLink } from "@/components/support";
+
+export const metadata: Metadata = {
+  title: "Page not found",
+  robots: { index: false, follow: false },
+};
 
 export default function NotFound() {
   return (

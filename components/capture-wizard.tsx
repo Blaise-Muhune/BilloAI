@@ -4,12 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { BusyBar, CaptureBodySkeleton, OverlayStatus, ScreenStatus } from "@/components/loading";
+import { HuntWhy, type HuntSummary } from "@/components/hunt-why";
 import { PaywallNotice } from "@/components/paywall";
 import { IconMic } from "@/components/icons";
 import { Area, Button, Field, PageHeader, PageWrap, SelectField } from "@/components/ui";
-import { isPaywalled, postForm, postJson } from "@/lib/api";
+import { ApiError, getJson, isPaywalled, postForm, postJson } from "@/lib/api";
 import { addDays, todayISO } from "@/lib/dates";
 import { createContact, createEvent, createTask, getEvent, getPublicProfile, listEvents, updateEvent } from "@/lib/data";
+import { asHref, looksLikeLink } from "@/lib/links";
 import { skipFollowUp } from "@/lib/relevance";
 import { compressImage } from "@/lib/images";
 import { GOAL_LABELS, NETWORKING_GOALS, type ContactFields, type ContactSource, type EventRecord, type NetworkingGoal, type UnderstandResult } from "@/lib/types";
@@ -78,6 +80,12 @@ export function CaptureWizard() {
   const [eventsReady, setEventsReady] = useState(false);
   const [hearing, setHearing] = useState(false);
   const [paywalled, setPaywalled] = useState(false);
+  const [paywallEvent, setPaywallEvent] = useState("");
+  const [paywallReason, setPaywallReason] = useState("");
+  const [inPlay, setInPlay] = useState(false);
+  const [hunt, setHunt] = useState<HuntSummary | null>(null);
+  const [night, setNight] = useState(false);
+  const [moreDetails, setMoreDetails] = useState(false);
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
 
@@ -97,6 +105,18 @@ export function CaptureWizard() {
       })
       .catch((err: unknown) => setError(err instanceof Error ? err.message : "Could not load events."))
       .finally(() => setEventsReady(true));
+    void getJson<{ team: HuntSummary | null }>("/api/team")
+      .then((payload) => {
+        if (payload.team?.icp || payload.team?.targetCompanies?.length || payload.team?.targetRoles) {
+          setHunt({
+            icp: payload.team.icp,
+            targetCompanies: payload.team.targetCompanies ?? [],
+            targetRoles: payload.team.targetRoles ?? "",
+          });
+        }
+      })
+      .catch(() => undefined);
+    setNight(window.localStorage.getItem("billo-night-capture") === "1");
   }, [user, preset]);
 
   useEffect(() => {
@@ -105,9 +125,52 @@ export function CaptureWizard() {
     };
   }, []);
 
+  useEffect(() => {
+    const company = fields.company.trim();
+    if (!user || step !== "confirm" || company.length < 2) {
+      setInPlay(false);
+      return;
+    }
+    let cancel = false;
+    const timer = window.setTimeout(() => {
+      void getJson<{ inPlay: boolean }>(`/api/team/in-play?company=${encodeURIComponent(company)}`)
+        .then((result) => {
+          if (!cancel) setInPlay(result.inPlay);
+        })
+        .catch(() => {
+          if (!cancel) setInPlay(false);
+        });
+    }, 320);
+    return () => {
+      cancel = true;
+      window.clearTimeout(timer);
+    };
+  }, [fields.company, step, user]);
+
   function setField<K extends keyof ContactFields>(key: K, value: string) {
     setFields((current) => ({ ...current, [key]: value }));
   }
+
+  function toggleNight() {
+    setNight((current) => {
+      const next = !current;
+      window.localStorage.setItem("billo-night-capture", next ? "1" : "0");
+      return next;
+    });
+  }
+
+  function notePaywall(err: unknown) {
+    if (!isPaywalled(err)) return false;
+    setPaywalled(true);
+    if (err instanceof ApiError) {
+      setPaywallEvent(err.eventName ?? "");
+      setPaywallReason(err.reason ?? "");
+    }
+    return true;
+  }
+
+  const chosenEvent = events.find((item) => item.id === eventId);
+  const seatedNight = Boolean(chosenEvent?.organizedEventId);
 
   function beginPerson(person: Queued) {
     setFields(person.fields);
@@ -144,8 +207,7 @@ export function CaptureWizard() {
             people.push(next);
           }
         } catch (err) {
-          if (isPaywalled(err)) {
-            setPaywalled(true);
+          if (notePaywall(err)) {
             blocked = true;
             break;
           }
@@ -203,11 +265,40 @@ export function CaptureWizard() {
     setStep("confirm");
   }
 
+  function startManual(seed: ContactFields = emptyFields) {
+    setSource("manual");
+    openConfirm(seed);
+  }
+
+  async function lookupPage(href: string, kind: ContactSource) {
+    const linkedin = href.toLowerCase().includes("linkedin.com");
+    setSource(kind);
+    setReading("Looking up that page…");
+    setError("");
+    try {
+      const result = await postJson<{ fields: ContactFields }>("/api/ai/lookup-link", { input: href, eventId });
+      openConfirm({
+        ...emptyFields,
+        ...result.fields,
+        linkedin: result.fields.linkedin || (linkedin ? href : ""),
+        website: result.fields.website || (linkedin ? result.fields.website : href),
+      });
+    } catch (err) {
+      if (!notePaywall(err)) setError(err instanceof Error ? err.message : "Could not read that page. Add what you have.");
+      openConfirm({
+        ...emptyFields,
+        linkedin: linkedin ? href : "",
+        website: linkedin ? "" : href,
+      });
+    } finally {
+      setReading("");
+    }
+  }
+
   async function continueTyped() {
     const value = link.trim();
     if (!value) {
-      setSource("manual");
-      openConfirm(emptyFields);
+      startManual();
       return;
     }
     if (value.startsWith("billoai:")) {
@@ -215,15 +306,11 @@ export function CaptureWizard() {
       await handleQr("billo_qr", value);
       return;
     }
-    if (value.toLowerCase().includes("linkedin.com")) {
-      const href = value.startsWith("http") ? value : `https://${value}`;
-      setSource("linkedin_qr");
-      openConfirm({ ...emptyFields, linkedin: href });
+    if (!looksLikeLink(value)) {
+      startManual({ ...emptyFields, name: value });
       return;
     }
-    const href = value.startsWith("http") ? value : `https://${value}`;
-    setSource("manual");
-    openConfirm({ ...emptyFields, website: href });
+    await lookupPage(asHref(value), value.toLowerCase().includes("linkedin.com") ? "linkedin_qr" : "manual");
   }
 
   async function handleQr(kind: "linkedin_qr" | "billo_qr", text: string) {
@@ -232,7 +319,7 @@ export function CaptureWizard() {
         setError("That QR is not a LinkedIn profile.");
         return;
       }
-      openConfirm({ ...emptyFields, linkedin: text });
+      await lookupPage(text, "linkedin_qr");
       return;
     }
     const uid = text.startsWith("billoai:") ? text.slice("billoai:".length) : "";
@@ -296,8 +383,7 @@ export function CaptureWizard() {
         const result = await postForm<{ text: string }>("/api/ai/transcribe", body);
         setNote((current) => [current, result.text].filter(Boolean).join(" "));
       } catch (err) {
-        if (isPaywalled(err)) setPaywalled(true);
-        else setError(err instanceof Error ? err.message : "Could not transcribe that note.");
+        if (!notePaywall(err)) setError(err instanceof Error ? err.message : "Could not transcribe that note.");
       } finally {
         setHearing(false);
       }
@@ -362,8 +448,13 @@ export function CaptureWizard() {
 
   async function finish() {
     if (!user || !eventId) return;
-    if (!fields.name.trim()) {
-      setError("A first name is enough if that is all you have.");
+    if (!(chosenEvent?.goalDetail ?? goalDetail).trim()) {
+      setError("One line on why you went, then capture.");
+      setStep("goal");
+      return;
+    }
+    if (!fields.name.trim() && !fields.company.trim() && !fields.linkedin.trim() && !fields.website.trim()) {
+      setError("Add a first name, a company, or a link. Whatever you collected is enough.");
       return;
     }
     setStep("working");
@@ -381,12 +472,20 @@ export function CaptureWizard() {
           allowPublicLookup,
         });
       } catch (err) {
-        if (isPaywalled(err)) {
-          setPaywalled(true);
+        if (notePaywall(err)) {
           blocked = true;
         } else {
           setError(err instanceof Error ? err.message : "Scoring is unavailable. The contact was still saved.");
         }
+      }
+    }
+    let alreadyInPlay = Boolean(understood?.alreadyInPlay);
+    if (!alreadyInPlay && fields.company.trim()) {
+      try {
+        const flag = await getJson<{ inPlay: boolean }>(`/api/team/in-play?company=${encodeURIComponent(fields.company)}`);
+        alreadyInPlay = flag.inPlay;
+      } catch {
+        alreadyInPlay = false;
       }
     }
     const contactId = await createContact(user.uid, {
@@ -398,6 +497,7 @@ export function CaptureWizard() {
       structuredNote: understood?.structuredNote ?? null,
       enrichment: understood?.enrichment ?? null,
       relevance: understood?.relevance ?? null,
+      alreadyInPlay,
     });
     if (understood && !skipFollowUp(understood.relevance) && understood.draft.body.trim()) {
       const promise = understood.structuredNote.followUpPromise;
@@ -426,23 +526,34 @@ export function CaptureWizard() {
   }
 
   return (
-    <PageWrap>
+    <PageWrap className={night ? "night-capture" : ""}>
       {reading ? <OverlayStatus label={reading} /> : null}
       {hearing ? <OverlayStatus label="Hearing that note" /> : null}
       {step !== "confirm" ? (
         <PageHeader
           kicker="Add someone"
-          title={step === "working" ? "Seeing if this connection is a fit" : "Add someone you met"}
+          title={step === "working" ? "Seeing if this connection is a fit" : night ? "Capture and a note" : "Add someone you met"}
           body={
             step === "working"
               ? "Using the conversation, public context, and why you went."
-              : "We’ll match them to why you went, so you know if this connection is worth keeping."
+              : night
+                ? "Photo or a name, then what you talked about. Scoring still uses why you went."
+                : "We’ll match them to why you went, so you know if this connection is worth keeping."
+          }
+          action={
+            <button type="button" onClick={toggleNight} className="text-sm font-semibold text-accent">
+              {night ? "Leave night capture" : "Night — just capture and a note"}
+            </button>
           }
         />
       ) : null}
       {error ? <p className="text-sm text-high">{error}</p> : null}
       {paywalled ? (
-        <PaywallNotice body="Card reading, scoring, and drafts after your first event need Individual, or a seat paid for that event. Anyone you already saved stays on your account." />
+        <PaywallNotice
+          eventName={paywallEvent}
+          reason={paywallReason}
+          body="Card reading, scoring, and drafts after your first event need Individual, a Team seat, or a seat paid for that event. Anyone you already saved stays on your account."
+        />
       ) : null}
 
       {!eventsReady ? <CaptureBodySkeleton /> : null}
@@ -494,8 +605,12 @@ export function CaptureWizard() {
 
       {eventsReady && step === "goal" ? (
         <form onSubmit={(event) => void saveGoal(event)} className="surface mx-auto max-w-xl space-y-5 p-6 lg:p-8">
-          <h2 className="serif text-3xl">Why are you at this event?</h2>
-          <p className="text-muted">The company or host does not set this. Matching who you meet to why you went stays on your account.</p>
+          <h2 className="serif text-3xl">{seatedNight ? "One line before you capture on this seat" : "Why are you at this event?"}</h2>
+          <p className="text-muted">
+            {seatedNight
+              ? "The company or host does not set this. Matching stays on your account. You need your own goal before the first save."
+              : "The company or host does not set this. Matching who you meet to why you went stays on your account."}
+          </p>
           <SelectField label="Goal" value={goal} onChange={(event) => setGoal(event.target.value as NetworkingGoal)}>
             {NETWORKING_GOALS.map((item) => (
               <option key={item} value={item}>
@@ -547,15 +662,20 @@ export function CaptureWizard() {
             </label>
           </section>
           <section className="surface space-y-4 p-6 lg:p-8">
-            <h2 className="serif text-3xl">Or add them from a name or link</h2>
-            <p className="text-muted">Paste a LinkedIn or website, or type a first name. WhatsApp belongs on the next screen.</p>
-            <Field label="Link or name from your notes" value={link} placeholder="linkedin.com/in/… or a URL" onChange={(event) => setLink(event.target.value)} />
-            <Button type="button" className="w-full" onClick={() => void continueTyped()}>
-              {link.trim() ? "Use this" : "Type their details"}
+            <h2 className="serif text-3xl">Or paste a link</h2>
+            <p className="text-muted">LinkedIn or a site. We look it up and fill what is public. You add anything else you have.</p>
+            <Field label="Their link" value={link} placeholder="linkedin.com/in/… or a site" onChange={(event) => setLink(event.target.value)} />
+            <Button type="button" className="w-full" busy={reading.startsWith("Looking up")} onClick={() => void continueTyped()} disabled={!link.trim()}>
+              {reading.startsWith("Looking up") ? "Looking this up…" : looksLikeLink(link) ? "Look this up" : "Use this name"}
             </Button>
-            <button type="button" className="text-sm font-semibold text-accent" onClick={() => void startScanner()}>
-              Scan a QR code instead
-            </button>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              <button type="button" className="text-sm font-semibold text-accent" onClick={() => void startScanner()}>
+                Scan a QR code
+              </button>
+              <button type="button" className="text-sm font-semibold text-accent" onClick={() => startManual()}>
+                Type what you have
+              </button>
+            </div>
             <div id="qr-reader" className="overflow-hidden rounded-2xl" />
           </section>
         </div>
@@ -571,13 +691,16 @@ export function CaptureWizard() {
                 Person {queueIndex + 1} of {queue.length}
               </p>
             ) : null}
-            <h1 className="serif text-4xl xl:text-5xl">{fields.name || "Who is this?"}</h1>
+            <h1 className="serif text-4xl xl:text-5xl">{fields.name || "What you have"}</h1>
             {preview ? (
               <img src={preview} alt="This card, only while you confirm" className="max-h-80 w-full rounded-2xl bg-white object-contain" />
-            ) : (
-              <div className="surface grid min-h-56 place-items-center text-sm text-muted">No photo on this one</div>
-            )}
-            <p className="text-sm text-muted">The photo stays on this screen only. We look up public professional context unless you turn that off.</p>
+            ) : null}
+            <p className="text-sm text-muted">
+              {preview
+                ? "The photo stays on this screen only. Fill in only what you collected. Empty is fine."
+                : "Fill in only what you collected. Empty fields are fine."}
+            </p>
+            {preview ? (
             <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-dashed border-line px-4 py-3" aria-busy={Boolean(reading)}>
               <span>
                 <span className="block text-sm font-semibold">{reading || "Add the other side of this card"}</span>
@@ -596,19 +719,36 @@ export function CaptureWizard() {
                 }}
               />
             </label>
+            ) : null}
           </div>
           <div className="surface space-y-5 p-5 lg:p-8">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted">Whatever you have is enough. Skip anything you did not get.</p>
+              <button type="button" onClick={toggleNight} className="text-sm font-semibold text-accent">
+                {night ? "Leave night capture" : "Night — just capture and a note"}
+              </button>
+            </div>
+            <HuntWhy eventGoal={chosenEvent?.goalDetail || goalDetail} hunt={hunt} inPlay={inPlay} />
             <div className="form-grid">
               <Field label="Name" value={fields.name} onChange={(event) => setField("name", event.target.value)} />
               <Field label="Company" value={fields.company} onChange={(event) => setField("company", event.target.value)} />
-              <Field label="Title" value={fields.title} onChange={(event) => setField("title", event.target.value)} />
-              <Field label="Email" value={fields.email} onChange={(event) => setField("email", event.target.value)} />
-              <Field label="Phone" value={fields.phone} onChange={(event) => setField("phone", event.target.value)} />
-              <Field label="WhatsApp or other" value={fields.otherContact} onChange={(event) => setField("otherContact", event.target.value)} />
-              <Field label="LinkedIn" value={fields.linkedin} onChange={(event) => setField("linkedin", event.target.value)} />
-              <Field label="Website" value={fields.website} onChange={(event) => setField("website", event.target.value)} />
-              <Field label="City or event location" value={fields.location} onChange={(event) => setField("location", event.target.value)} className="lg:col-span-2" />
+              {night && !moreDetails ? null : (
+                <>
+                  <Field label="Title" value={fields.title} onChange={(event) => setField("title", event.target.value)} />
+                  <Field label="Email" value={fields.email} onChange={(event) => setField("email", event.target.value)} />
+                  <Field label="Phone" value={fields.phone} onChange={(event) => setField("phone", event.target.value)} />
+                  <Field label="Other handle" value={fields.otherContact} onChange={(event) => setField("otherContact", event.target.value)} />
+                  <Field label="LinkedIn" value={fields.linkedin} onChange={(event) => setField("linkedin", event.target.value)} />
+                  <Field label="Website" value={fields.website} onChange={(event) => setField("website", event.target.value)} />
+                  <Field label="City or event location" value={fields.location} onChange={(event) => setField("location", event.target.value)} className="lg:col-span-2" />
+                </>
+              )}
             </div>
+            {night ? (
+              <button type="button" className="text-sm font-semibold text-accent" onClick={() => setMoreDetails((current) => !current)}>
+                {moreDetails ? "Hide extra fields" : "More than name and company"}
+              </button>
+            ) : null}
             <Area
               id="capture-note"
               label="One line about what you talked about"
@@ -636,25 +776,29 @@ export function CaptureWizard() {
             ) : recording ? (
               <p className="text-sm text-high">Recording. Tap Stop when you are done.</p>
             ) : null}
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag) => {
-                const on = chosenTags.includes(tag);
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => setChosenTags((current) => (on ? current.filter((item) => item !== tag) : [...current, tag]))}
-                    className={`rounded-full px-3 py-2 text-sm ${on ? "bg-accent text-accent-ink" : "bg-[#f7f3ea] text-muted"}`}
-                  >
-                    {tag}
-                  </button>
-                );
-              })}
-            </div>
-            <label className="flex items-start gap-2 text-sm">
-              <input type="checkbox" checked={allowPublicLookup} onChange={(event) => setAllowPublicLookup(event.target.checked)} />
-              Look up this person and their company on the public web so the match uses more than the card.
-            </label>
+            {night && !moreDetails ? null : (
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag) => {
+                  const on = chosenTags.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setChosenTags((current) => (on ? current.filter((item) => item !== tag) : [...current, tag]))}
+                      className={`rounded-full px-3 py-2 text-sm ${on ? "bg-accent text-accent-ink" : "bg-[#f7f3ea] text-muted"}`}
+                    >
+                      {tag}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {night && !moreDetails ? null : (
+              <label className="flex items-start gap-2 text-sm">
+                <input type="checkbox" checked={allowPublicLookup} onChange={(event) => setAllowPublicLookup(event.target.checked)} />
+                Look up this person and their company on the public web so the match uses more than the card.
+              </label>
+            )}
             <Button type="button" className="w-full" onClick={() => void finish()}>
               {queueIndex + 1 < queue.length ? "Save and add another" : "See if this connection is a fit"}
             </Button>

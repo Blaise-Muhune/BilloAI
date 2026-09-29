@@ -8,11 +8,11 @@ import { BrandLockup } from "@/components/brand";
 import { BusyBar, JoinBodySkeleton, JoinSkeleton, OverlayStatus } from "@/components/loading";
 import { Button, Field, PageHeader, PageWrap } from "@/components/ui";
 import { getJson, getPublicJson, postJson } from "@/lib/api";
-import { persistAuthContext, clearJoinCode, groupCopy, readJoinFrom } from "@/lib/workspace";
+import { persistAuthContext, clearJoinCode, groupCopy, readJoinFrom, teamCopy } from "@/lib/workspace";
 import { formatDay } from "@/lib/dates";
 import type { GroupKind } from "@/lib/types";
 
-type Preview = { name: string; open: boolean; kind?: GroupKind | ""; own?: boolean; date?: string; location?: string };
+type Preview = { name: string; open: boolean; kind?: GroupKind | ""; own?: boolean; date?: string; location?: string; team?: boolean };
 
 function JoinForm() {
   const { user, ready } = useAuth();
@@ -26,7 +26,8 @@ function JoinForm() {
   const fromParam = params.get("from");
   const kind: GroupKind | "" =
     preview?.kind || (fromParam === "company" || fromParam === "event" ? fromParam : readJoinFrom());
-  const copy = groupCopy(kind);
+  const isTeam = Boolean(preview?.team || fromParam === "team");
+  const copy = isTeam ? teamCopy() : groupCopy(kind);
 
   useEffect(() => {
     persistAuthContext({ code, from: fromParam });
@@ -70,18 +71,20 @@ function JoinForm() {
   const signupHref = useMemo(() => {
     const query = new URLSearchParams();
     if (code.trim()) query.set("code", code.trim().toLowerCase());
-    if (kind) query.set("from", kind);
+    if (isTeam) query.set("from", "team");
+    else if (kind) query.set("from", kind);
     const suffix = query.toString();
     return suffix ? `/signup?${suffix}` : "/signup";
-  }, [code, kind]);
+  }, [code, kind, isTeam]);
 
   const loginHref = useMemo(() => {
     const query = new URLSearchParams();
     if (code.trim()) query.set("code", code.trim().toLowerCase());
-    if (kind) query.set("from", kind);
+    if (isTeam) query.set("from", "team");
+    else if (kind) query.set("from", kind);
     const suffix = query.toString();
     return suffix ? `/login?${suffix}` : "/login";
-  }, [code, kind]);
+  }, [code, kind, isTeam]);
 
   async function join(event: React.FormEvent) {
     event.preventDefault();
@@ -92,9 +95,9 @@ function JoinForm() {
     setPending(true);
     setError("");
     try {
-      const result = await postJson<{ eventId: string }>("/api/join", { code });
+      const result = await postJson<{ eventId?: string; team?: boolean }>("/api/join", { code });
       clearJoinCode();
-      router.push(`/events/${result.eventId}`);
+      router.push(result.team ? "/home" : `/events/${result.eventId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not join.");
       setPending(false);
@@ -106,10 +109,12 @@ function JoinForm() {
       <form onSubmit={join} className="surface space-y-5 p-6 lg:p-8">
         <PageHeader
           kicker={preview?.name || copy.kicker}
-          title={preview?.own ? "This is your group" : copy.joinTitle}
+          title={preview?.own ? (isTeam ? "This is your team" : "This is your group") : copy.joinTitle}
           body={
             preview?.own
-              ? "Send the link to the people you are paying for. Joining it yourself would use a seat."
+              ? isTeam
+                ? "Invite people by email, then send them this link. Joining it yourself would use a seat."
+                : "Send the link to the people you are paying for. Joining it yourself would use a seat."
               : copy.joinBody
           }
         />
@@ -125,13 +130,19 @@ function JoinForm() {
             {preview.name}
             {preview.date ? ` · ${formatDay(preview.date)}` : ""}
             {preview.location ? ` · ${preview.location}` : ""}
-            {preview.open ? " · seats open for this event" : " · no seats left for this event"}
+            {isTeam
+              ? preview.open
+                ? " · use the email that was invited"
+                : " · this invite is not for your email"
+              : preview.open
+                ? " · seats open for this event"
+                : " · no seats left for this event"}
           </p>
         ) : null}
         {error ? <p className="text-sm text-high">{error}</p> : null}
         {preview?.own ? (
-          <Link href="/group" className="inline-flex rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink">
-            Open group overview
+          <Link href={isTeam ? "/team" : "/group"} className="inline-flex rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink">
+            {isTeam ? "Open team overview" : "Open group overview"}
           </Link>
         ) : user ? (
           <Button type="submit" busy={pending} disabled={preview ? !preview.open : false} className="min-w-40">
@@ -152,7 +163,9 @@ function JoinForm() {
         <p className="kicker text-[#9ddec8]">Private to you</p>
         <p className="serif mt-3 text-3xl leading-tight">{copy.neverSee}</p>
         <p className="mt-4 text-sm leading-relaxed text-white/65">
-          They see counts. Notes, drafts, and contacts stay on your account. This seat is only for this event.
+          {isTeam
+            ? "They see that you used a seat. The only shared fact about the book is whether a company already has a High or Medium. Notes, drafts, and who you met stay on your account."
+            : "They see that you used a seat. Notes, drafts, and who you met stay on your account. This seat is only for this event."}
         </p>
       </aside>
     </div>

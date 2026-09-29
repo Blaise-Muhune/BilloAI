@@ -6,9 +6,13 @@ const LIMIT = 60;
 
 export class AccessError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  eventName?: string;
+  reason?: "group-seat" | "need-plan";
+  constructor(message: string, status: number, extra?: { eventName?: string; reason?: "group-seat" | "need-plan" }) {
     super(message);
     this.status = status;
+    this.eventName = extra?.eventName;
+    this.reason = extra?.reason;
   }
 }
 
@@ -33,24 +37,118 @@ export async function assertAiAccess(uid: string, emailVerified: boolean, eventI
     throw new AccessError("Verify your email before using AI on more events.", 403);
   }
   if (plan === "individual" && status === "active") return;
-  throw new AccessError("Your first event includes this. After that it is Individual, or a seat paid for that event.", 402);
+  if (await hasActiveTeamSeat(uid)) return;
+  const seated = await groupSeatName(uid);
+  if (seated) {
+    throw new AccessError(
+      `The seat was for ${seated}. Next is Individual, a Team seat, or another seat paid for that event.`,
+      402,
+      { eventName: seated, reason: "group-seat" },
+    );
+  }
+  throw new AccessError("Your first event includes this. After that it is Individual, a Team seat, or a seat paid for that event.", 402, {
+    reason: "need-plan",
+  });
+}
+
+async function hasActiveTeamSeat(uid: string) {
+  const seats = await adminDb()
+    .collection("teamSeats")
+    .where("uid", "==", uid)
+    .where("status", "==", "active")
+    .limit(1)
+    .get();
+  if (seats.empty) return false;
+  const teamId = String(seats.docs[0]!.data().teamId ?? "");
+  if (!teamId) return false;
+  const team = await adminDb().collection("teams").doc(teamId).get();
+  const adminUid = String(team.data()?.adminUid ?? "");
+  if (!adminUid) return false;
+  const admin = await adminDb().collection("users").doc(adminUid).get();
+  return admin.data()?.plan === "team" && admin.data()?.subscriptionStatus === "active";
+}
+
+async function eventHasContacts(uid: string, eventId: string) {
+  const snap = await adminDb()
+    .collection("contacts")
+    .where("ownerId", "==", uid)
+    .where("eventId", "==", eventId)
+    .limit(1)
+    .get();
+  return !snap.empty;
+}
+
+async function groupSeatName(uid: string) {
+  const memberships = await adminDb().collection("eventMemberships").where("uid", "==", uid).get();
+  if (memberships.empty) return "";
+  const newest = memberships.docs
+    .map((item) => ({
+      eventId: String(item.data().eventId ?? ""),
+      createdAt: String(item.data().createdAt ?? ""),
+    }))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  if (!newest?.eventId) return "";
+  const event = await adminDb().collection("events").doc(newest.eventId).get();
+  return String(event.data()?.name ?? "").trim();
 }
 
 async function includedOnEvent(uid: string, eventId: string, stored: string) {
   const event = await adminDb().collection("events").doc(eventId).get();
   if (event.data()?.forSeats) return false;
   if (stored && stored === eventId) return true;
-  if (stored) return false;
+  if (stored) {
+    const used = await eventHasContacts(uid, stored);
+    if (used) return false;
+  }
   const events = await adminDb().collection("events").where("ownerId", "==", uid).get();
-  const oldest = events.docs
-    .map((item) => ({
-      id: item.id,
-      createdAt: String(item.data().createdAt ?? ""),
-      forSeats: Boolean(item.data().forSeats),
-    }))
-    .filter((item) => !item.forSeats)
-    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
-  return oldest?.id === eventId;
+  for (const item of events.docs) {
+    if (item.id === eventId || item.data()?.forSeats) continue;
+    if (await eventHasContacts(uid, item.id)) return false;
+  }
+  return true;
+}
+
+export async function claimIncludedEvent(uid: string, eventId?: string) {
+  if (!eventId) return;
+  const event = await adminDb().collection("events").doc(eventId).get();
+  if (!event.exists || event.data()?.forSeats) return;
+  const userRef = adminDb().collection("users").doc(uid);
+  const user = await userRef.get();
+  const stored = String(user.data()?.includedEventId ?? "");
+  if (stored === eventId) return;
+  if (stored && (await eventHasContacts(uid, stored))) return;
+  await userRef.set({ includedEventId: eventId }, { merge: true });
+}
+
+export async function accessStatus(uid: string) {
+  const user = await adminDb().collection("users").doc(uid).get();
+  const data = user.data();
+  const plan = data?.plan as AccountPlan | undefined;
+  const status = data?.subscriptionStatus as string | undefined;
+  if (await hasActiveTeamSeat(uid)) {
+    return { kind: "team" as const, line: "You’re on a Team seat.", eventName: "" };
+  }
+  if (plan === "team" && status === "active") {
+    return { kind: "team" as const, line: "You’re on a Team seat.", eventName: "" };
+  }
+  const seated = await groupSeatName(uid);
+  if (seated) {
+    return { kind: "group" as const, line: `This event is a Group seat for ${seated}.`, eventName: seated };
+  }
+  if (plan === "individual" && status === "active") {
+    return { kind: "individual" as const, line: "You’re on Individual.", eventName: "" };
+  }
+  const stored = String(data?.includedEventId ?? "");
+  let includedName = "";
+  if (stored && (await eventHasContacts(uid, stored))) {
+    const included = await adminDb().collection("events").doc(stored).get();
+    includedName = String(included.data()?.name ?? "").trim();
+  }
+  return {
+    kind: "included" as const,
+    line: includedName ? `First event included · ${includedName}.` : "First event included.",
+    eventName: includedName,
+  };
 }
 
 export async function assertRateLimit(uid: string) {

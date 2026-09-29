@@ -15,6 +15,7 @@ export async function POST(request: Request) {
   const uid = session.uid;
   try {
     const account = await adminDb().collection("users").doc(uid).get();
+    const email = String(account.data()?.email ?? "").trim().toLowerCase();
     try {
       await cancelCustomerSubscriptions(String(account.data()?.stripeCustomerId ?? ""));
     } catch {
@@ -27,11 +28,43 @@ export async function POST(request: Request) {
     await Promise.all(
       organized.docs.map(async (item) => {
         const payments = await item.ref.collection("payments").get();
-        await Promise.all(payments.docs.map((payment) => payment.ref.delete()));
+        const members = await adminDb().collection("eventMemberships").where("organizedEventId", "==", item.id).get();
+        await Promise.all([...payments.docs, ...members.docs].map((doc) => doc.ref.delete()));
         await item.ref.delete();
       }),
     );
     await deleteQuery("eventMemberships", "uid", uid);
+    const teamIds = new Set<string>();
+    const ownTeamId = String(account.data()?.teamId ?? "");
+    if (ownTeamId) teamIds.add(ownTeamId);
+    const memberSeats = await adminDb().collection("teamSeats").where("uid", "==", uid).get();
+    for (const seat of memberSeats.docs) teamIds.add(String(seat.data().teamId ?? ""));
+    await Promise.all(
+      [...teamIds].map(async (teamId) => {
+        if (!teamId) return;
+        const flags = await adminDb().collection("teamCompanyFlags").where("teamId", "==", teamId).get();
+        await Promise.all(
+          flags.docs.map((flag) => {
+            const uids = (Array.isArray(flag.data().uids) ? flag.data().uids : []).filter((id: unknown) => id !== uid);
+            return uids.length ? flag.ref.set({ uids }, { merge: true }) : flag.ref.delete();
+          }),
+        );
+      }),
+    );
+    await deleteQuery("teamSeats", "uid", uid);
+    if (email.includes("@")) {
+      const invited = await adminDb().collection("teamSeats").where("email", "==", email).get();
+      await Promise.all(invited.docs.map((item) => item.ref.delete()));
+    }
+    const teams = await adminDb().collection("teams").where("adminUid", "==", uid).get();
+    await Promise.all(
+      teams.docs.map(async (item) => {
+        const seats = await adminDb().collection("teamSeats").where("teamId", "==", item.id).get();
+        const flags = await adminDb().collection("teamCompanyFlags").where("teamId", "==", item.id).get();
+        await Promise.all([...seats.docs, ...flags.docs].map((doc) => doc.ref.delete()));
+        await item.ref.delete();
+      }),
+    );
     await adminDb().collection("users").doc(uid).delete();
     await adminDb().collection("publicProfiles").doc(uid).delete();
     await adminDb().collection("rateLimits").doc(uid).delete().catch(() => undefined);

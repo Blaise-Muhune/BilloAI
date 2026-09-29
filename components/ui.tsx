@@ -136,18 +136,71 @@ export function Button({
   );
 }
 
-export function PriorityBadge({ level }: { level: "high" | "medium" | "low" | "unknown" | null }) {
-  if (!level) return <span className="rounded-full bg-line/70 px-2.5 py-1 text-xs font-semibold text-muted">Not scored</span>;
-  const label = level === "high" ? "High" : level === "medium" ? "Medium" : level === "low" ? "Low" : "Not enough";
-  const color =
-    level === "high"
-      ? "bg-orange-100 text-high"
-      : level === "medium"
-        ? "bg-amber-100 text-medium"
-        : level === "low"
-          ? "bg-stone-200 text-low"
-          : "bg-[#efe8d8] text-muted";
-  return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide ${color}`}>{label}</span>;
+const FIT_BADGE = {
+  high: { short: "High", label: "High", hint: "Worth staying connected", className: "bg-orange-100 text-high" },
+  medium: { short: "Medium", label: "Medium", hint: "A lighter follow-up", className: "bg-amber-100 text-medium" },
+  low: { short: "Low", label: "Low", hint: "Weak fit — you can skip", className: "bg-stone-200 text-low" },
+  unknown: {
+    short: "Not enough",
+    label: "Not enough to say",
+    hint: "Need what you talked about, or a public page. This is not Low.",
+    className: "border-2 border-dashed border-[#a16207] bg-[#fff8e8] text-[#7c4a12]",
+  },
+} as const;
+
+export function InPlayBadge({ show }: { show?: boolean }) {
+  if (!show) return null;
+  return (
+    <p className="rounded-2xl bg-[#fff8e8] px-4 py-3 text-sm">
+      Someone on the team already has a live conversation at this company.
+    </p>
+  );
+}
+
+export function PriorityBadge({
+  level,
+  size = "sm",
+  explain = false,
+}: {
+  level: "high" | "medium" | "low" | "unknown" | null;
+  size?: "sm" | "md";
+  explain?: boolean;
+}) {
+  const box = size === "md" ? "px-3 py-1.5 text-sm" : "px-2.5 py-1 text-xs";
+  if (!level) {
+    return (
+      <span className={`inline-flex rounded-full border border-line bg-card font-semibold text-muted ${box}`}>
+        Not scored
+      </span>
+    );
+  }
+  const item = FIT_BADGE[level];
+  const label = size === "md" || level === "unknown" ? item.label : item.short;
+  return (
+    <span className="inline-flex flex-col items-start gap-1">
+      <span className={`max-w-full rounded-full font-semibold tracking-wide ${box} ${item.className}`}>{label}</span>
+      {explain ? <span className="text-sm font-medium leading-snug text-muted">{item.hint}</span> : null}
+    </span>
+  );
+}
+
+export function Fold({
+  title,
+  children,
+  open,
+  flush,
+}: {
+  title: string;
+  children: ReactNode;
+  open?: boolean;
+  flush?: boolean;
+}) {
+  return (
+    <details className={flush ? "" : "surface overflow-hidden"} open={open}>
+      <summary className={`cursor-pointer text-sm font-semibold ${flush ? "py-1" : "px-5 py-4"}`}>{title}</summary>
+      <div className={flush ? "mt-3" : "border-t border-line px-5 pb-5 pt-4"}>{children}</div>
+    </details>
+  );
 }
 
 export function Avatar({ name, size = "md" }: { name: string; size?: "md" | "lg" }) {
@@ -170,12 +223,14 @@ export function PersonLink({
   href,
   name,
   detail,
+  action,
   level,
   layout = "stack",
 }: {
   href: string;
   name: string;
   detail?: string;
+  action?: string;
   level: "high" | "medium" | "low" | "unknown" | null;
   layout?: "stack" | "columns";
 }) {
@@ -189,6 +244,7 @@ export function PersonLink({
         <Avatar name={name || "?"} />
         <span className="min-w-0">
           <span className="block truncate font-semibold">{name || "Unnamed"}</span>
+          {action ? <span className="block truncate text-sm font-semibold text-accent">{action}</span> : null}
           {detail && layout === "stack" ? <span className="block truncate text-sm text-muted">{detail}</span> : null}
           {detail && layout === "columns" ? <span className="block truncate text-sm text-muted lg:hidden">{detail}</span> : null}
         </span>

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb, sessionFromRequest } from "@/lib/firebase/admin";
+import { asSeatPerson, coverageFor, profilesFor } from "@/lib/roster";
+import type { SeatPerson } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -17,6 +19,7 @@ type Counts = {
   low: number;
   followUps: number;
   followUpsDone: number;
+  members: SeatPerson[];
 };
 
 export async function GET(request: Request) {
@@ -27,12 +30,9 @@ export async function GET(request: Request) {
   const metrics: Counts[] = await Promise.all(
     organized.docs.map(async (item) => {
       const data = item.data();
-      const memberships = await adminDb()
-        .collection("eventMemberships")
-        .where("organizedEventId", "==", item.id)
-        .select("eventId")
-        .get();
-      const eventIds = memberships.docs.map((membership) => String(membership.data().eventId));
+      const memberships = await adminDb().collection("eventMemberships").where("organizedEventId", "==", item.id).get();
+      const profiles = await profilesFor(memberships.docs.map((membership) => String(membership.data().uid ?? "")));
+      const members: SeatPerson[] = [];
       const owners = new Set<string>();
       let contacts = 0;
       let high = 0;
@@ -41,20 +41,33 @@ export async function GET(request: Request) {
       let followUps = 0;
       let followUpsDone = 0;
 
-      for (const eventId of eventIds) {
-        const people = await adminDb().collection("contacts").where("eventId", "==", eventId).select("ownerId", "relevance").get();
-        contacts += people.size;
-        people.docs.forEach((contact) => {
-          owners.add(String(contact.data().ownerId ?? ""));
-          const level = contact.data().relevance?.level;
-          if (level === "high") high += 1;
-          else if (level === "medium") medium += 1;
-          else if (level === "low") low += 1;
-        });
-        const tasks = await adminDb().collection("tasks").where("eventId", "==", eventId).select("status").get();
-        followUps += tasks.size;
-        followUpsDone += tasks.docs.filter((task) => task.data().status === "done").length;
+      for (const membership of memberships.docs) {
+        const uid = String(membership.data().uid ?? "");
+        const eventId = String(membership.data().eventId ?? "");
+        const profile = profiles.get(uid);
+        const coverage = uid && eventId ? await coverageFor(uid, eventId) : { captures: 0, high: 0, medium: 0, low: 0, followUps: 0, followUpsDone: 0, lastCaptureAt: "" };
+        contacts += coverage.captures;
+        high += coverage.high;
+        medium += coverage.medium;
+        low += coverage.low;
+        followUps += coverage.followUps;
+        followUpsDone += coverage.followUpsDone;
+        if (coverage.captures > 0) owners.add(uid);
+        members.push(
+          asSeatPerson({
+            id: membership.id,
+            name: String(membership.data().name || profile?.name || ""),
+            email: String(membership.data().email || profile?.email || ""),
+            joinedAt: String(membership.data().createdAt ?? ""),
+            coverage,
+          }),
+        );
       }
+
+      members.sort((a, b) => {
+        const rank = { captured: 0, joined: 1, invited: 2 };
+        return rank[a.status] - rank[b.status] || a.name.localeCompare(b.name);
+      });
 
       return {
         organizedEventId: item.id,
@@ -70,6 +83,7 @@ export async function GET(request: Request) {
         low,
         followUps,
         followUpsDone,
+        members,
       };
     }),
   );

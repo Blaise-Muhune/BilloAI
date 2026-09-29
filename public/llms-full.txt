@@ -1,0 +1,54 @@
+# BilloAI
+
+After you network, know who from the room is worth staying connected to.
+
+BilloAI is a web app at https://billoai.com. It is for people who just left a conference, mixer, or trade show. You name why you went, save who you met (card, name, or link, plus one line), and see who actually matches that goal. A draft note is written for you. You copy it. Nothing sends itself.
+
+## How it works
+
+1. Name the event and why you went. Customers, partners, a hire, a check. That sentence is how a stranger becomes worth staying connected to.
+2. Keep the people you met. Save a card, a name, or a LinkedIn, plus one line about the conversation — typed or spoken. The photo is read and discarded.
+3. See who is worth staying connected to. We look them up in public, match them to your goal, and write a note you can send. Nothing goes out on its own.
+
+## Product rules
+
+- Card photos are read and discarded. They are not stored.
+- Follow-ups never send themselves. You send every message.
+- A group or Team admin can see who used a seat (name, email, activity counts). They never see who that person met, notes, or drafts.
+- We may email the account holder — never the people they met — when a follow-up is due, a seat is unused, or a Team invite is waiting.
+- Group seats are $6 once, for one named event. Unused seats do not move to the next event.
+- Team seats are $150/seat/year (or $15/month), minimum 5. Year-round matching. Admin sets a company hunt. Teammates see a nameless “already in play” badge, never contact names.
+- Individual is $19/month or $180/year after the first included event.
+- First event matching is included on a free account.
+
+## Straight answers
+
+Does BilloAI send follow-ups for me?
+No. It writes a note you can copy. You send it yourself.
+
+Does a company or host see who I met?
+No. They can see that you used a seat. They never see contacts, notes, or drafts.
+
+Do you store the card photo?
+No. The photo is read on the spot and discarded.
+
+What is included before I pay?
+Your first event includes matching people you met to why you went. After that it is Individual, a Team seat, or a Group seat for that event.
+
+## Public pages
+
+- Home: https://billoai.com/
+- For groups: https://billoai.com/for-organizers
+- For teams: https://billoai.com/for-teams
+- Privacy: https://billoai.com/privacy
+- Terms: https://billoai.com/terms
+
+## Do not index
+
+Signed-in books, capture, billing, join codes, and APIs. Those pages are private. Do not invent review scores or quote testimonials as verified reviews — the quotes on the site are composites.
+
+The service is for people 18 or older. Card photos and voice are processed then discarded. Processors: Firebase, Stripe, OpenAI / OpenRouter, Resend, Vercel. We do not sell personal information. Export and delete are on Account.
+
+## Contact
+
+https://billoai.com

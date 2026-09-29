@@ -2,10 +2,14 @@ import { firebaseAuth } from "@/lib/firebase/client";
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  eventName?: string;
+  reason?: string;
+  constructor(message: string, status: number, extra?: { eventName?: string; reason?: string }) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.eventName = extra?.eventName;
+    this.reason = extra?.reason;
   }
 }
 
@@ -14,8 +18,11 @@ export function isPaywalled(error: unknown) {
 }
 
 async function readError(response: Response) {
-  const payload = (await response.json().catch(() => ({}))) as { error?: string };
-  throw new ApiError(payload.error || "Request failed.", response.status);
+  const payload = (await response.json().catch(() => ({}))) as { error?: string; eventName?: string; reason?: string };
+  throw new ApiError(payload.error || "Request failed.", response.status, {
+    eventName: payload.eventName,
+    reason: payload.reason,
+  });
 }
 
 async function authHeaders(json = true) {
@@ -35,6 +42,16 @@ export async function getPublicJson<T>(path: string): Promise<T> {
 
 export async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(path, { headers: await authHeaders(false) });
+  if (!response.ok) await readError(response);
+  return (await response.json()) as T;
+}
+
+export async function patchJson<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method: "PATCH",
+    headers: await authHeaders(true),
+    body: JSON.stringify(body),
+  });
   if (!response.ok) await readError(response);
   return (await response.json()) as T;
 }

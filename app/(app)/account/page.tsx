@@ -3,13 +3,13 @@
 import { signOut } from "firebase/auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { OverlayStatus } from "@/components/loading";
 import { SupportLink } from "@/components/support";
 import { Button, PageHeader, PageWrap } from "@/components/ui";
-import { postJson } from "@/lib/api";
-import { listContacts, listEvents, listTasks } from "@/lib/data";
+import { getJson, patchJson, postJson } from "@/lib/api";
+import { getPublicProfile, getUser, listContacts, listEvents, listTasks } from "@/lib/data";
 import { firebaseAuth } from "@/lib/firebase/client";
 
 export default function AccountPage() {
@@ -18,22 +18,50 @@ export default function AccountPage() {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [unsubscribed, setUnsubscribed] = useState(false);
+  const [savingMail, setSavingMail] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    void getJson<{ unsubscribed: boolean }>("/api/email/prefs")
+      .then((next) => setUnsubscribed(next.unsubscribed))
+      .catch(() => undefined);
+  }, [user]);
+
+  async function toggleMail() {
+    setSavingMail(true);
+    setError("");
+    try {
+      const next = !unsubscribed;
+      await patchJson("/api/email/prefs", { unsubscribed: next });
+      setUnsubscribed(next);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update email settings.");
+    } finally {
+      setSavingMail(false);
+    }
+  }
 
   async function exportData() {
     if (!user) return;
     setError("");
     setExporting(true);
     try {
-      const [events, contacts, tasks] = await Promise.all([
+      const [account, profile, events, contacts, tasks] = await Promise.all([
+        getUser(user.uid),
+        getPublicProfile(user.uid),
         listEvents(user.uid, { all: true }),
         listContacts(user.uid),
         listTasks(user.uid),
       ]);
-      const blob = new Blob([JSON.stringify({ events, contacts, tasks }, null, 2)], { type: "application/json" });
+      const blob = new Blob(
+        [JSON.stringify({ exportedAt: new Date().toISOString(), account, profile, events, contacts, tasks }, null, 2)],
+        { type: "application/json" },
+      );
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "billoai-export.json";
+      link.download = `billoai-export-${new Date().toISOString().slice(0, 10)}.json`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -54,7 +82,12 @@ export default function AccountPage() {
   }
 
   async function removeAccount() {
-    if (!user || !window.confirm("Delete your account, contacts, and notes?")) return;
+    if (
+      !user ||
+      !window.confirm("This cancels open subscriptions, deletes your contacts and notes, and removes your login. This cannot be undone.")
+    ) {
+      return;
+    }
     setPending(true);
     setError("");
     try {
@@ -84,7 +117,8 @@ export default function AccountPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         {[
           ["/profile", "Your card", "The QR other BilloAI users can scan"],
-          ["/billing", "Plan", "Individual every event, or seats for one event"],
+          ["/billing", "Plan", "Individual, Team seats, or Group seats for one event"],
+          ["/team", "Team", "Year-round seats, the hunt list, and coverage counts"],
           ["/group", "Group", "Seats and counts for the people you pay for"],
           ["/join", "Join", "Enter a code a company or host sent you"],
         ].map(([href, title, body]) => (
@@ -95,6 +129,18 @@ export default function AccountPage() {
         ))}
       </div>
       {error ? <p className="text-sm text-high">{error}</p> : null}
+      <div className="surface flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="font-semibold">What matters emails</p>
+          <p className="mt-1 text-sm text-muted">
+            At most one a day, and only if something is due, leftover from last night, or a seat is sitting unused. We
+            never email the people you met.
+          </p>
+        </div>
+        <Button type="button" tone="ghost" busy={savingMail} onClick={() => void toggleMail()}>
+          {unsubscribed ? "Turn emails back on" : "Stop these emails"}
+        </Button>
+      </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="surface flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -109,7 +155,14 @@ export default function AccountPage() {
           <div>
             <p className="font-semibold">Export or delete</p>
             <p className="mt-1 text-sm text-muted">
-              Questions or a billing problem: email <SupportLink />.
+              Questions or a billing problem: email <SupportLink />.{" "}
+              <Link href="/privacy" className="font-semibold text-accent">
+                Privacy
+              </Link>
+              {" · "}
+              <Link href="/terms" className="font-semibold text-accent">
+                Terms
+              </Link>
             </p>
           </div>
           <div className="flex flex-wrap gap-3">

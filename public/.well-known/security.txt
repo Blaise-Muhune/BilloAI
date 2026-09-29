@@ -1,0 +1,5 @@
+Contact: mailto:blaisemu007@gmail.com
+Expires: 2027-09-29T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://billoai.com/.well-known/security.txt
+Policy: https://billoai.com/privacy
