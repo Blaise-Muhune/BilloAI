@@ -1,4 +1,5 @@
 import { postForm, postJson } from "@/lib/api";
+import { announceCaptureWork } from "@/lib/capture-events";
 import { addDays, todayISO } from "@/lib/dates";
 import { createContact, createTask, getContact, updateContact } from "@/lib/data";
 import { blobToDataUrl } from "@/lib/images";
@@ -178,5 +179,6 @@ export async function drainCaptureWork(uid: string) {
     await scorePendingContacts(uid);
   } finally {
     draining = false;
+    announceCaptureWork();
   }
 }

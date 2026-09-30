@@ -8,6 +8,7 @@ import { DetailSkeleton } from "@/components/loading";
 import { Button, Empty, ErrorNote, Field, PageWrap, PersonLink, PriorityBadge, SelectField } from "@/components/ui";
 import { MorningRoom } from "@/components/morning-room";
 import { recommendedLabel } from "@/lib/channels";
+import { CAPTURE_QUEUE_EVENT, CAPTURE_WORK_EVENT } from "@/lib/capture-events";
 import { cardFaceSrc } from "@/lib/profile-links";
 import { formatDay } from "@/lib/dates";
 import { userMessage } from "@/lib/errors";
@@ -62,6 +63,26 @@ export default function EventDetailPage() {
         }
       })
       .finally(() => setReady(true));
+  }, [user, id]);
+
+  useEffect(() => {
+    if (!user || !id) return;
+    const uid = user.uid;
+    function refresh() {
+      void Promise.all([getEvent(uid, id), listContactsForEvent(uid, id), listTasks(uid)])
+        .then(([nextEvent, nextContacts, nextTasks]) => {
+          if (nextEvent) setEvent(nextEvent);
+          setContacts(nextContacts);
+          setTasks(nextTasks.filter((task) => task.eventId === id));
+        })
+        .catch(() => undefined);
+    }
+    window.addEventListener(CAPTURE_WORK_EVENT, refresh);
+    window.addEventListener(CAPTURE_QUEUE_EVENT, refresh);
+    return () => {
+      window.removeEventListener(CAPTURE_WORK_EVENT, refresh);
+      window.removeEventListener(CAPTURE_QUEUE_EVENT, refresh);
+    };
   }, [user, id]);
 
   if (!ready) return <DetailSkeleton />;
@@ -213,15 +234,15 @@ export default function EventDetailPage() {
           href={`/capture?event=${event.id}`}
           className="inline-flex shrink-0 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-ink shadow-[0_8px_20px_rgb(11_107_79/0.25)]"
         >
-          Add someone you met
+          Add someone
         </Link>
       </div>
       {contacts.length === 0 ? (
         <Empty
           title="No one from this event yet"
-          body="Save a person you met. We’ll match them to why you went."
+          body="Save a person you met. Speak the note and keep going. Ranking fills in on this page."
           href={`/capture?event=${event.id}`}
-          action="Add someone you met"
+          action="Add someone"
         />
       ) : (
         <>

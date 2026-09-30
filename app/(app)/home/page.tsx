@@ -8,6 +8,7 @@ import { BrandMark } from "@/components/brand";
 import { Empty, ErrorNote, PageHeader, PageWrap } from "@/components/ui";
 import { MorningRoom } from "@/components/morning-room";
 import { getJson } from "@/lib/api";
+import { CAPTURE_QUEUE_EVENT, CAPTURE_WORK_EVENT } from "@/lib/capture-events";
 import { userMessage } from "@/lib/errors";
 import { formatDay, todayISO } from "@/lib/dates";
 import { listContacts, listEvents, listTasks } from "@/lib/data";
@@ -49,6 +50,26 @@ export default function HomePage() {
     load();
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+    const uid = user.uid;
+    function refresh() {
+      void Promise.all([listTasks(uid), listContacts(uid), listEvents(uid)])
+        .then(([nextTasks, nextContacts, nextEvents]) => {
+          setTasks(nextTasks);
+          setContacts(nextContacts);
+          setEvents(nextEvents);
+        })
+        .catch(() => undefined);
+    }
+    window.addEventListener(CAPTURE_WORK_EVENT, refresh);
+    window.addEventListener(CAPTURE_QUEUE_EVENT, refresh);
+    return () => {
+      window.removeEventListener(CAPTURE_WORK_EVENT, refresh);
+      window.removeEventListener(CAPTURE_QUEUE_EVENT, refresh);
+    };
+  }, [user]);
+
   const today = todayISO();
   const upcoming = events.filter((event) => event.date >= today).slice(0, 5);
   const latestCapture = contacts[0];
@@ -73,10 +94,10 @@ export default function HomePage() {
             : firstRun
               ? "Name the next room and why you’re going. That’s how we know who is worth staying connected to."
               : needsCapture
-                ? "Save the people you met. We’ll show who matched why you went."
+                ? "Save the people you met. Speak the note and keep going. We’ll show who matched why you went."
                 : user && !user.emailVerified
                   ? "Your first event can match people you met now. Verify email before you pay or use that on later events."
-                  : "The two or three from that room worth writing, with the line you said and the draft."
+                  : "The two or three from that room worth writing, with the line you said and the draft. Ranking fills in while you keep capturing."
         }
         action={
           ready ? (

@@ -1,3 +1,4 @@
+import { announceCaptureQueue } from "@/lib/capture-events";
 import type { ContactFields, ContactSource } from "@/lib/types";
 
 const DB_NAME = "billo-capture";
@@ -59,6 +60,7 @@ export function newCaptureId() {
 
 export async function putQueuedCapture(item: CaptureQueueItem) {
   await run("readwrite", (store) => store.put(item));
+  announceCaptureQueue();
 }
 
 export async function getQueuedCapture(id: string) {
@@ -72,4 +74,5 @@ export async function listQueuedCaptures() {
 
 export async function deleteQueuedCapture(id: string) {
   await run("readwrite", (store) => store.delete(id));
+  announceCaptureQueue();
 }

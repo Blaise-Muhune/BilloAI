@@ -156,30 +156,6 @@ summary {
     var(--background);
 }
 
-.night-capture {
-  --card: #221e18;
-  --line: #3a342a;
-  --muted: #c4b8a8;
-  --shadow: 0 10px 30px rgb(0 0 0 / 0.28);
-  color: #f4efe6;
-}
-
-.night-capture .surface {
-  background: #221e18;
-  color: #f4efe6;
-}
-
-.night-capture .field-control {
-  background: #16130f;
-  color: #f4efe6;
-  border-color: #3a342a;
-}
-
-.night-capture .kicker,
-.night-capture .text-muted {
-  color: #c4b8a8;
-}
-
 .preview-pane {
   background:
     radial-gradient(36rem 24rem at 80% 0%, rgb(11 107 79 / 0.28), transparent 58%),

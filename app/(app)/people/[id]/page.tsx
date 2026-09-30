@@ -16,6 +16,7 @@ import { userMessage } from "@/lib/errors";
 import { cardFaceSrc } from "@/lib/profile-links";
 import { evidenceLine, skipFollowUp } from "@/lib/relevance";
 import { applyUnderstandResult, contactNeedsScore } from "@/lib/score-contact";
+import { CAPTURE_WORK_EVENT } from "@/lib/capture-events";
 import { useCaptureSync } from "@/lib/use-capture-sync";
 import type { ContactFields, ContactRecord, EventRecord, FollowUpDraft, TaskChannel, TaskRecord, UnderstandResult } from "@/lib/types";
 import { TASK_CHANNELS } from "@/lib/types";
@@ -101,6 +102,32 @@ export default function PersonPage() {
         .catch(() => undefined);
     })();
   }, [user, id]);
+
+  useEffect(() => {
+    if (!user || !id) return;
+    const uid = user.uid;
+    function refresh() {
+      void getContact(uid, id).then((next) => {
+        if (!next) return;
+        setContact(next);
+        if (!editing) {
+          setFields(fieldsFrom(next));
+          setNoteDraft(next.rawNote);
+        }
+        void openTaskForContact(uid, next.id).then((nextTask) => {
+          if (dirtyDraft.current) return;
+          setTask(nextTask);
+          taskRef.current = nextTask;
+          if (nextTask) {
+            setChannel(nextTask.channel);
+            setDraft(nextTask.draft);
+          }
+        });
+      });
+    }
+    window.addEventListener(CAPTURE_WORK_EVENT, refresh);
+    return () => window.removeEventListener(CAPTURE_WORK_EVENT, refresh);
+  }, [user, id, editing]);
 
   async function persistDraft(nextDraft = draftRef.current, nextChannel = channel) {
     if (!user || !contact) return;
@@ -433,7 +460,7 @@ export default function PersonPage() {
           ) : null}
 
           {contactNeedsScore(contact) ? (
-            <p className="rounded-2xl bg-[#fff8e8] px-4 py-3 text-sm">Ranking when you’re back online.</p>
+            <p className="rounded-2xl bg-[#fff8e8] px-4 py-3 text-sm">Ranking in the background. You can wait, or score this one now.</p>
           ) : null}
 
           {contact.relevance ? (
@@ -456,7 +483,7 @@ export default function PersonPage() {
                 Look them up on the public web when scoring.
               </label>
               <button type="button" className="text-sm font-semibold text-accent" onClick={() => void rescore()}>
-                Score again
+                Score this one now
               </button>
             </section>
           ) : (
@@ -470,7 +497,7 @@ export default function PersonPage() {
                 Look them up on the public web when scoring.
               </label>
               <Button type="button" busy={scoring} onClick={() => void rescore()}>
-                {scoring ? "Seeing if they fit" : "See if they fit"}
+                {scoring ? "Seeing if they fit" : "Score this one now"}
               </Button>
             </div>
           )}

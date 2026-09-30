@@ -1,4 +1,5 @@
 import { isPaywalled, postJson } from "@/lib/api";
+import { announceCaptureWork } from "@/lib/capture-events";
 import { addDays, todayISO } from "@/lib/dates";
 import { createTask, getContact, getEvent, listContacts, openTaskForContact, updateContact, updateTask } from "@/lib/data";
 import { skipFollowUp } from "@/lib/relevance";
@@ -22,6 +23,18 @@ export function contactNeedsScore(contact: ContactRecord) {
   if (contact.scoreStatus === "ready") return false;
   if (contact.scoreStatus === "pending" || contact.scoreStatus === "failed") return true;
   return !contact.relevance;
+}
+
+export function contactStillReading(contact: ContactRecord) {
+  if (contact.scoreStatus === "failed") return false;
+  return contactNeedsScore(contact) && Boolean(contact.name.trim());
+}
+
+export function contactNeedsGlance(contact: ContactRecord) {
+  if (contact.scoreStatus === "failed") return true;
+  if (!contact.name.trim()) return true;
+  if (contact.alreadyInPlay) return true;
+  return false;
 }
 
 export async function applyUnderstandResult(
@@ -96,8 +109,10 @@ export async function scoreContact(uid: string, contactId: string, allowPublicLo
     });
     const task = await openTaskForContact(uid, contact.id);
     await applyUnderstandResult(uid, contact, result, task);
+    announceCaptureWork();
   } catch (error) {
     await updateContact(uid, contact.id, { scoreStatus: isPaywalled(error) ? "failed" : "failed" }).catch(() => undefined);
+    announceCaptureWork();
     throw error;
   }
 }
