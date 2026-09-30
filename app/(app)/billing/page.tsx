@@ -227,7 +227,7 @@ function BillingForm() {
         <section className="surface mx-auto max-w-2xl space-y-5 p-6 lg:p-8">
           <h2 className="serif text-3xl">Team</h2>
           <p className="text-muted">
-            Year-round matching for every assigned seat. You set the hunt. Teammates see when a company is already in play.
+            Year-round matching for every assigned seat. You set the hunt. Teammates see which teammate already has that company.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <button
@@ -264,7 +264,7 @@ function BillingForm() {
           </p>
           <ul className="space-y-2 text-sm text-muted">
             <li>Minimum {TEAM_SEAT_MIN} seats — from {usd(TEAM_YEARLY_FLOOR_USD)} a year. Move a seat when someone leaves.</li>
-            <li>You see who has a seat, coverage, and when a company is already in play.</li>
+            <li>You see who has a seat, coverage, and which teammate already has a live company.</li>
             <li>Group $6 seats stay a separate checkout for one named event.</li>
           </ul>
           <div className="flex flex-wrap gap-3">

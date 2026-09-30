@@ -12,6 +12,7 @@ export async function POST(request: Request) {
   if (gate.error) return gate.error;
   try {
     if (!body.image) return NextResponse.json({ error: "Add an image." }, { status: 400 });
+    if (body.image.length > 5_000_000) return NextResponse.json({ error: "Use a smaller photo." }, { status: 400 });
     const fields = await extractCard(body.image);
     return NextResponse.json({ fields });
   } catch (error) {

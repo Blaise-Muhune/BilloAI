@@ -15,7 +15,7 @@ const SETUP_NOTE = `From ${usd(TEAM_YEARLY_FLOOR_USD)} a year at ${TEAM_SEAT_MIN
 export const metadata: Metadata = pageMeta({
   title: "Team seats for sales and BD",
   description:
-    "Year-round seats for sales and BD. One hunt list. No two reps on the same live account. You see coverage, and you can move a seat.",
+    "Year-round seats for sales and BD. One hunt list. No two reps on the same live account. You see coverage, and which teammate already has a company.",
   path: "/for-teams",
 });
 
@@ -39,7 +39,7 @@ const steps = [
   {
     n: "3",
     title: "Stay off the same account",
-    body: "If a teammate already has a High or Medium at that company, the next person sees a badge.",
+    body: "If a teammate already has a High or Medium at that company, the next person sees who has it — not the notes.",
   },
 ];
 
@@ -69,7 +69,7 @@ export default function ForTeamsPage() {
               One hunt. Seats you can move. No two reps on the same live account.
             </h1>
             <p className="mt-4 max-w-lg text-lg leading-relaxed text-muted sm:mt-6">
-              You set the companies. You see coverage. Teammates see when a company is already in play.
+              You set the companies. You see coverage. Teammates see which teammate already has that company. Not the notes.
             </p>
             <div className="mt-7 sm:mt-9">
               <LandingCta href={SETUP_HREF} label={SETUP_LABEL} />

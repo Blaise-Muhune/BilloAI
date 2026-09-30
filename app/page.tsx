@@ -29,7 +29,7 @@ const whoLinks = [
 
 export const metadata: Metadata = pageMeta({
   title: "Know who from the room is worth staying connected to",
-  description: "Say why you went. See who matched that. Send the note yourself. First event includes matching. No payment to start.",
+  description: "Say why you went. Keep who you met before ranking. In the morning, see who matched that. Send the note yourself. First event includes matching. No payment to start.",
   path: "/",
 });
 
@@ -41,6 +41,10 @@ const faqs = [
   {
     q: "What is included before I pay?",
     a: "Matching on your first event. No payment to start. After that: Individual, a Team seat, or a Group seat for another named event.",
+  },
+  {
+    q: "Does scoring wait until I leave the room?",
+    a: "Yes. Save the person and the line while they are still there. Ranking can wait until you have a connection.",
   },
   {
     q: "Group or Team?",
@@ -56,8 +60,8 @@ const people = [
 
 const steps = [
   { n: "1", title: "Why you went", body: "Customers, a hire, a check — that sentence is the filter." },
-  { n: "2", title: "Who you met", body: "Save a card, a name, or a LinkedIn, plus one line from the conversation." },
-  { n: "3", title: "Who fits", body: "We match them to that goal and write a note. You send it." },
+  { n: "2", title: "Who you met", body: "Photo or a name, plus one spoken line. The contact is kept before ranking." },
+  { n: "3", title: "Who fits", body: "In the morning: the two or three High matches, the line you said, and a draft you copy." },
 ];
 
 const voices = [
@@ -169,7 +173,7 @@ export default function LandingPage() {
               Leave knowing who from the room is worth staying connected to.
             </h1>
             <p className="mt-4 max-w-lg text-lg leading-relaxed text-muted sm:mt-6">
-              Say why you went. See who matched that. Send the note yourself.
+              Say why you went. Keep who you met before the moment passes. In the morning, see who matched that. Send the note yourself.
             </p>
             <div className="mt-7 sm:mt-9">
               <LandingCta href={START_HREF} label={START_LABEL} />
@@ -199,8 +203,9 @@ export default function LandingPage() {
               ))}
             </div>
             <div className="border-t border-line px-5 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">Draft · not sent</p>
-              <p className="mt-2 text-sm leading-relaxed">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">The line · then a draft</p>
+              <p className="mt-2 text-sm leading-relaxed">Promised the pricing note. Works the late shift at the plant.</p>
+              <p className="mt-3 text-sm leading-relaxed text-muted">
                 Maya — good to meet you at the mixer. You mentioned downtime still gets logged on paper. Want the one-pager this week?
               </p>
             </div>

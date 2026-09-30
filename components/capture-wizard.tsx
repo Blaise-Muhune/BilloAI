@@ -1,20 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { BusyBar, CaptureBodySkeleton, OverlayStatus, ScreenStatus } from "@/components/loading";
 import { HuntWhy, type HuntSummary } from "@/components/hunt-why";
 import { PaywallNotice } from "@/components/paywall";
-import { IconMic } from "@/components/icons";
+import { BrandMark } from "@/components/brand";
+import { ChannelMark } from "@/components/channel-mark";
+import { IconCamera, IconMic, IconQr } from "@/components/icons";
 import { Area, Avatar, Button, ErrorNote, Field, PageHeader, PageWrap, SelectField } from "@/components/ui";
 import { ApiError, getJson, isPaywalled, postForm, postJson } from "@/lib/api";
 import { userMessage } from "@/lib/errors";
 import { addDays, todayISO } from "@/lib/dates";
-import { createContact, createEvent, createTask, getEvent, getPublicProfile, listEvents, updateEvent } from "@/lib/data";
+import { createContact, createEvent, createTask, getEvent, listEvents, resolvePublicCard, updateEvent } from "@/lib/data";
 import { CARD_SCHEME, parseCardScan } from "@/lib/card";
 import { asHref, looksLikeLink } from "@/lib/links";
-import { cardFaceSrc, contactFromProfile } from "@/lib/profile-links";
+import { cardFaceSrc, contactFromProfile, labelFromUrl } from "@/lib/profile-links";
 import { scanQrFile, startQrScan } from "@/lib/qr-scan";
 import { skipFollowUp } from "@/lib/relevance";
 import { compressImage, dataUrlToBlob } from "@/lib/images";
@@ -23,6 +25,35 @@ import { mergeContactFields } from "@/lib/capture-sync";
 import { scoreContact } from "@/lib/score-contact";
 import { useCaptureSync } from "@/lib/use-capture-sync";
 import { GOAL_LABELS, NETWORKING_GOALS, type ContactFields, type ContactSource, type EventRecord, type NetworkingGoal, type UnderstandResult } from "@/lib/types";
+
+function isProfilePaste(value: string) {
+  const text = value.trim();
+  if (!text) return false;
+  const scanned = parseCardScan(text);
+  return scanned.kind === "billo" || scanned.kind === "linkedin" || scanned.kind === "url" || looksLikeLink(text);
+}
+
+function pasteHint(value: string) {
+  const text = value.trim();
+  if (!text) return "";
+  const scanned = parseCardScan(text);
+  if (scanned.kind === "billo") return "Their Billo card";
+  if (scanned.kind === "linkedin") return "LinkedIn";
+  if (isProfilePaste(text)) {
+    const label = labelFromUrl(text);
+    return label === "Link" ? "Public page" : label;
+  }
+  return "We’ll use this as their name";
+}
+
+function ShareChip({ children, label }: { children: ReactNode; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-sm">
+      {children}
+      {label}
+    </span>
+  );
+}
 
 const tags = [
   "Potential customer",
@@ -352,10 +383,7 @@ export function CaptureWizard() {
 
   async function continueTyped() {
     const value = link.trim();
-    if (!value) {
-      startManual();
-      return;
-    }
+    if (!value) return;
     const scanned = parseCardScan(value);
     if (scanned.kind === "billo") {
       await handleScan(value);
@@ -381,7 +409,7 @@ export function CaptureWizard() {
       return;
     }
     if (scanned.kind !== "billo") {
-      setError("That QR is not a BilloAI card or a LinkedIn profile.");
+      setError("That QR is not a profile link we can read.");
       return;
     }
     if (user && scanned.uid === user.uid) {
@@ -391,17 +419,17 @@ export function CaptureWizard() {
     setSource("billo_qr");
     setReading("Opening that card…");
     try {
-      const profile = await getPublicProfile(scanned.uid);
-      if (!profile) {
+      const card = await resolvePublicCard(scanned.uid);
+      if (!card) {
         setError("No BilloAI card was found for that code.");
         return;
       }
       openConfirm(
         {
           ...emptyFields,
-          ...contactFromProfile(profile),
+          ...contactFromProfile(card.profile),
         },
-        scanned.uid,
+        card.uid,
       );
     } finally {
       setReading("");
@@ -701,9 +729,13 @@ export function CaptureWizard() {
           body={
             step === "working"
               ? "Using the conversation, public context, and why you went."
-              : night
-                ? "Photo or a name, then what you talked about. Ranking waits until you’re back online."
-                : "We’ll match them to why you went, so you know if this connection is worth keeping."
+              : step === "method"
+                ? night
+                  ? "Paper card, any profile they sent, or a QR they showed. Ranking waits until you’re back online."
+                  : "Paper card, any profile they sent, or a QR they showed."
+                : night
+                  ? "Photo or a name, then what you talked about. Ranking waits until you’re back online."
+                  : "We’ll match them to why you went, so you know if this connection is worth keeping."
           }
           action={
             <button type="button" onClick={toggleNight} className="text-sm font-semibold text-accent">
@@ -799,18 +831,28 @@ export function CaptureWizard() {
         <>
         <div className="grid gap-6 lg:grid-cols-2">
           <section className="surface space-y-4 p-6 lg:p-8">
-            <h2 className="serif text-3xl">Save a card</h2>
-            <p className="text-muted">Each photo is a different person. If two shots are the same card, add the other side on the next screen.</p>
+            <h2 className="serif text-3xl">Photo of their card</h2>
+            <p className="text-muted">Paper card or a screenshot. Each photo is one person.</p>
             <label
-              className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-line bg-white px-4 py-5 shadow-sm"
+              className="flex min-h-[12rem] cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-line px-4 py-6 text-center hover:border-accent"
               aria-busy={Boolean(reading)}
             >
-              <span>
-                <span className="block font-semibold">{reading || "Choose photos"}</span>
-                <span className="text-sm text-muted">{reading ? "Stay on this screen while we read them." : "Up to 12 cards or screenshots"}</span>
-                {reading ? <BusyBar className="mt-3 w-32" /> : null}
+              <span className="grid h-14 w-14 place-items-center rounded-full bg-[#f7f3ea] text-accent">
+                <IconCamera className="h-7 w-7" />
               </span>
-              <span className="rounded-full bg-accent px-3 py-2 text-sm font-semibold text-accent-ink">Add</span>
+              <span>
+                <span className="block font-semibold">
+                  {reading && !reading.startsWith("Looking") && !reading.startsWith("Reading that QR") ? reading : "Add card photos"}
+                </span>
+                <span className="mt-1 block text-sm text-muted">
+                  {reading && !reading.startsWith("Looking") && !reading.startsWith("Reading that QR")
+                    ? "Stay here while we read it."
+                    : "Up to 12 at once"}
+                </span>
+              </span>
+              {reading && !reading.startsWith("Looking") && !reading.startsWith("Reading that QR") ? <BusyBar className="w-32" /> : (
+                <span className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink">Add photos</span>
+              )}
               <input
                 type="file"
                 accept="image/*"
@@ -826,23 +868,73 @@ export function CaptureWizard() {
               />
             </label>
           </section>
-          <section className="surface space-y-4 p-6 lg:p-8">
-            <h2 className="serif text-3xl">Or paste a link</h2>
-            <p className="text-muted">LinkedIn, a site, or their BilloAI card link. We fill what is public. You add anything else.</p>
-            <Field label="Their link" value={link} placeholder="linkedin.com/in/… or a site" onChange={(event) => setLink(event.target.value)} />
-            <Button type="button" className="w-full" busy={reading.startsWith("Looking up")} onClick={() => void continueTyped()} disabled={!link.trim()}>
-              {reading.startsWith("Looking up") ? "Looking this up…" : looksLikeLink(link) ? "Look this up" : "Use this name"}
-            </Button>
-            <div className="flex flex-wrap items-center gap-3">
-              <Button type="button" tone="ghost" onClick={() => void startScanner()}>
-                Scan a QR
-              </Button>
-              <label className="cursor-pointer text-sm font-semibold text-accent">
-                Photo of a QR
+          <section className="surface space-y-5 p-6 lg:p-8">
+            <h2 className="serif text-3xl">A profile they shared</h2>
+            <p className="text-muted">Any public profile they sent you — or the QR on their phone.</p>
+            <div className="flex flex-wrap gap-2" aria-label="Links we can read">
+              <ShareChip label="LinkedIn"><ChannelMark kind="linkedin" /></ShareChip>
+              <ShareChip label="Instagram"><ChannelMark kind="instagram" /></ShareChip>
+              <ShareChip label="X"><ChannelMark kind="x" /></ShareChip>
+              <ShareChip label="Any site"><ChannelMark kind="website" /></ShareChip>
+              <ShareChip label="Billo card"><BrandMark className="h-5 w-5" /></ShareChip>
+            </div>
+            <form
+              className="space-y-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (link.trim()) void continueTyped();
+              }}
+            >
+              <Field
+                label="Paste their link"
+                value={link}
+                placeholder="linkedin.com/in/…  instagram.com/…  or billoai.com/c/first-last"
+                inputMode="url"
+                autoComplete="url"
+                enterKeyHint="go"
+                onChange={(event) => setLink(event.target.value)}
+              />
+              {pasteHint(link) ? <p className="text-sm text-muted">{pasteHint(link)}</p> : null}
+              {link.trim() && !isProfilePaste(link) ? (
+                <Button type="submit" tone="ghost" className="w-full">
+                  Use this as their name
+                </Button>
+              ) : (
+                <Button type="submit" className="w-full" busy={reading.startsWith("Looking up")} disabled={!isProfilePaste(link)}>
+                  {reading.startsWith("Looking up") ? "Looking this up…" : "Look this up"}
+                </Button>
+              )}
+            </form>
+            <div className="flex items-center gap-3 text-sm text-muted" role="separator">
+              <span className="h-px flex-1 bg-[var(--line)]" />
+              Or a QR they showed
+              <span className="h-px flex-1 bg-[var(--line)]" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => void startScanner()}
+                className="flex min-h-[7.5rem] cursor-pointer flex-col items-start justify-between gap-3 rounded-2xl border border-line px-4 py-4 text-left hover:border-accent"
+              >
+                <span className="grid h-11 w-11 place-items-center rounded-full bg-[#f7f3ea] text-accent">
+                  <IconQr />
+                </span>
+                <span>
+                  <span className="block font-semibold">Scan their QR</span>
+                  <span className="text-sm text-muted">Live camera</span>
+                </span>
+              </button>
+              <label className="flex min-h-[7.5rem] cursor-pointer flex-col items-start justify-between gap-3 rounded-2xl border border-line px-4 py-4 hover:border-accent">
+                <span className="grid h-11 w-11 place-items-center rounded-full bg-[#f7f3ea] text-accent">
+                  <IconCamera />
+                </span>
+                <span>
+                  <span className="block font-semibold">Photo of a QR</span>
+                  <span className="text-sm text-muted">Screenshot or camera</span>
+                </span>
                 <input
                   type="file"
                   accept="image/*"
-                  capture="environment"
                   className="sr-only"
                   onChange={(event) => {
                     const file = event.target.files?.[0];
@@ -852,11 +944,11 @@ export function CaptureWizard() {
                   }}
                 />
               </label>
-              <button type="button" className="text-sm font-semibold text-accent" onClick={() => startManual()}>
-                Type what you have
-              </button>
             </div>
             <div id="qr-reader" className="overflow-hidden rounded-2xl" />
+            <button type="button" className="text-sm font-semibold text-accent" onClick={() => startManual()}>
+              Type what you have
+            </button>
           </section>
         </div>
         <p className="text-sm text-muted">On the next screen, speak the note. Type if you need to.</p>

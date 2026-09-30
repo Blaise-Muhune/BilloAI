@@ -66,3 +66,21 @@ export function IconGroup({ className }: IconProps) {
     </svg>
   );
 }
+
+export function IconQr({ className }: IconProps) {
+  return (
+    <svg className={base(className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M5 5h6v6H5zM13 5h6v6h-6zM5 13h6v6H5z" />
+      <path d="M14 13h2v2h-2zM18 13h1v4h-4v-1M14 18h4" />
+    </svg>
+  );
+}
+
+export function IconCamera({ className }: IconProps) {
+  return (
+    <svg className={base(className)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M4.5 8.5h3l1.4-2h6.2l1.4 2H19.5A1.5 1.5 0 0 1 21 10v8.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5V10a1.5 1.5 0 0 1 1.5-1.5Z" />
+      <circle cx="12" cy="14" r="3.2" />
+    </svg>
+  );
+}

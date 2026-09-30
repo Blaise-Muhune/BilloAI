@@ -1,4 +1,4 @@
-import { DefaultAzureCredential } from "@azure/identity";
+import { ClientSecretCredential, DefaultAzureCredential } from "@azure/identity";
 import { BlobServiceClient } from "@azure/storage-blob";
 
 const CONTAINER = process.env.AZURE_STORAGE_CONTAINER?.trim() || "profile-photos";
@@ -11,12 +11,20 @@ export function profileBlobName(uid: string) {
   return `profiles/${uid}/avatar`;
 }
 
+function credential() {
+  const tenant = process.env.AZURE_TENANT_ID?.trim();
+  const clientId = process.env.AZURE_CLIENT_ID?.trim();
+  const secret = process.env.AZURE_CLIENT_SECRET?.trim();
+  if (tenant && clientId && secret) return new ClientSecretCredential(tenant, clientId, secret);
+  return new DefaultAzureCredential();
+}
+
 function serviceClient() {
   const connection = process.env.AZURE_STORAGE_CONNECTION_STRING?.trim();
   if (connection) return BlobServiceClient.fromConnectionString(connection);
   const account = process.env.AZURE_STORAGE_ACCOUNT_NAME?.trim();
   if (!account) throw new Error("Azure Storage is not configured.");
-  return new BlobServiceClient(`https://${account}.blob.core.windows.net`, new DefaultAzureCredential());
+  return new BlobServiceClient(`https://${account}.blob.core.windows.net`, credential());
 }
 
 function containerClient() {

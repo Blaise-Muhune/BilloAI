@@ -8,7 +8,7 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_APP_ORIGIN || process.env.APP_O
 export const SITE_NAME = "BilloAI";
 export const SITE_TAGLINE = "After you network, know who from the room is worth staying connected to.";
 export const SITE_DESCRIPTION =
-  "After you network, BilloAI shows who matched why you went, and a note so you can keep the conversation going. You send it. Card photos are read and discarded.";
+  "After you network, BilloAI shows who matched why you went, and a note so you can keep the conversation going. You send it. Other people’s card photos are not stored on the account.";
 
 /** Real content date — Google ignores lastmod when every request says “now”. */
 export const SITE_CONTENT_UPDATED = new Date("2026-09-29T00:00:00.000Z");

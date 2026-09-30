@@ -76,9 +76,11 @@ export interface PublicProfile {
   company: string;
   title: string;
   email: string;
+  phone: string;
   linkedin: string;
   website: string;
   links: { label: string; url: string }[];
+  slug?: string;
   photoPath?: string;
   photoUpdatedAt?: string;
 }

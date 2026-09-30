@@ -2,7 +2,7 @@
 
 > After you network, know who from the room is worth staying connected to.
 
-BilloAI is a web app for people who just left a conference, mixer, or trade show. You name why you went, save who you met (card, name, or link, plus one line), and see who actually matches that goal. A draft note is written for you. You copy it. Nothing sends itself.
+BilloAI is a web app for people who just left a conference, mixer, or trade show. You name why you went, save who you met before ranking, and in the morning see who matched that goal. A draft note is written for you. You copy it. Nothing sends itself.
 
 ## Product rules
 

@@ -2,13 +2,13 @@
 
 After you network, know who from the room is worth staying connected to.
 
-BilloAI is a web app at https://billoai.com. It is for people who just left a conference, mixer, or trade show. You name why you went, save who you met (card, name, or link, plus one line), and see who actually matches that goal. A draft note is written for you. You copy it. Nothing sends itself.
+BilloAI is a web app at https://billoai.com. It is for people who just left a conference, mixer, or trade show. You name why you went, save who you met before ranking, and in the morning see who matched that goal. A draft note is written for you. You copy it. Nothing sends itself.
 
 ## How it works
 
 1. Name the event and why you went. Customers, partners, a hire, a check. That sentence is how a stranger becomes worth staying connected to.
-2. Keep the people you met. Save a card, a name, or a LinkedIn, plus one line about the conversation — typed or spoken. The photo is read and discarded.
-3. See who is worth staying connected to. We look them up in public, match them to your goal, and write a note you can send. Nothing goes out on its own.
+2. Keep the people you met. Photo or a name, plus one spoken line. The contact is saved before ranking. A card photo may stay on the phone until it can be read, then it is discarded — not stored on the account.
+3. In the morning, see the two or three High matches, the line you said, and a draft you copy. Nothing goes out on its own.
 
 ## Product rules
 
@@ -30,7 +30,7 @@ Does a company or host see who I met?
 No. They can see that you used a seat. They never see contacts, notes, or drafts.
 
 Do you store the card photo?
-No. The photo is read on the spot and discarded.
+No. Other people’s card photos are not saved to the account. If the connection drops, the photo can stay on the phone until it can be read, then it is discarded.
 
 What is included before I pay?
 Your first event includes matching people you met to why you went. After that it is Individual, a Team seat, or a Group seat for that event.

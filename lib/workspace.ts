@@ -134,7 +134,7 @@ export function workspaceChoices(account?: Parameters<typeof hasGroupWorkspace>[
       href: "/team",
       role: "I run sales seats all year",
       label: "The team",
-      body: "One hunt for the team. You see coverage, and when a company is already in play.",
+      body: "One hunt for the team. You see coverage, and which teammate already has a live company.",
     });
   }
   return items;
@@ -205,7 +205,7 @@ export function teamCopy() {
     switchLabel: "Team",
     overviewTitle: "One hunt. Seats you can move.",
     overviewBody:
-      "Pay by the seat for the year. Every assigned seat gets matching on every event. You set the companies you are hunting. You see who has a seat, coverage, and when a company is already in play. Move a seat when someone leaves.",
+      "Pay by the seat for the year. Every assigned seat gets matching on every event. You set the companies you are hunting. You see who has a seat, coverage, and which teammate already has a live company. Move a seat when someone leaves.",
     neverSee: "Who you meet stays on your account.",
     joinTitle: "Your company saved you a seat",
     joinBody: "This seat is year-round. Who you meet stays on your account. Scoring uses the hunt they set. Your admin sees that you used a seat.",

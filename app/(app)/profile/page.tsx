@@ -8,7 +8,7 @@ import { ProfileLinksEditor } from "@/components/profile-links-editor";
 import { ProfilePhotoField } from "@/components/profile-photo-field";
 import { Button, ErrorNote, Field, PageHeader, PageWrap } from "@/components/ui";
 import { cardUrl } from "@/lib/card";
-import { getPublicProfile, savePublicProfile } from "@/lib/data";
+import { claimCardSlug, getPublicProfile, savePublicProfile } from "@/lib/data";
 import { userMessage } from "@/lib/errors";
 import { emptyProfile, profilePhotoHref, publicLinkRows } from "@/lib/profile-links";
 import type { PublicProfile } from "@/lib/types";
@@ -26,15 +26,23 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!user) return;
     void getPublicProfile(user.uid)
-      .then((next) => {
-        if (next) setProfile(next);
+      .then(async (next) => {
+        if (!next) return;
+        if (next.name && !next.slug) {
+          try {
+            next = { ...next, slug: await claimCardSlug(user.uid, next.name) };
+          } catch {
+            /* uid link still works */
+          }
+        }
+        setProfile(next);
       })
       .finally(() => setCardReady(true));
   }, [user]);
 
   useEffect(() => {
     if (!user) return;
-    const url = cardUrl(user.uid);
+    const url = cardUrl(profile.slug || user.uid);
     setHref(url);
     void import("qrcode").then((QRCode) => {
       void QRCode.toDataURL(url, {
@@ -44,7 +52,7 @@ export default function ProfilePage() {
         color: { dark: "#1a1612", light: "#ffffff" },
       }).then(setQr);
     });
-  }, [user]);
+  }, [user, profile.slug]);
 
   function set<K extends keyof PublicProfile>(key: K, value: PublicProfile[K]) {
     setProfile((current) => ({ ...current, [key]: value }));
@@ -92,7 +100,7 @@ export default function ProfilePage() {
           setMessage("");
           setSaving(true);
           try {
-            await savePublicProfile(user.uid, profile);
+            await savePublicProfile(user.uid, profile).then(setProfile);
             setMessage("Saved.");
           } catch (err) {
             setError(userMessage(err, "Could not save your card."));
@@ -110,6 +118,9 @@ export default function ProfilePage() {
             <img src={profilePhotoHref(user.uid, profile.photoUpdatedAt)} alt="" className="mx-auto h-20 w-20 rounded-full object-cover" />
           ) : null}
           {qr ? <img src={qr} alt="Your BilloAI QR code" className="mx-auto w-48 bg-white p-3 lg:w-full" /> : <Pulse className="mx-auto aspect-square w-48 rounded-2xl lg:w-full" />}
+          {href ? (
+            <p className="break-long text-center text-sm text-muted">{href.replace(/^https?:\/\//, "")}</p>
+          ) : null}
           <div>
             <p className="serif text-2xl leading-tight">{profile.name || "Your name"}</p>
             <p className="mt-1 text-sm text-muted">{line || "Title and company"}</p>
@@ -151,8 +162,9 @@ export default function ProfilePage() {
             <p className="kicker text-accent">How to reach you</p>
             <div className="form-grid mt-4">
               <Field label="Email" type="email" value={profile.email} onChange={(event) => set("email", event.target.value)} />
+              <Field label="Cell" type="tel" inputMode="tel" autoComplete="tel" value={profile.phone} onChange={(event) => set("phone", event.target.value)} />
               <Field label="LinkedIn" value={profile.linkedin} placeholder="linkedin.com/in/…" onChange={(event) => set("linkedin", event.target.value)} />
-              <Field label="Website" value={profile.website} placeholder="yoursite.com" onChange={(event) => set("website", event.target.value)} className="lg:col-span-2" />
+              <Field label="Website" value={profile.website} placeholder="yoursite.com" onChange={(event) => set("website", event.target.value)} />
               <ProfileLinksEditor links={profile.links ?? []} onChange={(links) => set("links", links)} />
             </div>
           </div>

@@ -447,7 +447,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
               ? copy.joinBody
               : hosted
                 ? copy.overviewBody
-                : "Say why you went. Keep who you met. Stay connected with the people who fit."}
+                : "Say why you went. Keep who you met before ranking. In the morning, stay connected with the people who fit."}
           </p>
         </div>
 
@@ -463,7 +463,7 @@ function AuthForm({ mode }: { mode: "login" | "signup" }) {
             </p>
             <p className="mt-3 text-sm leading-relaxed text-white/75">
               {team
-                ? "Who has a seat, coverage, and when a company is already in play."
+                ? "Who has a seat, coverage, and which teammate already has a live company."
                 : "Who used a seat, who captured someone, and whether they followed through."}
             </p>
           </div>

@@ -31,7 +31,7 @@ export default function PrivacyPage() {
         <h2 className="serif pt-4 text-2xl">What we store</h2>
         <p>
           We store the account you create (name, email, plan) and the events, contacts, notes, drafts, and tasks you
-          add. Your QR card stores the name, company, title, email, LinkedIn, website, any other links you put on it,
+          add. Your QR card stores the name, company, title, email, cell number, LinkedIn, website, any other links you put on it,
           and the profile photo you upload. Another person who scans that card sees those fields. They do not see your
           notes or who else you met.
         </p>

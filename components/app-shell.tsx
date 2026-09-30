@@ -13,7 +13,7 @@ import { getPublicProfile, getUser, listEvents, markOnboarded, saveWorkspace } f
 import { firebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 import { isInboxOwner } from "@/lib/support";
 import type { UserDoc, Workspace } from "@/lib/types";
-import { profilePhotoHref } from "@/lib/profile-links";
+import { PROFILE_PHOTO_EVENT, profilePhotoHref } from "@/lib/profile-links";
 import { groupSeatsHref, readWorkspace, teamBillingHref, workspaceHereLabel, workspaceRoleQuestions } from "@/lib/workspace";
 
 const networkLinks = [
@@ -66,7 +66,16 @@ function Face({ initial, src, className }: { initial: string; src?: string; clas
   return (
     <span className={`relative grid place-items-center overflow-hidden rounded-full bg-foreground font-semibold text-card ${className}`}>
       {initial}
-      {src ? <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" /> : null}
+      {src ? (
+        <img
+          src={src}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+          onError={(event) => {
+            event.currentTarget.style.display = "none";
+          }}
+        />
+      ) : null}
     </span>
   );
 }
@@ -155,6 +164,15 @@ function Shell({ children }: { children: React.ReactNode }) {
       cancel = true;
     };
   }, [user, pathname, router, joining]);
+
+  useEffect(() => {
+    function onPhoto(event: Event) {
+      const updatedAt = String((event as CustomEvent<{ photoUpdatedAt?: string }>).detail?.photoUpdatedAt ?? "");
+      setPhotoAt(updatedAt);
+    }
+    window.addEventListener(PROFILE_PHOTO_EVENT, onPhoto);
+    return () => window.removeEventListener(PROFILE_PHOTO_EVENT, onPhoto);
+  }, []);
 
   useEffect(() => {
     if (!user || !allowed) return;

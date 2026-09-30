@@ -69,6 +69,9 @@ export async function POST(request: Request) {
     );
     await adminDb().collection("users").doc(uid).delete();
     await deleteProfilePhoto(uid).catch(() => undefined);
+    const profile = await adminDb().collection("publicProfiles").doc(uid).get();
+    const slug = String(profile.data()?.slug ?? "").trim();
+    if (slug) await adminDb().collection("cardSlugs").doc(slug).delete().catch(() => undefined);
     await adminDb().collection("publicProfiles").doc(uid).delete();
     await adminDb().collection("rateLimits").doc(uid).delete().catch(() => undefined);
     const [files] = await adminBucket().getFiles({ prefix: `users/${uid}/` });

@@ -485,7 +485,7 @@ export default function PersonPage() {
                 <Field label="Title" value={fields.title} onChange={(item) => setFields({ ...fields, title: item.target.value })} />
                 <Field label="Email" value={fields.email} onChange={(item) => setFields({ ...fields, email: item.target.value })} />
                 <Field label="Phone" value={fields.phone} onChange={(item) => setFields({ ...fields, phone: item.target.value })} />
-                <Field label="WhatsApp or other" value={fields.otherContact} onChange={(item) => setFields({ ...fields, otherContact: item.target.value })} />
+                <Field label="Other contact" value={fields.otherContact} onChange={(item) => setFields({ ...fields, otherContact: item.target.value })} />
                 <Field label="LinkedIn" value={fields.linkedin} onChange={(item) => setFields({ ...fields, linkedin: item.target.value })} />
                 <Field label="Website" value={fields.website} onChange={(item) => setFields({ ...fields, website: item.target.value })} />
                 <Field label="City or event location" value={fields.location} onChange={(item) => setFields({ ...fields, location: item.target.value })} className="lg:col-span-2" />

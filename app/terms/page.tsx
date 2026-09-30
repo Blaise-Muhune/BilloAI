@@ -54,9 +54,9 @@ export default function TermsPage() {
         </p>
         <p>
           Team seats are a separate subscription from Group seats. Quantity is the seat count. The admin assigns emails,
-          sees who has a seat, and can move a seat. Teammates never see another book’s names, notes, or drafts. The
-          only shared fact about the book is that a company already has a High or Medium conversation. Coverage shown
-          to the payer is who used a seat plus counts — never who they met. Revoking a seat does not delete that
+          sees who has a seat, and can move a seat. Teammates never see another book’s names, notes, or drafts. They may
+          see that a company is already in play, and which teammate has it. Coverage shown to the payer is who used a
+          seat plus counts — never who they met. Revoking a seat does not delete that
           person’s book. Team and Individual subscriptions renew until you cancel in the billing portal. Group seats
           are a one-time charge. Unused seats are not refunded automatically. If a charge looks wrong, email{" "}
           <SupportLink />.

@@ -11,6 +11,7 @@ import {
   updateDoc,
   where,
 } from "firebase/firestore";
+import { slugCandidates } from "@/lib/card";
 import { firebaseDb } from "@/lib/firebase/client";
 import { normalizeProfile, saveReadyProfile } from "@/lib/profile-links";
 import type {
@@ -65,6 +66,7 @@ export async function ensureUser(uid: string, name: string, email: string) {
         company: "",
         title: "",
         email,
+        phone: "",
         linkedin: "",
         website: "",
         links: [],
@@ -73,10 +75,49 @@ export async function ensureUser(uid: string, name: string, email: string) {
   });
 }
 
-export async function getPublicProfile(uid: string) {
-  const snap = await getDoc(doc(firebaseDb(), "publicProfiles", uid));
+export async function resolvePublicCard(key: string) {
+  const db = firebaseDb();
+  const direct = await getDoc(doc(db, "publicProfiles", key));
+  if (direct.exists()) return { uid: direct.id, profile: normalizeProfile(direct.data() as PublicProfile) };
+  const mapped = await getDoc(doc(db, "cardSlugs", key.toLowerCase()));
+  const uid = String(mapped.data()?.uid ?? "");
+  if (!uid) return null;
+  const snap = await getDoc(doc(db, "publicProfiles", uid));
   if (!snap.exists()) return null;
-  return normalizeProfile(snap.data() as PublicProfile);
+  return { uid, profile: normalizeProfile(snap.data() as PublicProfile) };
+}
+
+export async function getPublicProfile(uid: string) {
+  const card = await resolvePublicCard(uid);
+  return card?.profile ?? null;
+}
+
+export async function claimCardSlug(uid: string, name: string) {
+  const db = firebaseDb();
+  return runTransaction(db, async (tx) => {
+    const profileRef = doc(db, "publicProfiles", uid);
+    const profileSnap = await tx.get(profileRef);
+    const existing = String(profileSnap.data()?.slug ?? "").trim().toLowerCase();
+    if (existing) {
+      const mapRef = doc(db, "cardSlugs", existing);
+      const mapSnap = await tx.get(mapRef);
+      if (!mapSnap.exists()) {
+        tx.set(mapRef, { uid });
+        return existing;
+      }
+      if (String(mapSnap.data()?.uid ?? "") === uid) return existing;
+    }
+    for (const candidate of slugCandidates(name)) {
+      const mapRef = doc(db, "cardSlugs", candidate);
+      const mapSnap = await tx.get(mapRef);
+      if (!mapSnap.exists() || String(mapSnap.data()?.uid ?? "") === uid) {
+        tx.set(mapRef, { uid });
+        tx.set(profileRef, { slug: candidate }, { merge: true });
+        return candidate;
+      }
+    }
+    throw new Error("Could not make a card link.");
+  });
 }
 
 export async function getUser(uid: string) {
@@ -108,7 +149,10 @@ export async function savePublicProfile(uid: string, profile: PublicProfile) {
   } else {
     await setDoc(userRef, { name: profile.name, email: profile.email }, { merge: true });
   }
-  await setDoc(doc(db, "publicProfiles", uid), saveReadyProfile(profile));
+  const ready = saveReadyProfile(profile);
+  const slug = ready.name ? await claimCardSlug(uid, ready.name) : "";
+  await setDoc(doc(db, "publicProfiles", uid), { ...ready, slug });
+  return normalizeProfile({ ...ready, slug });
 }
 
 export async function listEvents(uid: string, opts?: { seats?: boolean; all?: boolean }) {
@@ -242,7 +286,11 @@ export async function deleteOwnedData(uid: string) {
   const organized = await getDocs(query(collection(db, "organizedEvents"), where("organizerId", "==", uid)));
   await Promise.all(organized.docs.map((item) => deleteDoc(item.ref)));
   await deleteDoc(doc(db, "users", uid));
-  await deleteDoc(doc(db, "publicProfiles", uid));
+  const profileRef = doc(db, "publicProfiles", uid);
+  const profileSnap = await getDoc(profileRef);
+  const slug = String(profileSnap.data()?.slug ?? "").trim();
+  if (slug) await deleteDoc(doc(db, "cardSlugs", slug)).catch(() => undefined);
+  await deleteDoc(profileRef);
 }
 
 export type { ContactRecord, EventRecord, TaskRecord };

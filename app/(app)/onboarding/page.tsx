@@ -88,13 +88,10 @@ function OnboardingFlow() {
         return;
       }
       setProfile({
+        ...emptyProfile(),
+        ...card,
         name: card?.name || user.displayName || "",
-        company: card?.company || "",
-        title: card?.title || "",
         email: card?.email || user.email || "",
-        linkedin: card?.linkedin || "",
-        website: card?.website || "",
-        links: card?.links || [],
       });
     })();
   }, [user, router, group, team, invited]);
@@ -137,7 +134,7 @@ function OnboardingFlow() {
     setPending(true);
     setError("");
     try {
-      await savePublicProfile(user.uid, profile);
+      await savePublicProfile(user.uid, profile).then(setProfile);
       if (invited) {
         await finish("/home");
         return;
@@ -252,8 +249,9 @@ function OnboardingFlow() {
                 ) : (
                   <>
                     <Field label="Email" type="email" value={profile.email} onChange={(event) => setProfile({ ...profile, email: event.target.value })} />
+                    <Field label="Cell" type="tel" inputMode="tel" autoComplete="tel" value={profile.phone} onChange={(event) => setProfile({ ...profile, phone: event.target.value })} />
                     <Field label="LinkedIn" value={profile.linkedin} placeholder="linkedin.com/in/…" onChange={(event) => setProfile({ ...profile, linkedin: event.target.value })} />
-                    <Field label="Website" value={profile.website} placeholder="yoursite.com" onChange={(event) => setProfile({ ...profile, website: event.target.value })} className="lg:col-span-2" />
+                    <Field label="Website" value={profile.website} placeholder="yoursite.com" onChange={(event) => setProfile({ ...profile, website: event.target.value })} />
                   </>
                 )}
               </div>
@@ -388,14 +386,14 @@ function OnboardingFlow() {
         </div>
         <p className="max-w-sm text-sm leading-relaxed text-white/55">
           {team
-            ? "You see who has a seat, coverage, and when a company is already in play."
+            ? "You see who has a seat, coverage, and which teammate already has a live company."
             : group
               ? "You see who used a seat, who captured someone, and whether they followed through."
               : invited
                 ? copy.neverSee
                 : step === 0
                   ? "The card is what another person can scan."
-                  : "People you meet are scored against why you went."}
+                  : "People you meet are matched to why you went. Ranking can wait until morning."}
         </p>
       </aside>
     </div>
