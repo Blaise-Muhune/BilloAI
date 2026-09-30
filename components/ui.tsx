@@ -183,11 +183,22 @@ const FIT_BADGE = {
   },
 } as const;
 
-export function InPlayBadge({ show }: { show?: boolean }) {
+export function InPlayBadge({ show, heldBy }: { show?: boolean; heldBy?: string[] }) {
   if (!show) return null;
+  const names = (heldBy ?? []).filter(Boolean);
+  const who =
+    names.length === 0
+      ? ""
+      : names.length === 1
+        ? names[0]
+        : names.length === 2
+          ? `${names[0]} and ${names[1]}`
+          : `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
   return (
     <p className="rounded-2xl bg-[#fff8e8] px-4 py-3 text-sm">
-      Someone on the team already has a live conversation at this company.
+      {who
+        ? `This company is already in play. ${who} has it. Their notes stay private.`
+        : "This company is already in play. Someone on the team has it. Their notes stay private."}
     </p>
   );
 }

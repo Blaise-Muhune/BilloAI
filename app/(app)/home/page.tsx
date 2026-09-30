@@ -5,13 +5,13 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { HomeBodySkeleton } from "@/components/loading";
 import { BrandMark } from "@/components/brand";
-import { Empty, ErrorNote, PageHeader, PageWrap, PersonLink } from "@/components/ui";
-import { CHANNEL_LABELS, recommendedLabel } from "@/lib/channels";
+import { Empty, ErrorNote, PageHeader, PageWrap } from "@/components/ui";
+import { MorningRoom } from "@/components/morning-room";
 import { getJson } from "@/lib/api";
 import { userMessage } from "@/lib/errors";
-import { dueBucket, formatDay, todayISO } from "@/lib/dates";
+import { formatDay, todayISO } from "@/lib/dates";
 import { listContacts, listEvents, listTasks } from "@/lib/data";
-import { cardFaceSrc } from "@/lib/profile-links";
+import { useCaptureSync } from "@/lib/use-capture-sync";
 import type { ContactRecord, EventRecord, TaskRecord } from "@/lib/types";
 
 type PlanLine = { line: string; kind: string };
@@ -24,6 +24,7 @@ export default function HomePage() {
   const [planLine, setPlanLine] = useState("");
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
+  useCaptureSync(user?.uid);
 
   function load() {
     if (!user) return;
@@ -49,15 +50,13 @@ export default function HomePage() {
   }, [user]);
 
   const today = todayISO();
-  const due = tasks.filter((task) => task.status === "open" && dueBucket(task.dueDate) === "today");
-  const high = contacts.filter((contact) => contact.relevance?.level === "high").slice(0, 8);
   const upcoming = events.filter((event) => event.date >= today).slice(0, 5);
-  const openTasks = tasks.filter((task) => task.status === "open").length;
+  const latestCapture = contacts[0];
+  const room = latestCapture ? events.find((event) => event.id === latestCapture.eventId) ?? null : null;
   const hasEvent = events.length > 0;
   const hasPeople = contacts.length > 0;
   const firstRun = !hasEvent;
   const needsCapture = hasEvent && !hasPeople;
-  const showStats = due.length > 0 || high.length > 0 || openTasks > 0;
   const captureEvent = upcoming[0] ?? events[0];
   const captureHref = captureEvent ? `/capture?event=${captureEvent.id}` : "/capture";
   const primaryHref = firstRun ? "/events/new" : captureHref;
@@ -77,7 +76,7 @@ export default function HomePage() {
                 ? "Save the people you met. We’ll show who matched why you went."
                 : user && !user.emailVerified
                   ? "Your first event can match people you met now. Verify email before you pay or use that on later events."
-                  : "The people who fit why you went, and the conversations still open."
+                  : "The two or three from that room worth writing, with the line you said and the draft."
         }
         action={
           ready ? (
@@ -125,73 +124,13 @@ export default function HomePage() {
         </div>
       ) : (
         <>
-          {showStats ? (
-            <div className="grid gap-4 sm:grid-cols-3">
-              <Stat label="Reconnect today" value={due.length} href="/tasks" />
-              <Stat label="Worth keeping" value={high.length} href="/people" />
-              <Stat label="Open conversations" value={openTasks} href="/tasks" />
-            </div>
-          ) : null}
-
           <div className="grid items-start gap-8 xl:grid-cols-[minmax(0,1.4fr)_minmax(20rem,0.9fr)]">
             <div className="space-y-8">
-              <section>
-                <div className="mb-3 flex items-end justify-between">
-                  <h2 className="kicker">Reconnect today</h2>
-                  <Link href="/tasks" className="text-sm font-semibold text-accent">
-                    All conversations
-                  </Link>
-                </div>
-                {due.length === 0 ? (
-                  <Empty title="None due today" body="Open conversations land here when there’s a next step." />
-                ) : (
-                  <div className="surface list-stack">
-                    {due.map((task) => (
-                      <PersonLink
-                        key={task.id}
-                        href={`/people/${task.contactId}`}
-                        name={task.contactName}
-                        detail={task.title}
-                        action={CHANNEL_LABELS[task.channel]}
-                        level={contacts.find((contact) => contact.id === task.contactId)?.relevance?.level ?? null}
-                        photoSrc={cardFaceSrc(task.cardUid || contacts.find((contact) => contact.id === task.contactId)?.cardUid)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              <section>
-                <div className="mb-3 flex items-end justify-between">
-                  <h2 className="kicker">High-value relationships</h2>
-                  <Link href="/people" className="text-sm font-semibold text-accent">
-                    All people
-                  </Link>
-                </div>
-                {high.length === 0 ? (
-                  <Empty title="No high matches yet" body="People you saved still live under All people." />
-                ) : (
-                  <div className="surface list-stack">
-                    <div className="desk-head">
-                      <span>Person</span>
-                      <span>Role</span>
-                      <span>Fit</span>
-                    </div>
-                    {high.map((contact) => (
-                      <PersonLink
-                        key={contact.id}
-                        href={`/people/${contact.id}`}
-                        name={contact.name || "Unnamed contact"}
-                        detail={[contact.title, contact.company].filter(Boolean).join(" · ")}
-                        action={recommendedLabel(contact.relevance)}
-                        level="high"
-                        layout="columns"
-                        photoSrc={cardFaceSrc(contact.cardUid)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
+              {room ? (
+                <MorningRoom event={room} contacts={contacts} tasks={tasks} />
+              ) : (
+                <Empty title="No high matches yet" body="People you saved still live under All people." href="/people" action="All people" />
+              )}
             </div>
 
             <aside className="space-y-4">
@@ -220,14 +159,5 @@ export default function HomePage() {
         </>
       )}
     </PageWrap>
-  );
-}
-
-function Stat({ label, value, href }: { label: string; value: number; href: string }) {
-  return (
-    <Link href={href} className="surface block px-5 py-6 transition hover:bg-[#f7f3ea]">
-      <p className="kicker">{label}</p>
-      <p className="serif mt-3 text-5xl leading-none">{value}</p>
-    </Link>
   );
 }

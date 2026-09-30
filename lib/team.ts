@@ -60,12 +60,39 @@ export async function listTeamSeats(teamId: string) {
 }
 
 export async function companyAlreadyInPlay(teamId: string, company: string, uid: string) {
+  const result = await companyInPlay(teamId, company, uid);
+  return result.inPlay;
+}
+
+function firstName(value: string) {
+  return value.trim().split(/\s+/).filter(Boolean)[0] || "";
+}
+
+async function namesForUids(teamId: string, uids: string[]) {
+  const seats = await listTeamSeats(teamId);
+  const names: string[] = [];
+  for (const uid of uids) {
+    const seat = seats.find((item) => item.uid === uid);
+    let name = firstName(seat?.name || "");
+    if (!name) {
+      const profile = await adminDb().collection("publicProfiles").doc(uid).get();
+      name = firstName(String(profile.data()?.name || ""));
+    }
+    names.push(name || "A teammate");
+  }
+  return [...new Set(names)];
+}
+
+export async function companyInPlay(teamId: string, company: string, uid: string) {
   const id = companyFlagId(teamId, company);
-  if (!id) return false;
+  if (!id) return { inPlay: false, heldBy: [] as string[] };
   const flag = await adminDb().collection("teamCompanyFlags").doc(id).get();
-  if (!flag.exists) return false;
-  const uids = Array.isArray(flag.data()?.uids) ? (flag.data()?.uids as string[]) : [];
-  return uids.some((item) => item && item !== uid);
+  if (!flag.exists) return { inPlay: false, heldBy: [] as string[] };
+  const uids = (Array.isArray(flag.data()?.uids) ? (flag.data()?.uids as string[]) : []).filter(
+    (item) => item && item !== uid,
+  );
+  if (!uids.length) return { inPlay: false, heldBy: [] as string[] };
+  return { inPlay: true, heldBy: await namesForUids(teamId, uids) };
 }
 
 export function applyTeamHunt(

@@ -42,6 +42,7 @@ export const TASK_CHANNELS = ["email", "linkedin", "text", "call", "intro"] as c
 export type TaskChannel = (typeof TASK_CHANNELS)[number];
 
 export type TaskStatus = "open" | "done";
+export type ScoreStatus = "pending" | "ready" | "failed";
 
 export type AccountPlan = "free" | "individual" | "organizer" | "team";
 export type SubscriptionStatus = "none" | "active" | "past_due" | "canceled";
@@ -198,6 +199,8 @@ export interface ContactDoc extends ContactFields {
   createdAt: string;
   updatedAt: string;
   alreadyInPlay?: boolean;
+  alreadyInPlayBy?: string[];
+  scoreStatus?: ScoreStatus;
 }
 
 export interface TaskDoc {
@@ -212,6 +215,7 @@ export interface TaskDoc {
   dueDate: string;
   status: TaskStatus;
   createdAt: string;
+  draftEditedAt?: string;
 }
 
 export type EventRecord = EventDoc & { id: string };
@@ -231,6 +235,7 @@ export interface UnderstandResult {
   relevance: Relevance;
   draft: FollowUpDraft;
   alreadyInPlay?: boolean;
+  alreadyInPlayBy?: string[];
 }
 
 export interface TeamDoc {

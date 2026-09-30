@@ -36,9 +36,10 @@ export default function PrivacyPage() {
           notes or who else you met.
         </p>
         <p>
-          Photos of other people’s cards are read on the spot and discarded. They are not saved to your account. The
-          profile photo you add to your own card is stored. Voice notes are sent to transcribe the line you spoke, then
-          discarded. We keep the text you confirm.
+          Photos of other people’s cards are read and then discarded. If the connection drops, the photo can stay on
+          your phone until we can read it. It is not saved to your account. The profile photo you add to your own card
+          is stored. Voice notes are sent to transcribe the line you spoke, then discarded. We keep the text you
+          confirm.
         </p>
 
         <h2 className="serif pt-4 text-2xl">Who we send data to</h2>
@@ -67,7 +68,8 @@ export default function PrivacyPage() {
           If you join a group a company or host paid for, that seat is for that event only. They can see that you used
           a seat (your name and email) and whether you captured or followed through. They cannot read your contacts,
           notes, or drafts, or see who you met. A Team admin can see who has a seat the same way, plus counts. A
-          teammate may see that a company is already in play — never a contact name.
+          teammate may see that a company is already in play, and which teammate has it — never a contact name, notes,
+          or drafts.
         </p>
 
         <h2 className="serif pt-4 text-2xl">Your choices</h2>

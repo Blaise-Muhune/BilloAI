@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { understand } from "@/lib/ai/run";
 import { guardAi } from "@/lib/ai/guard";
 import { reportServerError } from "@/lib/errors";
-import { applyTeamHunt, companyAlreadyInPlay, recordCompanyPlay, teamContextForUser } from "@/lib/team";
+import { applyTeamHunt, companyInPlay, recordCompanyPlay, teamContextForUser } from "@/lib/team";
 import type { ContactFields, EventInput } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -39,9 +39,12 @@ export async function POST(request: Request) {
         : null,
     });
     let alreadyInPlay = false;
+    let alreadyInPlayBy: string[] = [];
     if (team) {
       try {
-        alreadyInPlay = await companyAlreadyInPlay(team.teamId, body.contact.company, uid);
+        const play = await companyInPlay(team.teamId, body.contact.company, uid);
+        alreadyInPlay = play.inPlay;
+        alreadyInPlayBy = play.heldBy;
         if (result.relevance.level === "high" || result.relevance.level === "medium") {
           await recordCompanyPlay(team.teamId, body.contact.company, uid, result.relevance.level);
         }
@@ -49,7 +52,7 @@ export async function POST(request: Request) {
         reportServerError("understand-team-play", error);
       }
     }
-    return NextResponse.json({ ...result, alreadyInPlay });
+    return NextResponse.json({ ...result, alreadyInPlay, alreadyInPlayBy });
   } catch (error) {
     reportServerError("understand", error);
     return NextResponse.json({ error: "Could not understand this contact." }, { status: 500 });

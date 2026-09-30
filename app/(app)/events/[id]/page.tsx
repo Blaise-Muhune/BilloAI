@@ -6,11 +6,13 @@ import { useParams } from "next/navigation";
 import { useAuth } from "@/components/auth-provider";
 import { DetailSkeleton } from "@/components/loading";
 import { Button, Empty, ErrorNote, Field, PageWrap, PersonLink, PriorityBadge, SelectField } from "@/components/ui";
+import { MorningRoom } from "@/components/morning-room";
 import { recommendedLabel } from "@/lib/channels";
 import { cardFaceSrc } from "@/lib/profile-links";
 import { formatDay } from "@/lib/dates";
 import { userMessage } from "@/lib/errors";
-import { getEvent, listContactsForEvent, updateEvent } from "@/lib/data";
+import { getEvent, listContactsForEvent, listTasks, updateEvent } from "@/lib/data";
+import { useCaptureSync } from "@/lib/use-capture-sync";
 import { groupSeatsHref } from "@/lib/workspace";
 import {
   GOAL_LABELS,
@@ -18,16 +20,15 @@ import {
   type ContactRecord,
   type EventRecord,
   type NetworkingGoal,
-  type RelevanceLevel,
+  type TaskRecord,
 } from "@/lib/types";
-
-const rank: Record<RelevanceLevel, number> = { high: 0, medium: 1, low: 2, unknown: 3 };
 
 export default function EventDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [contacts, setContacts] = useState<ContactRecord[]>([]);
+  const [tasks, setTasks] = useState<TaskRecord[]>([]);
   const [missing, setMissing] = useState(false);
   const [goal, setGoal] = useState<NetworkingGoal>("customers");
   const [goalDetail, setGoalDetail] = useState("");
@@ -41,13 +42,15 @@ export default function EventDetailPage() {
   const [savingNight, setSavingNight] = useState(false);
   const [nightError, setNightError] = useState("");
   const [nightSaved, setNightSaved] = useState(false);
+  useCaptureSync(user?.uid);
 
   useEffect(() => {
     if (!user || !id) return;
-    void Promise.all([getEvent(user.uid, id), listContactsForEvent(user.uid, id)])
-      .then(([nextEvent, nextContacts]) => {
+    void Promise.all([getEvent(user.uid, id), listContactsForEvent(user.uid, id), listTasks(user.uid)])
+      .then(([nextEvent, nextContacts, nextTasks]) => {
         setEvent(nextEvent);
         setContacts(nextContacts);
+        setTasks(nextTasks.filter((task) => task.eventId === id));
         setMissing(!nextEvent);
         if (nextEvent) {
           setGoal(nextEvent.goal);
@@ -194,10 +197,6 @@ export default function EventDetailPage() {
     low: contacts.filter((contact) => contact.relevance?.level === "low").length,
     unknown: contacts.filter((contact) => contact.relevance?.level === "unknown").length,
   };
-  const top = [...contacts]
-    .filter((contact) => contact.relevance)
-    .sort((a, b) => rank[a.relevance!.level] - rank[b.relevance!.level])
-    .slice(0, 5);
 
   return (
     <PageWrap>
@@ -226,6 +225,7 @@ export default function EventDetailPage() {
         />
       ) : (
         <>
+      <MorningRoom event={event} contacts={contacts} tasks={tasks} />
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {(["high", "medium", "low", "unknown"] as const).map((level) => (
           <div key={level} className="surface px-5 py-6 text-center">
@@ -236,25 +236,8 @@ export default function EventDetailPage() {
           </div>
         ))}
       </div>
-      <div className="grid gap-8 lg:grid-cols-2">
-        <section className="space-y-3">
-          <h2 className="kicker">Top conversations</h2>
-          <div className="surface list-stack">
-            {top.map((contact, index) => (
-              <PersonLink
-                key={contact.id}
-                href={`/people/${contact.id}`}
-                name={`${index + 1}. ${contact.name || "Unnamed"}`}
-                detail={[contact.relevance?.opportunityType, contact.title, contact.company].filter(Boolean).join(" · ")}
-                action={recommendedLabel(contact.relevance)}
-                level={contact.relevance?.level ?? null}
-                photoSrc={cardFaceSrc(contact.cardUid)}
-              />
-            ))}
-          </div>
-        </section>
-        <section className="space-y-3">
-          <h2 className="kicker">Everyone</h2>
+      <div className="space-y-3">
+        <h2 className="kicker">Everyone</h2>
           <div className="surface list-stack">
             <div className="desk-head">
               <span>Person</span>
@@ -274,7 +257,6 @@ export default function EventDetailPage() {
               />
             ))}
           </div>
-        </section>
       </div>
         </>
       )}

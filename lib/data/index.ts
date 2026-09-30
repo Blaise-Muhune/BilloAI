@@ -147,7 +147,12 @@ export async function createEvent(uid: string, input: EventInput, options?: { fo
 }
 
 function asContact(id: string, data: ContactDoc): ContactRecord {
-  return mapDoc(id, { ...data, otherContact: data.otherContact ?? "" });
+  return mapDoc(id, {
+    ...data,
+    otherContact: data.otherContact ?? "",
+    alreadyInPlayBy: data.alreadyInPlayBy ?? [],
+    scoreStatus: data.scoreStatus ?? (data.relevance ? "ready" : undefined),
+  });
 }
 
 export async function listContacts(uid: string) {

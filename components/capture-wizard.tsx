@@ -17,7 +17,11 @@ import { asHref, looksLikeLink } from "@/lib/links";
 import { cardFaceSrc, contactFromProfile } from "@/lib/profile-links";
 import { scanQrFile, startQrScan } from "@/lib/qr-scan";
 import { skipFollowUp } from "@/lib/relevance";
-import { compressImage } from "@/lib/images";
+import { compressImage, dataUrlToBlob } from "@/lib/images";
+import { newCaptureId, putQueuedCapture } from "@/lib/capture-queue";
+import { mergeContactFields } from "@/lib/capture-sync";
+import { scoreContact } from "@/lib/score-contact";
+import { useCaptureSync } from "@/lib/use-capture-sync";
 import { GOAL_LABELS, NETWORKING_GOALS, type ContactFields, type ContactSource, type EventRecord, type NetworkingGoal, type UnderstandResult } from "@/lib/types";
 
 const tags = [
@@ -41,21 +45,16 @@ const emptyFields: ContactFields = {
   otherContact: "",
 };
 
-type Queued = { fields: ContactFields; preview: string; cardUid?: string };
+type Queued = {
+  fields: ContactFields;
+  preview: string;
+  cardUid?: string;
+  photo?: Blob;
+  audio?: Blob;
+  audioName?: string;
+};
 
-function mergeFields(base: ContactFields, extra: ContactFields): ContactFields {
-  return {
-    name: base.name || extra.name,
-    company: base.company || extra.company,
-    title: base.title || extra.title,
-    email: base.email || extra.email,
-    phone: base.phone || extra.phone,
-    website: base.website || extra.website,
-    linkedin: base.linkedin || extra.linkedin,
-    location: base.location || extra.location,
-    otherContact: base.otherContact || extra.otherContact,
-  };
-}
+type InPlayState = { inPlay: boolean; heldBy: string[] };
 
 export function CaptureWizard() {
   const { user } = useAuth();
@@ -87,14 +86,22 @@ export function CaptureWizard() {
   const [paywalled, setPaywalled] = useState(false);
   const [paywallEvent, setPaywallEvent] = useState("");
   const [paywallReason, setPaywallReason] = useState("");
-  const [inPlay, setInPlay] = useState(false);
+  const [inPlay, setInPlay] = useState<InPlayState>({ inPlay: false, heldBy: [] });
   const [cardUid, setCardUid] = useState("");
   const [hunt, setHunt] = useState<HuntSummary | null>(null);
   const [night, setNight] = useState(false);
   const [moreDetails, setMoreDetails] = useState(false);
+  const [typeNote, setTypeNote] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [readingCard, setReadingCard] = useState(false);
   const scannerRef = useRef<{ stop: () => Promise<void> } | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const openedCard = useRef("");
+  const queueIndexRef = useRef(0);
+  const pendingAudio = useRef<{ blob: Blob; name: string } | null>(null);
+
+  useCaptureSync(user?.uid);
+  queueIndexRef.current = queueIndex;
 
   useEffect(() => {
     if (!user) return;
@@ -141,17 +148,17 @@ export function CaptureWizard() {
   useEffect(() => {
     const company = fields.company.trim();
     if (!user || step !== "confirm" || company.length < 2) {
-      setInPlay(false);
+      setInPlay({ inPlay: false, heldBy: [] });
       return;
     }
     let cancel = false;
     const timer = window.setTimeout(() => {
-      void getJson<{ inPlay: boolean }>(`/api/team/in-play?company=${encodeURIComponent(company)}`)
+      void getJson<InPlayState>(`/api/team/in-play?company=${encodeURIComponent(company)}`)
         .then((result) => {
-          if (!cancel) setInPlay(result.inPlay);
+          if (!cancel) setInPlay({ inPlay: result.inPlay, heldBy: result.heldBy ?? [] });
         })
         .catch(() => {
-          if (!cancel) setInPlay(false);
+          if (!cancel) setInPlay({ inPlay: false, heldBy: [] });
         });
     }, 320);
     return () => {
@@ -192,7 +199,32 @@ export function CaptureWizard() {
     setNote("");
     setChosenTags([]);
     setAllowPublicLookup(true);
+    setTypeNote(false);
+    pendingAudio.current = person.audio ? { blob: person.audio, name: person.audioName || "note.webm" } : null;
     setStep("confirm");
+  }
+
+  async function extractInto(index: number, image: string) {
+    if (queueIndexRef.current === index) setReadingCard(true);
+    try {
+      const extracted = await postJson<{ fields: ContactFields }>("/api/ai/extract-card", { image, eventId });
+      setQueue((current) =>
+        current.map((item, itemIndex) =>
+          itemIndex === index
+            ? { ...item, fields: mergeContactFields(item.fields, extracted.fields), photo: undefined }
+            : item,
+        ),
+      );
+      if (queueIndexRef.current === index) {
+        setFields((current) => mergeContactFields(current, extracted.fields));
+      }
+    } catch (err) {
+      if (!notePaywall(err)) {
+        setError(userMessage(err, "Could not read that photo. You can still save a name."));
+      }
+    } finally {
+      if (queueIndexRef.current === index) setReadingCard(false);
+    }
   }
 
   async function onImage(files: File[], mergeIntoCurrent = false) {
@@ -202,50 +234,44 @@ export function CaptureWizard() {
     setError("");
     setSource("photo");
     setCardUid("");
-    const people: Queued[] = mergeIntoCurrent ? [] : [];
-    let failed = 0;
-    let lastError = "";
-    let blocked = false;
-    try {
-      for (let index = 0; index < chosen.length; index += 1) {
-        setReading(mergeIntoCurrent ? "Reading the other side…" : `Reading ${index + 1} of ${chosen.length}`);
-        try {
-          const image = await compressImage(chosen[index]);
-          const extracted = await postJson<{ fields: ContactFields }>("/api/ai/extract-card", { image, eventId });
-          const next = { fields: { ...emptyFields, ...extracted.fields }, preview: image };
-          if (mergeIntoCurrent) {
-            const merged = mergeFields(fields, next.fields);
-            setFields(merged);
-            setPreview(image);
-            setQueue((current) => current.map((item, itemIndex) => (itemIndex === queueIndex ? { fields: merged, preview: image } : item)));
-          } else {
-            people.push(next);
-          }
-        } catch (err) {
-          if (notePaywall(err)) {
-            blocked = true;
-            break;
-          }
-          failed += 1;
-          lastError = userMessage(err, "Could not read that photo.");
-        }
+    if (mergeIntoCurrent) {
+      const file = chosen[0];
+      if (!file) return;
+      setReading("Reading the other side…");
+      try {
+        const image = await compressImage(file);
+        const photo = dataUrlToBlob(image);
+        setPreview(image);
+        setQueue((current) =>
+          current.map((item, itemIndex) => (itemIndex === queueIndex ? { ...item, preview: image, photo } : item)),
+        );
+        void extractInto(queueIndex, image);
+      } catch (err) {
+        if (!notePaywall(err)) setError(userMessage(err, "Could not read that photo."));
+      } finally {
+        setReading("");
       }
-      if (mergeIntoCurrent) {
-        if (failed && lastError) setError(lastError);
-        return;
-      }
-      if (blocked) return;
-      if (!people.length) {
-        setError(lastError || "Could not read those photos.");
-        return;
-      }
-      if (failed) setError(`${failed} photo${failed === 1 ? "" : "s"} could not be read. Confirm the ones that worked.`);
-      setQueue(people);
-      setQueueIndex(0);
-      beginPerson(people[0]!);
-    } finally {
-      setReading("");
+      return;
     }
+    const people: Queued[] = [];
+    let failed = 0;
+    for (const file of chosen) {
+      try {
+        const image = await compressImage(file);
+        people.push({ fields: { ...emptyFields }, preview: image, photo: dataUrlToBlob(image) });
+      } catch {
+        failed += 1;
+      }
+    }
+    if (!people.length) {
+      setError("Could not open those photos.");
+      return;
+    }
+    if (failed) setError(`${failed} photo${failed === 1 ? "" : "s"} could not be opened. Confirm the ones that worked.`);
+    setQueue(people);
+    setQueueIndex(0);
+    beginPerson(people[0]!);
+    people.forEach((person, index) => void extractInto(index, person.preview));
   }
 
   async function startScanner() {
@@ -416,8 +442,10 @@ export function CaptureWizard() {
       try {
         const result = await postForm<{ text: string }>("/api/ai/transcribe", body);
         setNote((current) => [current, result.text].filter(Boolean).join(" "));
+        pendingAudio.current = null;
       } catch (err) {
-        if (!notePaywall(err)) setError(userMessage(err, "Could not transcribe that note."));
+        pendingAudio.current = { blob: new Blob(chunks, { type }), name: type.includes("mp4") ? "note.m4a" : "note.webm" };
+        if (!notePaywall(err)) setError("Could not hear that yet. It stays on this phone. You can still save.");
       } finally {
         setHearing(false);
       }
@@ -487,17 +515,26 @@ export function CaptureWizard() {
       setStep("goal");
       return;
     }
-    if (!fields.name.trim() && !fields.company.trim() && !fields.linkedin.trim() && !fields.website.trim()) {
+    const current = queue[queueIndex];
+    if (
+      !fields.name.trim() &&
+      !fields.company.trim() &&
+      !fields.linkedin.trim() &&
+      !fields.website.trim() &&
+      !current?.photo
+    ) {
       setError("Add a first name, a company, or a link. Whatever you collected is enough.");
       return;
     }
-    setStep("working");
+    const nightSave = night;
+    if (!nightSave) setStep("working");
+    else setSaving(true);
     setError("");
     const rawNote = [note, ...chosenTags].filter(Boolean).join("\n");
     const event = events.find((item) => item.id === eventId) ?? (await getEvent(user.uid, eventId));
     let understood: UnderstandResult | null = null;
     let blocked = paywalled;
-    if (event) {
+    if (!nightSave && event) {
       try {
         understood = await postJson<UnderstandResult>("/api/ai/understand", {
           event,
@@ -513,28 +550,108 @@ export function CaptureWizard() {
         }
       }
     }
-    let alreadyInPlay = Boolean(understood?.alreadyInPlay);
+    let alreadyInPlay = Boolean(understood?.alreadyInPlay) || inPlay.inPlay;
+    let alreadyInPlayBy = understood?.alreadyInPlayBy ?? inPlay.heldBy;
     if (!alreadyInPlay && fields.company.trim()) {
       try {
-        const flag = await getJson<{ inPlay: boolean }>(`/api/team/in-play?company=${encodeURIComponent(fields.company)}`);
+        const flag = await getJson<InPlayState>(`/api/team/in-play?company=${encodeURIComponent(fields.company)}`);
         alreadyInPlay = flag.inPlay;
+        alreadyInPlayBy = flag.heldBy ?? [];
       } catch {
         alreadyInPlay = false;
       }
     }
-    const contactId = await createContact(user.uid, {
-      ...fields,
-      eventId,
-      source,
-      imagePath: "",
-      cardUid,
-      rawNote,
-      structuredNote: understood?.structuredNote ?? null,
-      enrichment: understood?.enrichment ?? null,
-      relevance: understood?.relevance ?? null,
-      alreadyInPlay,
-    });
-    if (understood && !skipFollowUp(understood.relevance) && understood.draft.body.trim()) {
+
+    async function afterSave(contactId: string) {
+      pendingAudio.current = null;
+      setSaving(false);
+      const nextIndex = queueIndex + 1;
+      if (!contactId || contactId === "queued") {
+        setStep(nightSave ? "method" : "confirm");
+        return;
+      }
+      if (blocked && !nightSave) {
+        setStep("confirm");
+        setError("We saved them. Matching needs a plan after your first event.");
+        return;
+      }
+      if (nextIndex < queue.length) {
+        setQueueIndex(nextIndex);
+        beginPerson(queue[nextIndex]!);
+        return;
+      }
+      if (nightSave) {
+        setQueue([]);
+        setQueueIndex(0);
+        setFields(emptyFields);
+        setPreview("");
+        setNote("");
+        setCardUid("");
+        setChosenTags([]);
+        setStep("method");
+        return;
+      }
+      router.push(queue.length > 1 ? "/people" : `/people/${contactId}`);
+    }
+
+    let contactId = "";
+    try {
+      contactId = await createContact(user.uid, {
+        ...fields,
+        eventId,
+        source,
+        imagePath: "",
+        cardUid,
+        rawNote,
+        structuredNote: understood?.structuredNote ?? null,
+        enrichment: understood?.enrichment ?? null,
+        relevance: understood?.relevance ?? null,
+        alreadyInPlay,
+        alreadyInPlayBy,
+        scoreStatus: understood ? "ready" : "pending",
+      });
+    } catch (err) {
+      await putQueuedCapture({
+        id: newCaptureId(),
+        eventId,
+        source,
+        fields,
+        rawNote,
+        cardUid,
+        allowPublicLookup,
+        createdAt: new Date().toISOString(),
+        photo: current?.photo,
+        audio: pendingAudio.current?.blob,
+        audioName: pendingAudio.current?.name,
+      });
+      setError(userMessage(err, "Saved on this phone. We’ll rank them when you’re back online."));
+      await afterSave("queued");
+      return;
+    }
+
+    const needsPhoto =
+      Boolean(current?.photo) &&
+      (!fields.name.trim() || !fields.title.trim() || !fields.company.trim() || !fields.linkedin.trim());
+    const needsAudio = Boolean(pendingAudio.current) && !rawNote.trim();
+    if (needsPhoto || needsAudio) {
+      await putQueuedCapture({
+        id: newCaptureId(),
+        eventId,
+        source,
+        fields,
+        rawNote,
+        cardUid,
+        allowPublicLookup,
+        createdAt: new Date().toISOString(),
+        contactId,
+        photo: needsPhoto ? current?.photo : undefined,
+        audio: needsAudio ? pendingAudio.current?.blob : undefined,
+        audioName: pendingAudio.current?.name,
+      });
+    }
+
+    try {
+      if (understood && !skipFollowUp(understood.relevance) && understood.draft.body.trim()) {
       const promise = understood.structuredNote.followUpPromise;
       await createTask(user.uid, {
         contactId,
@@ -546,19 +663,31 @@ export function CaptureWizard() {
         draft: understood.draft.body,
         dueDate: understood.draft.dueDate || (understood.relevance.level === "high" ? todayISO() : addDays(todayISO(), 7)),
       });
+    } else {
+      await createTask(user.uid, {
+        contactId,
+        eventId,
+        contactName: fields.name || "Contact",
+        cardUid,
+        channel: "linkedin",
+        title: "Stay connected",
+        draft: "",
+        dueDate: addDays(todayISO(), 1),
+      });
     }
-    const nextIndex = queueIndex + 1;
-    if (blocked) {
-      setStep("confirm");
-      setError("We saved them. Matching needs a plan after your first event.");
-      return;
+
+    if (nightSave) {
+      void scoreContact(user.uid, contactId, allowPublicLookup).catch((err: unknown) => {
+        if (notePaywall(err)) return;
+      });
     }
-    if (nextIndex < queue.length) {
-      setQueueIndex(nextIndex);
-      beginPerson(queue[nextIndex]!);
-      return;
+      await afterSave(contactId);
+    } catch (err) {
+      setSaving(false);
+      setError(userMessage(err, "Saved. Ranking waits until you’re back online."));
+      if (nightSave) setStep("method");
+      else setStep("confirm");
     }
-    router.push(queue.length > 1 ? "/people" : `/people/${contactId}`);
   }
 
   return (
@@ -573,7 +702,7 @@ export function CaptureWizard() {
             step === "working"
               ? "Using the conversation, public context, and why you went."
               : night
-                ? "Photo or a name, then what you talked about. Scoring still uses why you went."
+                ? "Photo or a name, then what you talked about. Ranking waits until you’re back online."
                 : "We’ll match them to why you went, so you know if this connection is worth keeping."
           }
           action={
@@ -730,7 +859,14 @@ export function CaptureWizard() {
             <div id="qr-reader" className="overflow-hidden rounded-2xl" />
           </section>
         </div>
-        <p className="text-sm text-muted">On the next screen, type the conversation or tap Speak the note.</p>
+        <p className="text-sm text-muted">On the next screen, speak the note. Type if you need to.</p>
+        {night && eventId ? (
+          <p>
+            <button type="button" className="text-sm font-semibold text-accent" onClick={() => router.push(`/events/${eventId}`)}>
+              Done for tonight
+            </button>
+          </p>
+        ) : null}
         </>
       ) : null}
 
@@ -749,9 +885,15 @@ export function CaptureWizard() {
             ) : null}
             <p className="text-sm text-muted">
               {preview
-                ? "The photo stays on this screen only. Fill in only what you collected. Empty is fine."
+                ? "The photo stays on this phone until we can read it, then it is discarded."
                 : "Fill in only what you collected. Empty fields are fine."}
             </p>
+            {readingCard ? (
+              <p className="flex items-center gap-3 text-sm text-muted">
+                <BusyBar className="w-24" />
+                Reading the card
+              </p>
+            ) : null}
             {preview ? (
             <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-dashed border-line px-4 py-3" aria-busy={Boolean(reading)}>
               <span>
@@ -780,17 +922,17 @@ export function CaptureWizard() {
                 {night ? "Leave night capture" : "Night — just capture and a note"}
               </button>
             </div>
-            <HuntWhy eventGoal={chosenEvent?.goalDetail || goalDetail} hunt={hunt} inPlay={inPlay} />
+            <HuntWhy eventGoal={chosenEvent?.goalDetail || goalDetail} hunt={hunt} inPlay={inPlay.inPlay} heldBy={inPlay.heldBy} />
             <div className="form-grid">
               <Field label="Name" value={fields.name} onChange={(event) => setField("name", event.target.value)} />
+              <Field label="Title" value={fields.title} onChange={(event) => setField("title", event.target.value)} />
               <Field label="Company" value={fields.company} onChange={(event) => setField("company", event.target.value)} />
+              <Field label="LinkedIn" value={fields.linkedin} onChange={(event) => setField("linkedin", event.target.value)} />
               {night && !moreDetails ? null : (
                 <>
-                  <Field label="Title" value={fields.title} onChange={(event) => setField("title", event.target.value)} />
                   <Field label="Email" value={fields.email} onChange={(event) => setField("email", event.target.value)} />
                   <Field label="Phone" value={fields.phone} onChange={(event) => setField("phone", event.target.value)} />
                   <Field label="Other handle" value={fields.otherContact} onChange={(event) => setField("otherContact", event.target.value)} />
-                  <Field label="LinkedIn" value={fields.linkedin} onChange={(event) => setField("linkedin", event.target.value)} />
                   <Field label="Website" value={fields.website} onChange={(event) => setField("website", event.target.value)} />
                   <Field label="City or event location" value={fields.location} onChange={(event) => setField("location", event.target.value)} className="lg:col-span-2" />
                 </>
@@ -798,9 +940,26 @@ export function CaptureWizard() {
             </div>
             {night ? (
               <button type="button" className="text-sm font-semibold text-accent" onClick={() => setMoreDetails((current) => !current)}>
-                {moreDetails ? "Hide extra fields" : "More than name and company"}
+                {moreDetails ? "Hide extra fields" : "More than name, title, company, LinkedIn"}
               </button>
             ) : null}
+            {night && !typeNote ? (
+              <div className="space-y-3">
+                <Button type="button" className="w-full" busy={hearing} onClick={() => void toggleRecording()}>
+                  {recording ? "Stop" : hearing ? "Hearing…" : "Speak the note"}
+                </Button>
+                <p className="text-sm text-muted">
+                  {recording
+                    ? "Recording your recap. Tap Stop when you are done."
+                    : "Speak what you talked about after they leave. Do not record them."}
+                </p>
+                {note ? <p className="rounded-2xl bg-[#f7f3ea] px-4 py-3 text-sm">{note}</p> : null}
+                <button type="button" className="text-sm font-semibold text-accent" onClick={() => setTypeNote(true)}>
+                  Type instead
+                </button>
+              </div>
+            ) : (
+              <>
             <Area
               id="capture-note"
               label="One line about what you talked about"
@@ -828,6 +987,8 @@ export function CaptureWizard() {
             ) : recording ? (
               <p className="text-sm text-muted">Recording. Tap Stop when you are done.</p>
             ) : null}
+              </>
+            )}
             {night && !moreDetails ? null : (
               <div className="flex flex-wrap gap-2">
                 {tags.map((tag) => {
@@ -851,9 +1012,14 @@ export function CaptureWizard() {
                 Look up this person and their company on the public web so the match uses more than the card.
               </label>
             )}
-            <Button type="button" className="w-full" onClick={() => void finish()}>
-              {queueIndex + 1 < queue.length ? "Save and add another" : "See if this connection is a fit"}
+            <Button type="button" className="w-full" busy={saving} disabled={saving} onClick={() => void finish()}>
+              {night || queueIndex + 1 < queue.length ? "Save and add another" : "See if this connection is a fit"}
             </Button>
+            {night && eventId ? (
+              <button type="button" className="text-sm font-semibold text-accent" onClick={() => router.push(`/events/${eventId}`)}>
+                Done for tonight
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}

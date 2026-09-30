@@ -10,10 +10,12 @@ export function HuntWhy({
   eventGoal,
   hunt,
   inPlay = false,
+  heldBy,
 }: {
   eventGoal?: string;
   hunt?: HuntSummary | null;
   inPlay?: boolean;
+  heldBy?: string[];
 }) {
   const companies = hunt?.targetCompanies.filter(Boolean) ?? [];
   if (!eventGoal?.trim() && !hunt?.icp && !companies.length && !hunt?.targetRoles && !inPlay) return null;
@@ -39,7 +41,7 @@ export function HuntWhy({
         <p className="mt-1 text-muted">Hunt roles: {hunt.targetRoles}</p>
       ) : null}
       <div className="mt-2">
-        <InPlayBadge show={inPlay} />
+        <InPlayBadge show={inPlay} heldBy={heldBy} />
       </div>
     </div>
   );

@@ -15,6 +15,8 @@ import { CHANNEL_LABELS, recommendedLabel, showRecommendedAction } from "@/lib/c
 import { userMessage } from "@/lib/errors";
 import { cardFaceSrc } from "@/lib/profile-links";
 import { evidenceLine, skipFollowUp } from "@/lib/relevance";
+import { applyUnderstandResult, contactNeedsScore } from "@/lib/score-contact";
+import { useCaptureSync } from "@/lib/use-capture-sync";
 import type { ContactFields, ContactRecord, EventRecord, FollowUpDraft, TaskChannel, TaskRecord, UnderstandResult } from "@/lib/types";
 import { TASK_CHANNELS } from "@/lib/types";
 
@@ -36,6 +38,7 @@ export default function PersonPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const router = useRouter();
+  useCaptureSync(user?.uid);
   const [contact, setContact] = useState<ContactRecord | null>(null);
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [task, setTask] = useState<TaskRecord | null>(null);
@@ -102,9 +105,10 @@ export default function PersonPage() {
   async function persistDraft(nextDraft = draftRef.current, nextChannel = channel) {
     if (!user || !contact) return;
     const open = taskRef.current;
+    const editedAt = new Date().toISOString();
     if (open) {
-      const next = { ...open, draft: nextDraft, channel: nextChannel, contactName: contact.name };
-      await updateTask(user.uid, open.id, { draft: nextDraft, channel: nextChannel, contactName: contact.name });
+      const next = { ...open, draft: nextDraft, channel: nextChannel, contactName: contact.name, draftEditedAt: editedAt };
+      await updateTask(user.uid, open.id, { draft: nextDraft, channel: nextChannel, contactName: contact.name, draftEditedAt: editedAt });
       taskRef.current = next;
       setTask(next);
     } else if (nextDraft.trim()) {
@@ -117,6 +121,7 @@ export default function PersonPage() {
         title: "Stay connected",
         draft: nextDraft,
         dueDate: addDays(todayISO(), 1),
+        draftEditedAt: editedAt,
       });
       const next = {
         id: created,
@@ -131,6 +136,7 @@ export default function PersonPage() {
         dueDate: addDays(todayISO(), 1),
         status: "open" as const,
         createdAt: new Date().toISOString(),
+        draftEditedAt: editedAt,
       };
       taskRef.current = next;
       setTask(next);
@@ -164,60 +170,20 @@ export default function PersonPage() {
         rawNote: contact.rawNote,
         allowPublicLookup,
       });
-      await updateContact(user.uid, contact.id, {
-        structuredNote: result.structuredNote,
-        enrichment: result.enrichment,
-        relevance: result.relevance,
-        alreadyInPlay: result.alreadyInPlay,
-      });
-      setContact({ ...contact, ...result, alreadyInPlay: result.alreadyInPlay });
-      if (skipFollowUp(result.relevance)) {
-        if (task) {
-          await updateTask(user.uid, task.id, {
-            channel: result.draft.channel,
-            title: result.relevance.suggestedAction,
-            draft: "",
-            dueDate: result.draft.dueDate,
-          });
-          setTask({ ...task, channel: result.draft.channel, draft: "", title: result.relevance.suggestedAction });
-        }
-      } else if (task) {
-        await updateTask(user.uid, task.id, {
-          channel: result.draft.channel,
-          title: result.structuredNote.followUpPromise || result.draft.title,
-          draft: result.draft.body,
-          dueDate: result.draft.dueDate,
-        });
-        setTask({ ...task, channel: result.draft.channel, draft: result.draft.body, title: result.draft.title });
-      } else if (result.draft.body.trim()) {
-        const created = await createTask(user.uid, {
-          contactId: contact.id,
-          eventId: contact.eventId,
-          contactName: contact.name,
-          cardUid: contact.cardUid,
-          channel: result.draft.channel,
-          title: result.structuredNote.followUpPromise || result.draft.title,
-          draft: result.draft.body,
-          dueDate: result.draft.dueDate || addDays(todayISO(), 1),
-        });
-        setTask({
-          id: created,
-          ownerId: user.uid,
-          contactId: contact.id,
-          eventId: contact.eventId,
-          contactName: contact.name,
-          cardUid: contact.cardUid,
-          channel: result.draft.channel,
-          title: result.structuredNote.followUpPromise || result.draft.title,
-          draft: result.draft.body,
-          dueDate: result.draft.dueDate || addDays(todayISO(), 1),
-          status: "open",
-          createdAt: new Date().toISOString(),
-        });
+      await applyUnderstandResult(user.uid, contact, result, task);
+      const nextContact = await getContact(user.uid, contact.id);
+      const nextTask = await openTaskForContact(user.uid, contact.id);
+      if (nextContact) setContact(nextContact);
+      setTask(nextTask);
+      taskRef.current = nextTask;
+      if (nextTask) {
+        setChannel(nextTask.channel);
+        setDraft(nextTask.draft);
+      } else if (!task?.draftEditedAt) {
+        setChannel(result.draft.channel);
+        setDraft(result.draft.body);
       }
       dirtyDraft.current = false;
-      setChannel(result.draft.channel);
-      setDraft(result.draft.body);
     } catch (err) {
       if (isPaywalled(err)) {
         setPaywalled(true);
@@ -280,8 +246,8 @@ export default function PersonPage() {
       dirtyDraft.current = false;
       setDraft(result.body);
       if (task) {
-        await updateTask(user.uid, task.id, { channel: next, draft: result.body, title: result.title });
-        setTask({ ...task, channel: next, draft: result.body, title: result.title });
+        await updateTask(user.uid, task.id, { channel: next, draft: result.body, title: result.title, draftEditedAt: "" });
+        setTask({ ...task, channel: next, draft: result.body, title: result.title, draftEditedAt: "" });
       }
     } catch (err) {
       if (isPaywalled(err)) {
@@ -448,7 +414,7 @@ export default function PersonPage() {
               ) : null}
               {nextStep ? <p className="mt-1 text-sm font-semibold text-accent">Next: {nextStep}</p> : null}
               <div className="mt-3">
-                <InPlayBadge show={contact.alreadyInPlay} />
+                <InPlayBadge show={contact.alreadyInPlay} heldBy={contact.alreadyInPlayBy} />
               </div>
               {event ? (
                 <Link href={`/events/${event.id}`} className="mt-2 inline-block text-sm font-semibold text-accent">
@@ -464,6 +430,10 @@ export default function PersonPage() {
               reason={paywallReason}
               body="Scoring and drafts after your first event need Individual, a Team seat, or a seat paid for that event. This person stays on your account."
             />
+          ) : null}
+
+          {contactNeedsScore(contact) ? (
+            <p className="rounded-2xl bg-[#fff8e8] px-4 py-3 text-sm">Ranking when you’re back online.</p>
           ) : null}
 
           {contact.relevance ? (
@@ -570,7 +540,7 @@ export default function PersonPage() {
           </Fold>
 
           {contact.rawNote && !editing ? (
-            <Fold title="Your note">
+            <Fold title="Your note" open>
               <p className="whitespace-pre-wrap">{contact.rawNote}</p>
             </Fold>
           ) : null}
